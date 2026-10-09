@@ -1,0 +1,181 @@
+<mxfile host="app.diagrams.net" modified="2026-10-09T00:00:00.000Z" agent="OpenCode" version="24.0.0" type="device">
+  <diagram id="dms-arch" name="Architecture">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1720" pageHeight="1250" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="c_clients" value="External Actors &amp; Source Systems" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=14;fontStyle=1;fontColor=#1f3864;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="1620" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="b1" value="&lt;b&gt;School Staff&lt;/b&gt;&lt;br&gt;Browser session&lt;br&gt;admin · registrar · hr · payroll" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="90" y="75" width="340" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="b2" value="&lt;b&gt;Source Systems&lt;/b&gt;&lt;br&gt;Employee Management · Online Admission&lt;br&gt;Enrollment · Payroll Management" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="520" y="75" width="420" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="b3" value="&lt;b&gt;API / Connector Clients&lt;/b&gt;&lt;br&gt;Bearer-token integrations" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="1030" y="75" width="380" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c_app" value="Laravel 12 Application  ·  PHP 8.2  ·  Composer-managed" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=14;fontStyle=1;fontColor=#1f3864;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="200" width="1620" height="620" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s_http" value="HTTP Layer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef4ff;strokeColor=#9dc3e6;verticalAlign=top;fontSize=12;fontStyle=1;fontColor=#203864;spacingTop=6;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="255" width="760" height="250" as="geometry" />
+        </mxCell>
+        <mxCell id="r1" value="&lt;b&gt;Routing&lt;/b&gt;&lt;br&gt;routes/web.php (session UI)&lt;br&gt;routes/api.php (/api/v1)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="95" y="300" width="340" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="r2" value="&lt;b&gt;Middleware&lt;/b&gt;&lt;br&gt;auth + CSRF (web)&lt;br&gt;throttle:6,1 login&lt;br&gt;IntegrationAuth (bearer token)&lt;br&gt;throttle:120,1 (api)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="460" y="300" width="345" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="r3" value="&lt;b&gt;Blade Views&lt;/b&gt;&lt;br&gt;workspace · login · layout" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="95" y="400" width="340" height="85" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s_app" value="Application / Domain Layer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef4ff;strokeColor=#9dc3e6;verticalAlign=top;fontSize=12;fontStyle=1;fontColor=#203864;spacingTop=6;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="860" y="255" width="770" height="250" as="geometry" />
+        </mxCell>
+        <mxCell id="a1" value="&lt;b&gt;Controllers&lt;/b&gt;&lt;br&gt;DocumentController&lt;br&gt;DriveController&lt;br&gt;HistoryController" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="885" y="300" width="340" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="a2" value="&lt;b&gt;DocumentService&lt;/b&gt;&lt;br&gt;actor · sources · scope&lt;br&gt;upload · versioning · checksum&lt;br&gt;audit · events · idempotency" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="1250" y="300" width="355" height="170" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s_cmd" value="Console, Config &amp; Security" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef4ff;strokeColor=#9dc3e6;verticalAlign=top;fontSize=12;fontStyle=1;fontColor=#203864;spacingTop=6;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="525" width="760" height="270" as="geometry" />
+        </mxCell>
+        <mxCell id="cm1" value="&lt;b&gt;Artisan Commands&lt;/b&gt;&lt;br&gt;dms:connector — issue token&lt;br&gt;dms:scan — retry ClamAV" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="95" y="570" width="340" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="cm2" value="&lt;b&gt;config/dms.php&lt;/b&gt;&lt;br&gt;systems · categories&lt;br&gt;scanner · demo_password" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="460" y="570" width="345" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="cm3" value="&lt;b&gt;Security Controls&lt;/b&gt;&lt;br&gt;bcrypt (12 rounds) · CSRF · SHA-256 checksums&lt;br&gt;append-only audit · actor-scoped idempotency keys" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="95" y="675" width="710" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s_ui" value="Frontend (prebuilt, no build step)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef4ff;strokeColor=#9dc3e6;verticalAlign=top;fontSize=12;fontStyle=1;fontColor=#203864;spacingTop=6;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="860" y="525" width="770" height="270" as="geometry" />
+        </mxCell>
+        <mxCell id="ui1" value="&lt;b&gt;Vendored UI (public/vendor)&lt;/b&gt;&lt;br&gt;Bootstrap 5.3.8 (CSS only)&lt;br&gt;jQuery 3.7.1 · jQuery UI 1.14.2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="885" y="570" width="340" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="ui2" value="&lt;b&gt;Custom Assets (public/assets)&lt;/b&gt;&lt;br&gt;app.js · drive.js · dialog-scroll.js&lt;br&gt;app.css · drive-layout.css" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="1250" y="570" width="355" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="ui3" value="&lt;b&gt;No Node / npm / Vite&lt;/b&gt; — assets are pre-built and served directly from public/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="885" y="675" width="720" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c_data" value="Data &amp; Storage" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=14;fontStyle=1;fontColor=#1f3864;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="850" width="1010" height="330" as="geometry" />
+        </mxCell>
+        <mxCell id="db1" value="&lt;b&gt;MySQL&lt;/b&gt;&lt;br&gt;school_dms (InnoDB)&lt;br&gt;&lt;br&gt;documents · document_versions&lt;br&gt;audit_entries · integration_events&lt;br&gt;idempotency_requests · integration_accounts&lt;br&gt;source_records · source_history&lt;br&gt;folders · document_stars · document_shares&lt;br&gt;users · sessions · cache · jobs" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;align=center;verticalAlign=top;spacingTop=30;" vertex="1" parent="1">
+          <mxGeometry x="70" y="900" width="320" height="260" as="geometry" />
+        </mxCell>
+        <mxCell id="fs1" value="&lt;b&gt;Private Local Filesystem&lt;/b&gt;&lt;br&gt;storage/app/private/documents/&amp;lt;version&amp;gt;&lt;br&gt;checksum-verified immutable versions" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="420" y="900" width="600" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="q1" value="&lt;b&gt;DB-backed Services&lt;/b&gt;&lt;br&gt;sessions · cache · queue (jobs)&lt;br&gt;All use the database driver in this baseline" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="420" y="1010" width="600" height="150" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c_ext" value="External Services &amp; Infrastructure" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=14;fontStyle=1;fontColor=#1f3864;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="1090" y="850" width="570" height="330" as="geometry" />
+        </mxCell>
+        <mxCell id="ext1" value="&lt;b&gt;ClamAV (clamscan)&lt;/b&gt;&lt;br&gt;Symfony Process · 45s timeout&lt;br&gt;exit 0=Clean · 1=Quarantined · else Failed&lt;br&gt;Pending/Failed blocked from preview &amp;amp; download" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="900" width="510" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="ext2" value="&lt;b&gt;Optional Infrastructure&lt;/b&gt;&lt;br&gt;Mail: log driver · Broadcast: log driver&lt;br&gt;Queue: database driver" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="1045" width="510" height="115" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#4d4d4d;fontSize=10;" edge="1" parent="1" source="b1" target="r1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e1l" value="session UI" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;" vertex="1" connectable="0" parent="e1">
+          <mxGeometry x="-0.1" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#4d4d4d;fontSize=10;" edge="1" parent="1" source="b2" target="r2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2l" value="push / API" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;" vertex="1" connectable="0" parent="e2">
+          <mxGeometry x="-0.1" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#4d4d4d;fontSize=10;" edge="1" parent="1" source="b3" target="r2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3l" value="bearer token" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;" vertex="1" connectable="0" parent="e3">
+          <mxGeometry x="-0.1" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#4d4d4d;fontSize=10;" edge="1" parent="1" source="r1" target="r2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#4d4d4d;fontSize=10;" edge="1" parent="1" source="r2" target="a1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5l" value="authorized" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;" vertex="1" connectable="0" parent="e5">
+          <mxGeometry x="-0.1" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#4d4d4d;fontSize=10;" edge="1" parent="1" source="a1" target="a2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6l" value="service calls" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;" vertex="1" connectable="0" parent="e6">
+          <mxGeometry x="-0.1" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#4d4d4d;fontSize=10;" edge="1" parent="1" source="a1" target="r3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7l" value="render" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;" vertex="1" connectable="0" parent="e7">
+          <mxGeometry x="-0.1" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#4d4d4d;fontSize=10;" edge="1" parent="1" source="r3" target="b1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8l" value="HTML" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;" vertex="1" connectable="0" parent="e8">
+          <mxGeometry x="-0.1" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#4d4d4d;fontSize=10;" edge="1" parent="1" source="a2" target="db1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9l" value="SQL" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;" vertex="1" connectable="0" parent="e9">
+          <mxGeometry x="-0.1" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#4d4d4d;fontSize=10;" edge="1" parent="1" source="a2" target="fs1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10l" value="files" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;" vertex="1" connectable="0" parent="e10">
+          <mxGeometry x="-0.1" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#d79b00;fontSize=10;" edge="1" parent="1" source="a2" target="ext1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11l" value="scan" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;" vertex="1" connectable="0" parent="e11">
+          <mxGeometry x="-0.1" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#4d4d4d;fontSize=10;" edge="1" parent="1" source="cm1" target="db1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12l" value="tokens" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;" vertex="1" connectable="0" parent="e12">
+          <mxGeometry x="-0.1" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#d79b00;fontSize=10;" edge="1" parent="1" source="cm2" target="ext1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13l" value="scanner path" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;" vertex="1" connectable="0" parent="e13">
+          <mxGeometry x="-0.1" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#82b366;fontSize=10;" edge="1" parent="1" source="ui2" target="b1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14l" value="static assets" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;" vertex="1" connectable="0" parent="e14">
+          <mxGeometry x="-0.1" relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,36 @@
+html { scrollbar-gutter: stable; }
+body.dialog-scroll-locked { position:fixed; width:100%; overflow:hidden; }
+body.dialog-scroll-locked .app-shell, body.dialog-scroll-locked .main-shell { overflow:hidden; }
+.ui-dialog { overscroll-behavior:contain; }
+.ui-dialog-content { overscroll-behavior:contain; touch-action:pan-y; }
+#drive-panel { border:0; border-radius:18px; }
+#drive-items { padding:20px 24px; gap:20px; }
+.drive-card { position:relative; background:#f1f6f2; border:0; border-radius:12px; padding:16px; }
+.drive-card .drive-name { padding:0 30px 0 0; min-width:0; }
+.drive-name strong { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:14px; }
+.drive-symbol { font-size:24px; color:#425b4b; }
+.drive-owner,.drive-date,.drive-size { font-size:12px; color:#65756b; display:block; margin-top:8px; }
+.drive-thumbnail { height:130px; background:white; border-radius:8px; margin:14px 0; display:grid; place-content:center; text-align:center; color:#075b3d; }
+.drive-thumbnail > span { font-size:28px; font-weight:700; }
+.drive-thumbnail small { margin:8px 0; }
+.folder-card .drive-thumbnail,.folder-card .drive-date,.folder-card .drive-size { display:none; }
+.drive-menu { position:absolute; top:12px; right:10px; z-index:2; }
+.drive-menu summary { list-style:none; cursor:pointer; font-size:24px; width:28px; text-align:center; border-radius:20px; }
+.drive-menu summary::-webkit-details-marker { display:none; }
+.drive-menu summary:hover { background:#dce9df; }
+.drive-menu > div { position:absolute; right:0; top:30px; background:white; padding:8px; border-radius:10px; box-shadow:0 6px 30px #173d2933; width:170px; }
+.drive-menu > div > * { display:block; text-align:left; width:100%; }
+.drive-columns { display:none; }
+.drive-list .drive-columns,.drive-list > .drive-card { display:grid; grid-template-columns:minmax(200px,2fr) minmax(140px,1fr) 130px 90px 35px; gap:15px; align-items:center; }
+.drive-list .drive-columns { padding:12px 16px; color:#65756b; font-size:12px; border-bottom:1px solid #dce8df; }
+.drive-list > .drive-card { margin:0; padding:16px; background:white; border-radius:0; border-bottom:1px solid #e3ebe5; }
+.drive-list > .drive-card:hover { background:#f1f6f2; }
+.drive-list .drive-thumbnail { display:none; }
+.drive-list .drive-owner,.drive-list .drive-date,.drive-list .drive-size { margin:0; display:block; }
+.drive-list > .drive-card > .drive-menu { position:relative; top:auto; right:auto; }
+.suggestion-title { grid-column:1/-1; font-size:17px; padding:12px 0; margin:0; }
+.suggestion-title small { color:#65756b; font-size:12px; margin-left:12px; }
+.suggested-folders { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:16px; grid-column:1/-1; margin-bottom:15px; }
+.suggested-folders .drive-owner { margin-left:36px; }
+.suggested-folders .drive-date,.suggested-folders .drive-size { display:none; }
+@media(max-width:750px) { .drive-list .drive-columns,.drive-list > .drive-card { grid-template-columns:minmax(150px,1fr) 100px 35px; } .drive-list > .drive-card > .drive-owner,.drive-list > .drive-card > .drive-size,.drive-list .drive-columns > span:nth-child(2),.drive-list .drive-columns > span:nth-child(4) { display:none; } #drive-items { padding:12px; } }

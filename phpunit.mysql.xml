@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit bootstrap="vendor/autoload.php" colors="true">
+  <testsuites><testsuite name="MySQL"><directory>tests/Feature</directory><directory>tests/Unit</directory></testsuite></testsuites>
+  <php>
+    <env name="APP_ENV" value="testing" force="true"/>
+    <env name="DB_CONNECTION" value="mysql" force="true"/>
+    <env name="DB_DATABASE" value="school_dms_test" force="true"/>
+    <env name="DB_URL" value="" force="true"/>
+    <env name="DMS_CLAMSCAN" value="" force="true"/>
+    <env name="CACHE_STORE" value="array" force="true"/>
+    <env name="SESSION_DRIVER" value="array" force="true"/>
+    <env name="QUEUE_CONNECTION" value="sync" force="true"/>
+    <env name="MAIL_MAILER" value="array" force="true"/>
+    <env name="BCRYPT_ROUNDS" value="4"/>
+  </php>
+</phpunit>
