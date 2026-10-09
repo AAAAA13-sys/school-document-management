@@ -20,7 +20,7 @@ class DemoSeeder extends Seeder
         if (! $password) {
             throw new \RuntimeException('Set DMS_DEMO_PASSWORD before seeding.');
         }
-        foreach (['admin' => 'Records Administrator', 'registrar' => 'Admissions Registrar', 'hr' => 'HR Officer', 'payroll' => 'Payroll Officer'] as $role => $name) {
+        foreach (['student' => 'Demo Student', 'teacher' => 'Demo Teacher', 'employee' => 'Demo Employee', 'admin' => 'Records Administrator', 'registrar' => 'Admissions Registrar', 'hr' => 'HR Officer', 'payroll' => 'Payroll Officer'] as $role => $name) {
             $u = User::firstOrNew(['email' => $role.'@demo.school']);
             $u->forceFill(['name' => $name, 'password' => $password, 'role' => $role, 'school_id' => 'DEMO-SCHOOL', 'campus' => 'Main campus', 'active' => true])->save();
         }

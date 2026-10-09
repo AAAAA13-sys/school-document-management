@@ -2,9 +2,11 @@
 
 The file workspace adds nested source-scoped folders and breadcrumbs, grid/list layouts, name search, name/modified sorting, paginated files, Recent, personal stars, recoverable Trash, rename, move, file details/version history, safe previews and named sharing.
 
-Folders belong to a source system and school/campus, not an individual Google account. “My files” means files in the staff member's permitted workspace. Moving a file does not change its source, subject, classification or ownership. Folder creation and rename are supported; folder deletion/movement and bulk operations are not included. Files can be moved between folders of the same source or returned to the root.
+Folders belong to a source system and school/campus and carry a local owner. Students, teachers and employees see their own folders; office/admin roles see their permitted institutional workspace. My files expands into a nested folder list in the sidebar when folders exist. Moving a file does not change its source, subject, classification or ownership. Folder creation and rename are supported; folder deletion/movement and bulk operations are not included. Files can be moved between folders of the same source or returned to the root.
 
 ## Upload and preview
+
+The sidebar **+ New** menu contains New folder, File upload and Folder upload. Folder upload accepts up to 50 supported files per batch, preserves nested folders, and asks for common record details once. Uploads run sequentially through the existing authorized APIs; completed items remain saved if a later item fails. Retry reuses stored receipts and existing folders. Each file still needs its own successful security scan. Directory selection requires browser support. Client retry behavior is checked with `node tests/Frontend/folder-upload.test.cjs`; native picker behavior needs browser verification.
 
 Drop one file onto the file area to open the existing metadata/upload dialog, or use Upload document. Required school-record metadata and scan gating remain mandatory. Accepted files remain PDF/PNG/JPG/TXT up to 10 MB. A successful upload in a folder is moved there through a second authorized, revision-checked operation; if that operation fails the file remains safely in the root and an error is shown.
 
@@ -16,10 +18,10 @@ Trash is recoverable, with no automatic purge or permanent-delete button. It pre
 
 ## Sharing
 
-Shares pin a clean file version to a named active user for at most 30 days. The recipient must already have the same school/campus/source permission; a link never expands those permissions. The recipient signs in before downloading. Unknown, expired, revoked or wrong-recipient links fail. Grant creation, revocation and access are audited. Grant owners see/revoke their grants from the Share dialog.
+Shares pin a clean file version to a named active account within the same school/campus for at most 30 days. They explicitly grant access to that document, without granting access to its source system or other documents. Shared with me lists active grants. Viewers read/download the shared version; commenters also add comments; editors also rename and upload immutable versions with revision checks. Recipients cannot move, trash or reshare through a grant. New versions undergo malware scanning and do not replace the version pinned by an existing link. Owners can read received comments in document details and revoke grants in the Share dialog. Expiry, revocation, account deactivation, loss of sender access and Trash block access.
 
-Anonymous public links, external recipients, permission elevation, collaborative editing, Google integration and Office previews are not implemented. The other groups still connect through the existing API contract. This increment does not claim the entire 45-story baseline or production hardening is complete.
+The page title has a circled question mark with page-specific help on hover or keyboard focus. Anonymous/public links, external recipients and browser-based document content editing are not implemented.
 
 ## Verification
 
-The isolated suite covers organization, personal stars, stale revisions, trash/restore, source boundaries, scan-gated/checksummed previews and recipient/expiry/revocation checks. Manual browser checks cover grid browsing, synthetic folder creation and the preview dialog. Real multi-user production load and live external connections remain unverified.
+The isolated suite covers organization, personal stars, stale revisions, trash/restore, source boundaries, scan-gated/checksummed previews and recipient/expiry/revocation checks. Earlier manual checks covered the initial grid/preview UI. The current sharing/folder/header changes have automated backend tests and JavaScript/Blade checks; browser visual checks are unavailable in this session. Real multi-user production load and live external connections remain unverified.

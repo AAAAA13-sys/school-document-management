@@ -31,4 +31,5 @@ jobs:
       - run: cp .env.example .env
       - run: php artisan key:generate
       - run: php artisan test --compact
+      - run: node tests/Frontend/folder-upload.test.cjs
       - run: php vendor/phpunit/phpunit/phpunit --configuration phpunit.mysql.xml

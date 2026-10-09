@@ -34,6 +34,7 @@ These are logical responsibilities inside one deployable Laravel application. Th
 | DriveController | Folders, rename/move, personal stars, recoverable Trash, private previews and named expiring shares |
 | HistoryController | Source snapshots, immutable received events, revision ordering, duplicate/conflict handling and scoped history reads |
 | IntegrationAuth | Hashed bearer-token lookup; binds source, school and campus to the request |
+| AccountController / personal ownership | Admin-only account creation and role/status changes; personal roles are restricted to server-assigned document/folder owners (see RBAC.md) |
 | Eloquent User model | Authentication and user identity; other existing persistence uses Laravel's database query builder and transactions |
 | Artisan commands | Connector issuance and pending/failed malware-scan retry |
 
@@ -60,7 +61,7 @@ Bytes are stored under `storage/app/private/documents/<version UUID>`. The datab
 
 **History:** authenticate source token → validate event → identify scoped source record → transaction and record lock/compare-and-set → preserve receipt → update snapshot only for a newer revision → audit → acknowledge. Unique constraints reject competing revision/event identities. Retry conflicts with the same event ID. A source deletion becomes a tombstone and does not purge historical evidence.
 
-**Download/share:** authenticate active user → recheck school/campus/source → enforce live version/grant and clean scan → verify checksum → audit → return private no-store response. Shares do not expand recipient permissions. Trash blocks active retrieval and remains restorable.
+**Download/share:** authenticate active user → recheck school/campus/source → enforce live version/grant and clean scan → verify checksum → audit → return private no-store response. Named shares grant document-specific viewer/commenter/editor access within the same school/campus; they do not grant source-wide access. Trash blocks active retrieval and remains restorable.
 
 **Source onboarding:** agree identifiers/allowed fields and versions → consistent initial snapshot/change cursor → deliver complete snapshots → source-side outbox/retries → reconcile missing revisions. Outboxes in the other groups' databases and pull adapters are their coordinated integration work, not implemented DMS features.
 

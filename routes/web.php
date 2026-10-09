@@ -18,7 +18,13 @@ Route::post('/login', function (Request $r) {
     return redirect('/');
 })->middleware('throttle:6,1');
 Route::middleware('auth')->group(function () {
-    Route::get('/', fn () => view('workspace'));
+    Route::get('/', function (Request $r) {
+        app(\App\Services\DocumentService::class)->actor($r);
+        return view('workspace');
+    });
+    Route::get('/accounts', [\App\Http\Controllers\AccountController::class, 'index']);
+    Route::post('/accounts', [\App\Http\Controllers\AccountController::class, 'store'])->middleware('throttle:20,1');
+    Route::patch('/accounts/{id}', [\App\Http\Controllers\AccountController::class, 'update'])->whereNumber('id');
     Route::post('/logout', function (Request $r) {
         Auth::logout();
         $r->session()->invalidate();
@@ -27,8 +33,14 @@ Route::middleware('auth')->group(function () {
         return redirect('/login');
     });
     Route::prefix('workspace')->group(function () {
+        Route::get('/shared-with-me', [\App\Http\Controllers\ShareController::class, 'index']);
+        Route::get('/shared/{id}/comments', [\App\Http\Controllers\ShareController::class, 'comments']);
+        Route::post('/shared/{id}/comments', [\App\Http\Controllers\ShareController::class, 'comment'])->middleware('throttle:30,1');
+        Route::patch('/shared/{id}/document', [\App\Http\Controllers\ShareController::class, 'edit']);
+        Route::post('/shared/{id}/versions', [\App\Http\Controllers\ShareController::class, 'replace']);
         Route::get('/drive', [DriveController::class, 'index']);
         Route::get('/folders', [DriveController::class, 'folders']);
+        Route::get('/folders/{id}', [DriveController::class, 'folderDetails']);
         Route::post('/folders', [DriveController::class, 'createFolder']);
         Route::patch('/folders/{id}', [DriveController::class, 'updateFolder']);
         Route::post('/drive/{id}/action', [DriveController::class, 'action']);

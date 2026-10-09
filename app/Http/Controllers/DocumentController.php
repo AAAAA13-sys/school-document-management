@@ -47,7 +47,9 @@ class DocumentController extends Controller
             unset($x->storage_key);
         }$this->dms->log($a, 'Document viewed', $id);
 
-        return response()->json(['document' => $d, 'versions' => $v]);
+        $comments = DB::table('document_comments')->join('users', 'users.id', '=', 'document_comments.user_id')->where('document_id', $d->id)->orderByDesc('document_comments.id')->limit(100)->get(['body', 'users.name', 'document_comments.created_at']);
+        $activity = DB::table('audit_entries')->where('document_id', $d->id)->where('school_id', $a->school_id)->where('campus', $a->campus)->orderByDesc('id')->limit(50)->get(['action','actor','created_at']);
+        return response()->json(['document' => $d, 'versions' => $v, 'comments' => $comments, 'activity' => $activity]);
     }
 
     public function store(Request $r)

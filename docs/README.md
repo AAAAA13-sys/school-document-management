@@ -3,6 +3,7 @@
 Read **ARCHITECTURE.md** first for the current four-tier design, five-database boundaries, stack, implemented flows and deployment limits. **ARCHITECTURE.drawio** is its editable diagram. **TECH-STACK-CURRENT.csv** is the corrected stack inventory. The older TECH-STACK.csv was locked by another application during this update and still contains historical SQLite assumptions.
 
 - WORKFLOW-OWNERSHIP.md: current rule that DMS does not approve/reject business documents.
+- RBAC.md: student, teacher/employee, admin and office roles; personal ownership and account management.
 - DRIVE-WORKSPACE.md: implemented file organization, previews, shares and limits.
 - HISTORY-SYNC.md: inbound source snapshot/history contract and race protections.
 - INTEGRATION.md: document upload/download and outgoing cursor feed.

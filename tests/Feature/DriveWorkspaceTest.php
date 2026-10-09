@@ -82,6 +82,7 @@ class DriveWorkspaceTest extends TestCase
         $file = $this->upload();
         $id = $file['document_id'];
         DB::table('document_versions')->where('id', $file['version_id'])->update(['scan' => 'Clean']);
+        $wrong->forceFill(['school_id' => 'OTHER-SCHOOL'])->save();
         $this->postJson('/workspace/drive/'.$id.'/shares', ['email' => $wrong->email, 'expires_at' => now()->addDay()->toIso8601String()])->assertForbidden();
         $grant = $this->postJson('/workspace/drive/'.$id.'/shares', ['email' => $recipient->email, 'expires_at' => now()->addDay()->toIso8601String()])->assertCreated()->json();
         $this->actingAs($wrong);

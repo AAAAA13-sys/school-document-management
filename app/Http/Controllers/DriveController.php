@@ -17,7 +17,7 @@ class DriveController extends Controller
     private function actor(Request $r): object
     {
         $a = $this->dms->actor($r);
-        abort_unless(! isset($a->source) && in_array($a->role, ['admin', 'registrar', 'hr', 'payroll']), 403);
+        abort_unless(! isset($a->source) && in_array($a->role, ['admin', 'registrar', 'hr', 'payroll', 'student', 'teacher', 'employee']), 403);
 
         return $a;
     }
@@ -77,6 +77,14 @@ class DriveController extends Controller
         return response()->json($this->dms->scope(DB::table('folders'), $a)->orderBy('name')->get());
     }
 
+    public function folderDetails(Request $r, string $id)
+    {
+        $a = $this->actor($r);
+        $f = $this->folder($id, $a);
+        $activity = DB::table('audit_entries')->where('school_id', $a->school_id)->where('campus', $a->campus)->where('detail', $id)->whereIn('action', ['Folder created','Folder renamed'])->orderByDesc('id')->limit(50)->get(['action','actor','created_at']);
+        return response()->json(['folder' => $f, 'activity' => $activity]);
+    }
+
     public function createFolder(Request $r)
     {
         $a = $this->actor($r);
@@ -87,7 +95,7 @@ class DriveController extends Controller
         }
         $id = (string) Str::uuid();
         DB::transaction(function () use ($id, $p, $a) {
-            DB::table('folders')->insert(['id' => $id, 'name' => $p['name'], 'source' => $p['source'], 'parent_id' => $p['parent_id'] ?? null, 'school_id' => $a->school_id, 'campus' => $a->campus, 'revision' => 1, 'created_at' => now(), 'updated_at' => now()]);
+            DB::table('folders')->insert(['id' => $id, 'owner_user_id' => $a->id, 'name' => $p['name'], 'source' => $p['source'], 'parent_id' => $p['parent_id'] ?? null, 'school_id' => $a->school_id, 'campus' => $a->campus, 'revision' => 1, 'created_at' => now(), 'updated_at' => now()]);
             $this->dms->log($a, 'Folder created', null, $id);
         });
 
@@ -176,16 +184,16 @@ class DriveController extends Controller
     public function share(Request $r, string $id)
     {
         $a = $this->actor($r);
-        $p = $r->validate(['email' => 'required|email', 'expires_at' => 'required|date|after:now|before:'.now()->addDays(30)->toIso8601String()]);
+        $p = $r->validate(['email' => 'required|email', 'permission' => 'sometimes|required|in:viewer,commenter,editor', 'expires_at' => 'required|date|after:now|before:'.now()->addDays(30)->toIso8601String()]);
         $d = $this->dms->document($id, $a);
         $recipient = User::where('email', $p['email'])->where('active', true)->first();
         abort_unless($recipient, 422, 'Active recipient not found.');
-        abort_unless($recipient->school_id === $a->school_id && $recipient->campus === $a->campus && in_array($d->source, $this->dms->sources($recipient)), 403, 'Recipient must already have access to this source and campus.');
+        abort_unless($recipient->school_id === $a->school_id && $recipient->campus === $a->campus && in_array($recipient->role, ['student','teacher','employee','admin','registrar','hr','payroll']), 403, 'Recipient must be an active workspace user in your school and campus.');
         $v = $this->dms->latest($id);
         abort_unless($v->scan === 'Clean', 409, 'Only clean versions can be shared.');
         $grant = (string) Str::uuid();
         DB::transaction(function () use ($grant, $id, $v, $a, $recipient, $p) {
-            DB::table('document_shares')->insert(['id' => $grant, 'document_id' => $id, 'version_id' => $v->id, 'created_by' => $a->id, 'recipient_id' => $recipient->id, 'expires_at' => Carbon::parse($p['expires_at'])->utc(), 'created_at' => now()]);
+            DB::table('document_shares')->insert(['id' => $grant, 'permission' => $p['permission'] ?? 'viewer', 'document_id' => $id, 'version_id' => $v->id, 'created_by' => $a->id, 'recipient_id' => $recipient->id, 'expires_at' => Carbon::parse($p['expires_at'])->utc(), 'created_at' => now()]);
             $this->dms->log($a, 'Document shared', $id, 'Grant '.$grant);
         });
 
@@ -213,6 +221,6 @@ class DriveController extends Controller
         abort_unless($grant, 404);
         $this->dms->log($a, 'Share accessed', $grant->document_id, $id);
 
-        return app(DocumentController::class)->download($r, $grant->version_id);
+        return app(ShareController::class)->download($r, $id);
     }
 }
