@@ -35,14 +35,14 @@ class DocumentWorkflowTest extends TestCase
         $this->getJson('/api/v1/documents')->assertUnauthorized();
     }
 
-    public function test_upload_is_private_and_blocked_without_scanner(): void
+    public function test_upload_is_private_and_immediately_available(): void
     {
         Storage::fake('local');
         $this->actingAs($this->account());
-        $r = $this->upload()->assertCreated()->assertJsonPath('scan', 'Pending');
+        $r = $this->upload()->assertCreated()->assertJsonPath('scan', 'Not required');
         $v = DB::table('document_versions')->first();
         Storage::disk('local')->assertExists($v->storage_key);
-        $this->getJson('/workspace/files/'.$r['version_id'])->assertForbidden();
+        $this->get('/workspace/files/'.$r['version_id'])->assertOk();
         $this->assertDatabaseCount('integration_events', 1);
     }
 
@@ -109,7 +109,7 @@ class DocumentWorkflowTest extends TestCase
         DB::table('document_versions')->update(['scan' => 'Clean', 'status' => 'Approved']);
         $next = $this->upload(['document_id' => $r['document_id'], 'revision' => 1], 'test-key-0002')->assertCreated()->assertJsonPath('version', 2);
         $this->assertDatabaseHas('document_versions', ['id' => $r['version_id'], 'status' => 'Approved']);
-        $this->assertSame('Pending', $next['scan']);
+        $this->assertSame('Not required', $next['scan']);
         $this->upload(['document_id' => $r['document_id'], 'revision' => 1], 'test-key-0003')->assertConflict();
     }
 

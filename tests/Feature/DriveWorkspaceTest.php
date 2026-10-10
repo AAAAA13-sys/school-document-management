@@ -60,12 +60,12 @@ class DriveWorkspaceTest extends TestCase
         $this->getJson('/workspace/drive')->assertJsonCount(0, 'files.data');
     }
 
-    public function test_preview_is_scan_gated_and_integrity_checked(): void
+    public function test_preview_is_immediately_available_and_integrity_checked(): void
     {
         $this->actingAs($this->user());
         $file = $this->upload();
         $url = '/workspace/preview/'.$file['version_id'];
-        $this->getJson($url)->assertForbidden();
+        $this->get($url)->assertOk();
         DB::table('document_versions')->where('id', $file['version_id'])->update(['scan' => 'Clean']);
         $this->get($url)->assertOk()->assertHeader('X-Content-Type-Options', 'nosniff')->assertHeader('Content-Security-Policy', "sandbox; default-src 'none'; frame-ancestors 'self'");
         $v = DB::table('document_versions')->first();

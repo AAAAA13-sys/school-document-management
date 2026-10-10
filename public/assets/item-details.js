@@ -18,7 +18,7 @@ $(function () {
             if(selection.shared)html+='<p>Your permission: '+escape(d.permission)+'.</p>';
             else html+='<small>Named shares you created</small>'+(data.grants?.length?data.grants.map(g=>'<p>'+escape(g.email)+'<br><small>'+escape(g.permission)+' · expires '+escape(date(g.expires_at))+'</small></p>').join(''):'<p>No active named shares. Workspace role permissions still apply.</p>')+'<button class="btn btn-quiet inspector-action" data-action="share">Manage access</button>';
             html+='<button class="btn btn-green inspector-action mt-3" data-action="openFile">'+(selection.shared?'Open shared document':'Open document & versions')+'</button>';
-            if(!selection.shared&&d.current.scan==='Clean')html+='<a class="btn btn-quiet mt-3" href="/workspace/files/'+escape(d.current.id)+'">Download</a>';
+            if(!selection.shared)html+='<a class="btn btn-quiet mt-3" href="/workspace/files/'+escape(d.current.id)+'">Download</a>';
         }
         $('#inspector-details').html(html);activity(data.activity||[]);
     }

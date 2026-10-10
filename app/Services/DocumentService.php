@@ -6,7 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Symfony\Component\Process\Process;
+use Illuminate\Database\UniqueConstraintViolationException;
 
 class DocumentService
 {
@@ -66,6 +66,27 @@ class DocumentService
         return DB::table('document_versions')->where('document_id', $id)->orderByDesc('number')->first();
     }
 
+    public static function nameKeys(object $owner, string $filename, string $title): array
+    {
+        $scope = json_encode([$owner->school_id, $owner->campus, $owner->owner_user_id ?? ('source:'.$owner->source)]);
+        $normalize = fn ($name) => mb_strtolower(trim($name), 'UTF-8');
+        return ['filename_key' => hash('sha256', $scope.':'.$normalize($filename)), 'display_name_key' => hash('sha256', $scope.':'.$normalize($title))];
+    }
+
+    public function assertUniqueNames(array $keys, ?string $except = null): void
+    {
+        $q = DB::table('documents')->where(fn ($q) => $q->where('filename_key', $keys['filename_key'])->orWhere('display_name_key', $keys['display_name_key']));
+        if ($except) $q->where('id', '!=', $except);
+        abort_if($q->exists(), 409, 'A file with this name already exists in your workspace, including Trash. Choose a different name.');
+    }
+
+    public function renameKeys(object $d, string $title): array
+    {
+        $keys = self::nameKeys($d, $this->latest($d->id)->filename, $title);
+        $this->assertUniqueNames($keys, $d->id);
+        return $keys;
+    }
+
     public function upload(Request $r, object $a, bool $sharedEditor = false): array
     {
         abort_unless(isset($a->source) || in_array($a->role, ['admin', 'registrar', 'hr', 'payroll', 'student', 'teacher', 'employee']), 403);
@@ -114,32 +135,26 @@ class DocumentService
                     foreach (['subject', 'reference', 'source', 'category', 'classification'] as $f) {
                         abort_unless($p[$f] === $d->$f, 422, 'Replacement must preserve ownership and classification.');
                     }
+                    $keys = $this->nameKeys($d, $name, $d->title);
+                    $this->assertUniqueNames($keys, $id);
                     $number = $this->latest($id)->number + 1;
-                    $changed = DB::table('documents')->where('id', $id)->where('revision', $d->revision)->update(['revision' => $d->revision + 1, 'updated_at' => now()]);
+                    $changed = DB::table('documents')->where('id', $id)->where('revision', $d->revision)->update($keys + ['revision' => $d->revision + 1, 'updated_at' => now()]);
                     abort_unless($changed, 409, 'Document changed. Refresh and retry.');
                 } else {
-                    DB::table('documents')->insert(['id' => $id, 'owner_user_id' => isset($a->source) ? null : $a->id, 'title' => $p['title'], 'subject' => $p['subject'], 'reference' => $p['reference'], 'source' => $p['source'], 'category' => $p['category'], 'classification' => $p['classification'], 'school_id' => $a->school_id, 'campus' => $a->campus, 'revision' => 1, 'created_at' => now(), 'updated_at' => now()]);
+                    $owner = (object) ['school_id'=>$a->school_id, 'campus'=>$a->campus, 'owner_user_id'=>isset($a->source)?null:$a->id, 'source'=>$p['source']];
+                    $keys = $this->nameKeys($owner, $name, $p['title']);
+                    $this->assertUniqueNames($keys);
+                    DB::table('documents')->insert($keys + ['id' => $id, 'owner_user_id' => isset($a->source) ? null : $a->id, 'title' => $p['title'], 'subject' => $p['subject'], 'reference' => $p['reference'], 'source' => $p['source'], 'category' => $p['category'], 'classification' => $p['classification'], 'school_id' => $a->school_id, 'campus' => $a->campus, 'revision' => 1, 'created_at' => now(), 'updated_at' => now()]);
                 }
                 $version = (string) Str::uuid();
                 $stored = 'documents/'.$version;
                 abort_unless(Storage::disk('local')->put($stored, $bytes), 503, 'Private file storage is unavailable.');
-                $scan = 'Pending';
-                if ($scanner = config('dms.scanner')) {
-                    try {
-                        $proc = new Process([$scanner, '--no-summary', Storage::disk('local')->path($stored)]);
-                        $proc->setTimeout(45)->run();
-                        $scan = match ($proc->getExitCode()) {
-                            0 => 'Clean',1 => 'Quarantined',default => 'Failed'
-                        };
-                    } catch (\Throwable) {
-                        $scan = 'Failed';
-                    }
-                }
-                $status = $scan === 'Clean' ? 'Available' : 'Awaiting scan';
+                $scan = 'Not required';
+                $status = 'Available';
                 DB::table('document_versions')->insert(['id' => $version, 'document_id' => $id, 'number' => $number, 'filename' => $name, 'media_type' => $types[$ext], 'size' => strlen($bytes), 'checksum' => $hash, 'storage_key' => $stored, 'scan' => $scan, 'status' => $status, 'actor' => $a->name, 'actor_key' => (isset($a->source) ? 'connector:' : 'user:').$a->id, 'expires_at' => $p['expires_at'] ?? null, 'created_at' => now()]);
                 $d = $sharedEditor ? DB::table('documents')->where('school_id', $a->school_id)->where('campus', $a->campus)->whereNull('trashed_at')->where('id', $id)->first() : $this->document($id, $a);
                     abort_unless($d, 404);
-                $this->log($a, $number === 1 ? 'Document uploaded' : 'Version added', $id, 'Version '.$number.'; scan '.$scan);
+                $this->log($a, $number === 1 ? 'Document uploaded' : 'Version added', $id, 'Version '.$number);
                 $this->event($d, $number === 1 ? 'document.received' : 'document.version_added', $version);
                 $result = ['document_id' => $id, 'version_id' => $version, 'version' => $number, 'scan' => $scan, 'status' => $status];
                 DB::table('idempotency_requests')->insert(['key' => $key, 'hash' => $requestHash, 'response' => json_encode($result), 'created_at' => now()]);
@@ -149,7 +164,11 @@ class DocumentService
         } catch (\Throwable $e) {
             if ($stored) {
                 Storage::disk('local')->delete($stored);
-            }throw $e;
+            }
+            if ($e instanceof UniqueConstraintViolationException && str_contains($e->getMessage(), 'name_key')) {
+                abort(409, 'A file with this name already exists in your workspace. Choose a different name.');
+            }
+            throw $e;
         }
     }
 }

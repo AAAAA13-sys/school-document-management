@@ -15,5 +15,9 @@ return Application::configure(basePath: dirname(__DIR__))
         //
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        $exceptions->render(function (\Illuminate\Database\UniqueConstraintViolationException $e) {
+            if (str_contains($e->getMessage(), 'name_key')) {
+                return response()->json(['message'=>'A file with this name already exists in your workspace. Choose a different name.'], 409);
+            }
+        });
     })->create();

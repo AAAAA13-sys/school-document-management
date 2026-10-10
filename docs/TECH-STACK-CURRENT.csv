@@ -9,4 +9,3 @@ Frontend,jQuery UI,1.14.2,Dialogs tabs autocomplete datepicker accordion
 Database,MySQL,8.4 CI target,Independent DMS database with InnoDB transactions
 Testing,SQLite,In-memory only,Fast isolated regression suite
 Storage,Private filesystem,Local disk,storage/app/private/documents/<version UUID>
-Infrastructure,ClamAV,External configured binary,Security scan gating separate from business approval

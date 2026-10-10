@@ -23,13 +23,12 @@ class DocumentController extends Controller
             $q->where('source', $s);
         }
         if ($s = $r->input('status')) {
-            abort_unless(in_array($s, ['Available', 'Awaiting scan']), 422, 'Filter by file availability, not business approval.');
-            $q->whereExists(fn ($x) => $x->selectRaw('1')->from('document_versions as v')->whereColumn('v.document_id', 'documents.id')->where('v.scan', $s === 'Available' ? '=' : '!=', 'Clean')->whereRaw('v.number=(SELECT MAX(v2.number) FROM document_versions v2 WHERE v2.document_id=documents.id)'));
+            abort_unless($s === 'Available', 422, 'Only Available is supported.');
         }
         $items = $q->orderByDesc('updated_at')->orderBy('id')->paginate((int) $r->input('per_page', 50));
         $items->getCollection()->transform(function ($d) {
             $d->current = $this->dms->latest($d->id);
-            $d->availability = $d->current->scan === 'Clean' ? 'Available' : 'Awaiting scan';
+            $d->availability = 'Available';
             unset($d->current->storage_key);
 
             return $d;
@@ -61,9 +60,8 @@ class DocumentController extends Controller
     {
         $a = $this->dms->actor($r);
         $docs = $this->dms->scope(DB::table('documents'), $a)->whereNull('trashed_at')->get();
-        $statuses = $docs->map(fn ($d) => $this->dms->latest($d->id)->scan);
 
-        return response()->json(['total' => $docs->count(), 'available' => $statuses->filter(fn ($s) => $s === 'Clean')->count(), 'scan' => $statuses->filter(fn ($s) => $s !== 'Clean')->count(), 'sources' => collect($this->dms->sources($a))->map(fn ($s) => ['source' => $s, 'count' => $docs->where('source', $s)->count()])]);
+        return response()->json(['total' => $docs->count(), 'available' => $docs->count(), 'scan' => 0, 'sources' => collect($this->dms->sources($a))->map(fn ($s) => ['source' => $s, 'count' => $docs->where('source', $s)->count()])]);
     }
 
     public function download(Request $r, string $id)
@@ -72,7 +70,7 @@ class DocumentController extends Controller
         $v = DB::table('document_versions')->where('id', $id)->first();
         abort_unless($v, 404);
         $this->dms->document($v->document_id, $a);
-        abort_unless($v->scan === 'Clean', 403, 'Download blocked until scan passes.');
+
         abort_unless(Storage::disk('local')->exists($v->storage_key), 503, 'File unavailable.');
         abort_unless(hash_equals($v->checksum, hash_file('sha256', Storage::disk('local')->path($v->storage_key))), 409, 'File integrity check failed.');
         $this->dms->log($a, 'Document downloaded', $v->document_id, 'Version '.$v->number);

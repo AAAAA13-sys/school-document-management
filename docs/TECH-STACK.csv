@@ -1,0 +1,29 @@
+Category,Component,Version,Role,Notes
+Language,PHP,"8.2+ (runtime 8.2.12, ZTS)","Application runtime; requires PDO SQLite, fileinfo and standard Laravel extensions",Planned upgrade to PHP 8.3+ before production
+Framework,Laravel,12.69.3 (constraint ^12.0),"Full-stack MVC framework: routing, Eloquent, Blade, Artisan",Laravel 12 security support ends 2027-02-24
+Framework Add-on,laravel/tinker,^2.10.1,Interactive REPL for the application,Runtime Composer dependency
+Frontend CSS,Bootstrap,5.3.8,CSS-only responsive layout and components,"Vendored at public/vendor/bootstrap.min.css (CSS only, no JS)"
+Frontend JS,jQuery,3.7.1,DOM manipulation and AJAX requests,Vendored at public/vendor/jquery.min.js
+Frontend JS,jQuery UI,1.14.2,"Dialogs, tabs, autocomplete, datepicker, accordion widgets",Vendored at public/vendor (base theme + sprite images)
+Frontend Assets,Custom JS/CSS,n/a,Domain UI behaviour for workspace and drive views,"public/assets: app.js, drive.js, dialog-scroll.js, app.css, drive-layout.css"
+Build Tooling,None,n/a,No npm/Vite/Node build step; assets are pre-built and served from public/,resources/css and resources/js are empty
+Templating,Blade,n/a,"Server-side rendering of workspace, login and layout views",resources/views/*.blade.php
+Database,SQLite,3.x,Primary datastore (DB_CONNECTION=sqlite),database/database.sqlite; README recommends replacing before multi-instance deployment
+Session Store,Laravel database driver,n/a,SESSION_DRIVER=database,Stored in sessions table
+Cache Store,Laravel database driver,n/a,CACHE_STORE=database,Stored in cache table
+Queue,Laravel database driver,n/a,QUEUE_CONNECTION=database,Stored in jobs table
+Filesystem,Private local disk,n/a,FILESYSTEM_DISK=local for private document bytes,"storage/app/documents/<version>; checksum-verified, immutable"
+Mail,Log driver,n/a,MAIL_MAILER=log,No real email delivery in the baseline
+Broadcasting,Log driver,n/a,BROADCAST_CONNECTION=log,Not used for real-time features
+Malware Scanning,ClamAV (clamscan),External binary,Scans every uploaded version via Symfony Process,DMS_CLAMSCAN env; 45s timeout; Pending/Failed files blocked from review and download
+Authentication,Laravel session auth + custom middleware,n/a,Session login for staff; IntegrationAuth bearer tokens for connectors,Tokens stored as SHA-256 hashes in integration_accounts
+Security,"CSRF, bcrypt, login throttling",BCRYPT_ROUNDS=12,"Escapes, hashed passwords, throttled logins, session regeneration",Login throttle 6/min; API throttle 120/min
+Testing,PHPUnit,^11.5.3,Feature and Unit test suites,"tests/Feature, tests/Unit"
+Testing,Mockery,^1.6,Mocking library for tests,Dev Composer dependency
+Testing,FakerPHP,^1.23,Synthetic/demo data generation,Dev Composer dependency
+Code Style,Laravel Pint,^1.13,Opinionated PHP code formatter,Dev Composer dependency
+Dev Experience,Laravel Pail,^1.2.2,Real-time log viewer,Dev Composer dependency
+Dev Experience,Laravel Sail,^1.41,Docker-based local dev environment,Dev Composer dependency
+Dev Experience,Nunomaduro Collision,^8.6,Pretty console error reporting,Dev Composer dependency
+Dependency Manager,Composer,2.9.7,Dependency installation and PSR-4 autoloading (App\\),Only two runtime packages beyond the framework
+Runtime Entry,PHP dev server,n/a,composer dev -> php artisan serve on 127.0.0.1:8765,PHP_CLI_SERVER_WORKERS=4

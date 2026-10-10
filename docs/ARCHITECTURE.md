@@ -1,6 +1,6 @@
 # School Document Management System architecture
 
-Current reference, 9 October 2026. Institution-neutral. This document and WORKFLOW-OWNERSHIP.md supersede contradictory descriptions in the original backlog. The diagram ARCHITECTURE.drawio is editable in diagrams.net; TECH-STACK-CURRENT.csv lists the current stack.
+Current reference, 9 October 2026. Institution-neutral. This document and WORKFLOW-OWNERSHIP.md supersede contradictory descriptions in the original backlog. The five-page ARCHITECTURE.drawio is editable in diagrams.net; ARCHITECTURE.xml contains the same uncompressed draw.io XML (system context, four logical tiers, data domains, document/sharing flows, and history/race protection); TECH-STACK-CURRENT.csv lists the current stack.
 
 ## Purpose and boundaries
 

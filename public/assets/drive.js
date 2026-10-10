@@ -49,7 +49,7 @@ $(function () {
     function openShared(d) {
         sharedTarget = d; sharedUploadKey = crypto.randomUUID();
         $('#shared-title').text(d.title); $('#shared-access').text('Shared by '+d.shared_by+' · '+d.permission);
-        $('#shared-download').attr('href', '/workspace/shared/'+d.grant_id).prop('hidden', d.current.scan !== 'Clean');
+        $('#shared-download').attr('href', '/workspace/shared/'+d.grant_id).prop('hidden', false);
         $('#shared-comment-form').prop('hidden', !['commenter','editor'].includes(d.permission));
         $('#shared-rename-form,#shared-version-form').prop('hidden', d.permission !== 'editor');
         $('#shared-name').val(d.title); $('#shared-comment,#shared-file').val('');$('#shared-error').empty();
@@ -78,15 +78,15 @@ $(function () {
     $('#shared-detail-dialog').prop('hidden',false).dialog({autoOpen:false,modal:true,width:Math.min(720,window.innerWidth-32),resizable:false,draggable:false});
     function render() {
 
-        const actions = d => location==='shared' ? '<button class="btn btn-quiet file-details" data-id="'+escape(d.grant_id||d.id)+'">Open shared file</button>' : location==='trash' ? '<button class="btn btn-quiet file-action" data-action="restore" data-id="'+escape(d.id)+'">Restore</button>' : ['star','rename','move','share','trash'].map(a=>'<button class="btn btn-quiet file-action" data-action="'+a+'" data-id="'+escape(d.id)+'">'+({star:d.starred?'Unstar':'Star',rename:'Rename',move:'Move',share:'Share',trash:'Move to Trash'}[a])+'</button>').join('')+(d.current.scan==='Clean'?'<button class="btn btn-quiet file-preview" data-version="'+escape(d.current.id)+'">Preview</button><a class="btn btn-quiet" href="/workspace/files/'+escape(d.current.id)+'">Download</a>':'');
+        const actions = d => location==='shared' ? '<button class="btn btn-quiet file-details" data-id="'+escape(d.grant_id||d.id)+'">Open shared file</button>' : location==='trash' ? '<button class="btn btn-quiet file-action" data-action="restore" data-id="'+escape(d.id)+'">Restore</button>' : ['star','rename','move','share','trash'].map(a=>'<button class="btn btn-quiet file-action" data-action="'+a+'" data-id="'+escape(d.id)+'">'+({star:d.starred?'Unstar':'Star',rename:'Rename',move:'Move',share:'Share',trash:'Move to Trash'}[a])+'</button>').join('')+'<button class="btn btn-quiet file-preview" data-version="'+escape(d.current.id)+'">Preview</button><a class="btn btn-quiet" href="/workspace/files/'+escape(d.current.id)+'">Download</a>';
 
         const folderCards=folders.map(f=>'<article class="drive-card folder-card"><button class="drive-folder drive-name" data-id="'+escape(f.id)+'"><span class="drive-symbol">▰</span><strong>'+escape(f.name)+'</strong></button><span class="drive-owner">'+escape(f.source)+'</span><span class="drive-date">'+date(f.updated_at)+'</span><span class="drive-size">—</span><details class="drive-menu"><summary aria-label="Folder actions for '+escape(f.name)+'">⋮</summary><div><button class="btn btn-quiet folder-rename" data-id="'+escape(f.id)+'">Rename folder</button></div></details></article>').join('');
 
         const fileCards=files.map(d=>'<article class="drive-card file-card"><button class="drive-name file-details" data-id="'+escape(d.grant_id||d.id)+'"><span class="drive-symbol">▤</span><strong>'+escape(d.title)+'</strong></button><div class="drive-thumbnail" aria-hidden="true"><span>'+escape(d.current.filename.split('.').pop().toUpperCase())+'</span></div><span class="drive-owner">'+escape(location==='shared'?d.shared_by+' · '+d.permission:d.subject)+'</span><span class="drive-date">'+date(d.updated_at)+'</span><span class="drive-size">'+(d.current.size/1024).toFixed(1)+' KB</span><details class="drive-menu"><summary aria-label="File actions for '+escape(d.title)+'">⋮</summary><div>'+actions(d)+'</div></details></article>').join('');
 
-        const headings='<div class="drive-columns"><span>Name</span><span>Record owner / system</span><span>Date modified</span><span>File size</span><span></span></div>';
+        const headings='<div class="drive-columns"><span>Name</span><span>Owner</span><span>Date modified</span><span>File size</span><span></span></div>';
 
-        $('#drive-items').html(home?'<h2 class="suggestion-title">Your folders</h2><div class="suggested-folders">'+(folderCards||'<p>No folders yet. Create one to organize your records.</p>')+'</div><h2 class="suggestion-title">Recent documents <small>Last updated</small></h2>'+headings+fileCards:headings+folderCards+fileCards);
+        $('#drive-items').html(home?'<h2 class="suggestion-title">Folders</h2><div class="suggested-folders">'+(folderCards||'<p>No folders yet. Create one to organize your records.</p>')+'</div><h2 class="suggestion-title">Recent documents <small>Last updated</small></h2>'+headings+fileCards:headings+folderCards+fileCards);
 
         if(!files.length&&!folders.length)$('#drive-items').html('<p class="empty-state">No files here.</p>');
 

@@ -133,6 +133,7 @@ class DriveController extends Controller
             } else {
                 $update = ['revision' => $d->revision + 1, 'updated_at' => now()];
                 if ($action === 'rename') {
+                    $update = $this->dms->renameKeys($d, $p['title']) + $update;
                     $update['title'] = $p['title'];
                 }
                 if ($action === 'move') {
@@ -163,7 +164,7 @@ class DriveController extends Controller
         $v = DB::table('document_versions')->where('id', $id)->first();
         abort_unless($v, 404);
         $this->dms->document($v->document_id, $a);
-        abort_unless($v->scan === 'Clean', 403, 'Security check must pass first.');
+
         abort_unless(in_array($v->media_type, ['text/plain', 'application/pdf', 'image/png', 'image/jpeg']), 415);
         $path = Storage::disk('local')->path($v->storage_key);
         abort_unless(is_file($path), 503);
@@ -190,7 +191,7 @@ class DriveController extends Controller
         abort_unless($recipient, 422, 'Active recipient not found.');
         abort_unless($recipient->school_id === $a->school_id && $recipient->campus === $a->campus && in_array($recipient->role, ['student','teacher','employee','admin','registrar','hr','payroll']), 403, 'Recipient must be an active workspace user in your school and campus.');
         $v = $this->dms->latest($id);
-        abort_unless($v->scan === 'Clean', 409, 'Only clean versions can be shared.');
+
         $grant = (string) Str::uuid();
         DB::transaction(function () use ($grant, $id, $v, $a, $recipient, $p) {
             DB::table('document_shares')->insert(['id' => $grant, 'permission' => $p['permission'] ?? 'viewer', 'document_id' => $id, 'version_id' => $v->id, 'created_by' => $a->id, 'recipient_id' => $recipient->id, 'expires_at' => Carbon::parse($p['expires_at'])->utc(), 'created_at' => now()]);

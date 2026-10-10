@@ -27,7 +27,7 @@ Local synthetic account: admin@demo.school, password School-demo-2026!; registra
 
 Private immutable document versions, checksum downloads, scoped permissions and audit. Drive-style folders, grid/list views, Home suggestions, Recent, stars, rename/move and recoverable Trash. Clean-file previews and named expiring/revocable shares. Central source history with revision/duplicate protection and tombstones. jQuery UI dialogs lock background scrolling.
 
-DMS does not approve/reject business documents. Users or originating systems own decisions. Earlier decisions remain historical metadata. Configure DMS_CLAMSCAN for a trusted ClamAV executable; uploads otherwise stay blocked. Retry with `php artisan dms:scan`.
+DMS does not approve/reject business documents. Users or originating systems own decisions. Earlier decisions remain historical metadata. Uploads are immediately available after file type, size and integrity validation. No scanner is required. Filenames and display names are case-insensitively unique per owner workspace, including Trash; replacement versions preserve history.
 
 ## Verification
 
@@ -38,4 +38,4 @@ php vendor/phpunit/phpunit/phpunit --configuration phpunit.mysql.xml
 
 The first suite uses in-memory SQLite; the second migrates the dedicated MySQL school_dms_test database. Never point tests at real records. GitHub Actions runs both with PHP 8.2/MySQL 8.4; check its result before claiming MySQL verification.
 
-Remaining production work: live source contracts/connectors, SSO and identity mapping, payload schemas, retention/disposal policy, scanning operation, encryption, monitoring, restore drills and production MySQL load tests.
+Remaining production work: live source contracts/connectors, SSO and identity mapping, payload schemas, retention/disposal policy, encryption, monitoring, restore drills and production MySQL load tests.

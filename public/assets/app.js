@@ -46,7 +46,7 @@ $(function () {
 
         for (const key of ['files','recent','starred','trash']) names[key] = [{files:'My files',recent:'Recent files',starred:'Starred files',trash:'Trash'}[key], 'Organize your documents while preserving their evidence and history.'];
 
-        names.overview = [personal ? 'Your document space' : 'Workspace overview', personal ? 'Everything you need, organized in one place.' : 'Documents, people and history, at a glance.'];
+        names.overview = [personal ? 'Home' : 'Workspace overview', personal ? 'Everything you need, organized in one place.' : 'Documents, people and history, at a glance.'];
 
         $('#drive-panel').prop('hidden', !['overview','files','recent','starred','trash','shared'].includes(next));
 
@@ -113,7 +113,6 @@ $(function () {
 
             $('#stat-total').text(stats.total);
 
-             $('#stat-scan').text(stats.scan);
 
             $('#source-bars').html(stats.sources.map(s => '<div class="source-row"><div><span>' + escape(s.source) + '</span><strong>' + s.count + '</strong></div><div class="bar-track"><div class="bar-fill" style="width:' + (stats.total ? s.count / stats.total * 100 : 0) + '%"></div></div></div>').join(''));
 
@@ -138,12 +137,11 @@ $(function () {
 
             if (v.reason) html += '<div class="alert alert-warning">Historical decision note: ' + escape(v.reason) + '</div>';
 
-            if (v.scan !== 'Clean') html += '<div class="alert alert-warning">This file is blocked until a malware scan passes. Current check: ' + escape(v.scan) + '.</div>';
 
             if (result.comments?.length) html += '<h3>Comments</h3>'+result.comments.map(c => '<article class="shared-comment"><strong>'+escape(c.name)+'</strong><p>'+escape(c.body)+'</p></article>').join('');
-            html += '<div class="dialog-actions">' + (v.scan === 'Clean' ? '<a class="btn btn-quiet" href="/workspace/files/' + escape(v.id) + '">Download v' + v.number + '</a>' : '') + '<button class="btn btn-green" id="replacement-open">Add new version</button></div>';
+            html += '<div class="dialog-actions">' + '<a class="btn btn-quiet" href="/workspace/files/' + escape(v.id) + '">Download v' + v.number + '</a>' + '<button class="btn btn-green" id="replacement-open">Add new version</button></div>';
 
-            html += '</div><div id="document-history">' + result.versions.map(x => '<div class="version-card"><div class="version-heading"><strong>Version ' + x.number + '</strong>' + '</div><p>' + escape(x.filename) + ' · ' + Math.ceil(x.size / 1024) + ' KB · Uploaded by ' + escape(x.actor) + '</p><p>Created ' + date(x.created_at) + (x.reviewer ? ' · Historical decision by ' + escape(x.reviewer) + ': ' + escape(x.status) : '') + '</p><code>SHA-256: ' + escape(x.checksum) + '</code>' + (x.scan === 'Clean' ? '<div class="dialog-actions"><a class="btn btn-quiet" href="/workspace/files/' + escape(x.id) + '">Download version</a></div>' : '') + '</div>').join('') + '</div></div>';
+            html += '</div><div id="document-history">' + result.versions.map(x => '<div class="version-card"><div class="version-heading"><strong>Version ' + x.number + '</strong>' + '</div><p>' + escape(x.filename) + ' · ' + Math.ceil(x.size / 1024) + ' KB · Uploaded by ' + escape(x.actor) + '</p><p>Created ' + date(x.created_at) + (x.reviewer ? ' · Historical decision by ' + escape(x.reviewer) + ': ' + escape(x.status) : '') + '</p><code>SHA-256: ' + escape(x.checksum) + '</code>' + '<div class="dialog-actions"><a class="btn btn-quiet" href="/workspace/files/' + escape(x.id) + '">Download version</a></div>' + '</div>').join('') + '</div></div>';
 
             $('#detail-content').html(html); $('#detail-tabs').tabs(); $('#detail-dialog').dialog('open');
 
@@ -158,6 +156,7 @@ $(function () {
         $('#upload-dialog').dialog('option', 'title', existing ? 'Add document version' : 'Upload document');
 
         $('#upload-tabs').tabs('option','active',0); $('#upload-form input,#upload-form select').prop('disabled', false);
+        if (personal && !existing) $('#reference').val('PERSONAL-'+crypto.randomUUID().slice(0,8));
 
         if (existing) {
 
@@ -247,6 +246,12 @@ $(function () {
 
     $('#upload-tabs').tabs(); $('#expires_at').datepicker({ dateFormat:'yy-mm-dd', changeMonth:true, changeYear:true });
 
+    // Reveal the tab before the browser focuses a required field.
+    $('#upload-form input,#upload-form select').on('invalid', function () {
+        const panel = $(this).closest('.ui-tabs-panel');
+        if (panel.length) $('#upload-tabs').tabs('option', 'active', panel.attr('id') === 'upload-file' ? 1 : 0);
+    });
+
     $('#subject').autocomplete({ source:[], minLength:1 });
 
     $('.nav-item[data-view]').on('click',function(){setView($(this).data('view'));});
@@ -267,11 +272,13 @@ $(function () {
 
     $('#upload-open').on('click',()=>openUpload()); $('#upload-cancel').on('click',()=>$('#upload-dialog').dialog('close'));
 
-    $(document).on('drive:upload', (event, files) => { openUpload(); const transfer = new DataTransfer(); files.forEach(file => transfer.items.add(file)); $('#file')[0].files = transfer.files; $('#upload-tabs').tabs('option','active',1); });
+    $(document).on('drive:upload', (event, files) => { openUpload(); const transfer = new DataTransfer(); files.forEach(file => transfer.items.add(file)); $('#file')[0].files = transfer.files; $('#file').trigger('change'); $('#upload-tabs').tabs('option','active',1); });
 
     $(document).on('drive:details', (event, id) => openDocument(id));
 
     $(document).on('click','#replacement-open',()=>{$('#detail-dialog').dialog('close');openUpload(selected.document);});
+
+    $('#file').on('change', function () { const file=this.files[0]; if(file && !replacement){$('#title').val(file.name);if(personal && !$('#reference').val())$('#reference').val('PERSONAL-'+crypto.randomUUID().slice(0,8));} });
 
     $('#category').on('change',function(){if($(this).val()==='Payslip'){$('#source').val('Payroll Management');$('#classification').val('Restricted');}});
 
@@ -289,7 +296,7 @@ $(function () {
 
         $.ajax({url:'/workspace/documents',method:'POST',data,processData:false,contentType:false,headers:{'Idempotency-Key':uploadKey}})
 
-            .done(result=>{$('#upload-dialog').dialog('close');notice('Document saved.');if(view==='documents')loadDocuments();loadStats();$(document).trigger('drive:uploaded',[result]);})
+            .done(result=>{$('#upload-dialog').dialog('close');notice('File uploaded. Ready to open.');if(view==='documents')loadDocuments();loadStats();$(document).trigger('drive:uploaded',[result]);})
 
             .fail(xhr=>$('#upload-error').text(message(xhr)).prop('hidden',false))
 

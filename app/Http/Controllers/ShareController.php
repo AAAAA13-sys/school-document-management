@@ -48,7 +48,7 @@ class ShareController extends Controller
     {
         [$a, $g, $d] = $this->grant($r, $id);
         $v = DB::table('document_versions')->where('id', $g->version_id)->where('document_id', $d->id)->first();
-        abort_unless($v && $v->scan === 'Clean', 403, 'Security checks must pass first.');
+        abort_unless($v, 404, 'Shared version not found.');
         abort_unless(Storage::disk('local')->exists($v->storage_key), 503);
         abort_unless(hash_equals($v->checksum, hash_file('sha256', Storage::disk('local')->path($v->storage_key))), 409, 'File integrity check failed.');
         $this->dms->log($a, 'Shared document downloaded', $d->id, $id);
@@ -89,7 +89,7 @@ class ShareController extends Controller
         abort_unless($g->permission === 'editor', 403);
         $p = $r->validate(['title' => 'required|string|max:200', 'revision' => 'required|integer|min:1']);
         DB::transaction(function () use ($a, $d, $p) {
-            abort_unless(DB::table('documents')->where('id', $d->id)->whereNull('trashed_at')->where('revision', $p['revision'])->update(['title' => $p['title'], 'revision' => $d->revision + 1, 'updated_at' => now()]), 409, 'Document changed. Refresh and retry.');
+            abort_unless(DB::table('documents')->where('id', $d->id)->whereNull('trashed_at')->where('revision', $p['revision'])->update($this->dms->renameKeys($d, $p['title']) + ['title' => $p['title'], 'revision' => $d->revision + 1, 'updated_at' => now()]), 409, 'Document changed. Refresh and retry.');
             $d->revision++;
             $this->dms->event($d, 'document.rename', $this->dms->latest($d->id)->id);
             $this->dms->log($a, 'Shared document renamed', $d->id);

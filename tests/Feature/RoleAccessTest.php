@@ -21,7 +21,7 @@ class RoleAccessTest extends TestCase
             $other = User::factory()->create(['role' => $role, 'active' => true, 'school_id' => 'DEMO-SCHOOL', 'campus' => 'Main campus']);
             $source = $role === 'student' ? 'Enrollment' : 'Employee Management';
             $this->actingAs($owner)->get('/')->assertOk()->assertDontSee('Central history')->assertDontSee('Accounts &amp; roles', false);
-            $this->get('/')->assertDontSee('id="repository-panel"', false)->assertDontSee('data-view="documents"', false)->assertSee('Your files. Your space.');
+            $this->get('/')->assertDontSee('id="repository-panel"', false)->assertDontSee('data-view="documents"', false)->assertSee('Ready for your next school day.');
             $file = $this->withHeader('Idempotency-Key', 'role-upload-'.$role)->post('/workspace/documents', [
                 'title' => 'My evidence', 'subject' => 'Person', 'reference' => 'REF-1', 'source' => $source,
                 'category' => 'Identity evidence', 'classification' => 'Confidential',
