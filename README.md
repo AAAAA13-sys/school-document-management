@@ -2,7 +2,7 @@
 
 Institution-neutral document and central-history workspace. Backend: **PHP 8.2 · Laravel 12 · Eloquent · Blade**. Frontend: **Bootstrap 5.3 · jQuery 3.7 · jQuery UI 1.14**. Database: **MySQL**.
 
-Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/README.md](docs/README.md). Five school systems keep independent databases; DMS owns its document/history repository and integrates through authenticated APIs. The editable diagram is docs/ARCHITECTURE.drawio.
+Read [MASTERPLAN.md](MASTERPLAN.md), [AGENTS.md](AGENTS.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/README.md](docs/README.md). Five school systems keep independent databases; DMS owns its document/history repository and integrates through authenticated APIs. The editable diagram is docs/ARCHITECTURE.drawio.
 
 ## Run
 
@@ -25,7 +25,7 @@ Local synthetic account: admin@demo.school, password School-demo-2026!; registra
 
 ## Current behavior
 
-Private immutable document versions, checksum downloads, scoped permissions and audit. Drive-style folders, grid/list views, Home suggestions, Recent, stars, rename/move and recoverable Trash. Clean-file previews and named expiring/revocable shares. Central source history with revision/duplicate protection and tombstones. jQuery UI dialogs lock background scrolling.
+Private immutable document versions, checksum downloads, scoped permissions and audit. Drive-style folders, grid/list views, Home suggestions, Recent, stars, rename/move and recoverable Trash. Private validated-file previews and named expiring/revocable shares. Central source history with revision/duplicate protection and tombstones. jQuery UI dialogs lock background scrolling.
 
 DMS does not approve/reject business documents. Users or originating systems own decisions. Earlier decisions remain historical metadata. Uploads are immediately available after file type, size and integrity validation. No scanner is required. Filenames and display names are case-insensitively unique per owner workspace, including Trash; replacement versions preserve history.
 

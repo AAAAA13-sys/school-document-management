@@ -1,15 +1,22 @@
 # Documentation map
 
-Read **ARCHITECTURE.md** first for the current four-tier design, five-database boundaries, stack, implemented flows and deployment limits. **ARCHITECTURE.drawio** is its editable diagram. **TECH-STACK-CURRENT.csv** is the corrected stack inventory. The older TECH-STACK.csv was locked by another application during this update and still contains historical SQLite assumptions.
+Start with [MASTERPLAN.md](../MASTERPLAN.md) for product direction, status, backlog, acceptance criteria and production gates. Read [AGENTS.md](../AGENTS.md) before implementation.
 
-- WORKFLOW-OWNERSHIP.md: current rule that DMS does not approve/reject business documents.
-- RBAC.md: student, teacher/employee, admin and office roles; personal ownership and account management.
-- DRIVE-WORKSPACE.md: implemented file organization, previews, shares and limits.
-- HISTORY-SYNC.md: inbound source snapshot/history contract and race protections.
-- INTEGRATION.md: document upload/download and outgoing cursor feed.
-- JQUERY-UI.md: frontend widget responsibilities.
-- PH-REQUIREMENTS.md: researched national guidance; applicability requires institutional policy.
-- BASELINE.md: original 45-story proposal, preserved as history. Its review workflow and architecture assumptions are superseded.
-- DELIVERY-STATUS.md: original story matrix plus delivery increments; superseded review items are not current requirements.
+| Document | Purpose |
+|---|---|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Approved four-tier structure and database boundaries |
+| [ARCHITECTURE.png](ARCHITECTURE.png) | Final user-supplied visual reference |
+| [ARCHITECTURE.drawio](ARCHITECTURE.drawio) / [ARCHITECTURE.xml](ARCHITECTURE.xml) | Editable visible system-context page extracted from PNG metadata |
+| [STUDENT-WORKSPACE.md](STUDENT-WORKSPACE.md) | Current student UI, unique names and scanning removal |
+| [RBAC.md](RBAC.md) | Personal/office/admin access and audience permissions |
+| [DRIVE-WORKSPACE.md](DRIVE-WORKSPACE.md) | Organization, previews, sharing and limits |
+| [HISTORY-SYNC.md](HISTORY-SYNC.md) | Source snapshot/history intake and race protection |
+| [INTEGRATION.md](INTEGRATION.md) | Document API and outgoing event cursor |
+| [WORKFLOW-OWNERSHIP.md](WORKFLOW-OWNERSHIP.md) | Business authority remains with users/source applications |
+| [JQUERY-UI.md](JQUERY-UI.md) | Frontend widget responsibilities |
+| [TECH-STACK-CURRENT.csv](TECH-STACK-CURRENT.csv) | Current stack inventory |
+| [PH-REQUIREMENTS.md](PH-REQUIREMENTS.md) | Historical research; verify current applicability before adopting policy |
 
-Documentation does not establish live integration, legal compliance or production readiness. Existing school-specific inspiration is not the project's identity.
+BASELINE.md, DELIVERY-STATUS.md, older stack inventory and diagrams under archive/ preserve previous proposals. They do not override the master plan or explicit user decisions. Old scanning/business-review descriptions are superseded; embedded old pages in the PNG do not reinstate them.
+
+Documentation does not establish legal compliance, live integration, complete source history or production readiness. Use the master plan's evidence gates.

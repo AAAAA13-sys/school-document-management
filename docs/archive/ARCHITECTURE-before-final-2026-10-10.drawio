@@ -1,0 +1,460 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" modified="2026-10-10T00:00:00.000Z" version="24.0.0" type="device">
+  <diagram id="0" name="01 - Enterprise context">
+    <mxGraphModel dx="1680" dy="1120" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1680" pageHeight="1120" math="0" shadow="0" background="#FFFFFF">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="n1" value="01 - Enterprise context" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#173F30;strokeColor=#6E937B;fontColor=#FFFFFF;fontSize=24;align=left;verticalAlign=middle;spacing=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="20" width="1620" height="55" />
+        </mxCell>
+        <mxCell id="n2" value="School Document Management System | PHP 8.2 / Laravel 12 | 10 October 2026" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#FFFFFF;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="85" width="1620" height="35" />
+        </mxCell>
+        <mxCell id="n3" value="Employee Management system&#10;Own business rules, users and operational records" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="150" width="375" height="90" />
+        </mxCell>
+        <mxCell id="n4" value="Employee Management database&#10;Independent ownership; engine agreed by its group" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#F1F4F2;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;shape=cylinder;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="280" width="375" height="90" />
+        </mxCell>
+        <mxCell id="n5" value="PLANNED: source API adapter / outbox&#10;Consistent initial snapshot + ordered revisions&#10;Retries, cursors and reconciliation" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#F1F4F2;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;dashed=1;dashPattern=6 4;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="420" width="375" height="110" />
+        </mxCell>
+        <mxCell id="e6" value="local writes" source="n3" target="n4" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e7" value="source-side publication" source="n4" target="n5" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;dashed=1;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n8" value="Online Admission system&#10;Own business rules, users and operational records" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="445" y="150" width="375" height="90" />
+        </mxCell>
+        <mxCell id="n9" value="Online Admission database&#10;Independent ownership; engine agreed by its group" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#F1F4F2;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;shape=cylinder;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="445" y="280" width="375" height="90" />
+        </mxCell>
+        <mxCell id="n10" value="PLANNED: source API adapter / outbox&#10;Consistent initial snapshot + ordered revisions&#10;Retries, cursors and reconciliation" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#F1F4F2;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;dashed=1;dashPattern=6 4;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="445" y="420" width="375" height="110" />
+        </mxCell>
+        <mxCell id="e11" value="local writes" source="n8" target="n9" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e12" value="source-side publication" source="n9" target="n10" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;dashed=1;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n13" value="Enrollment system&#10;Own business rules, users and operational records" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="860" y="150" width="375" height="90" />
+        </mxCell>
+        <mxCell id="n14" value="Enrollment database&#10;Independent ownership; engine agreed by its group" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#F1F4F2;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;shape=cylinder;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="860" y="280" width="375" height="90" />
+        </mxCell>
+        <mxCell id="n15" value="PLANNED: source API adapter / outbox&#10;Consistent initial snapshot + ordered revisions&#10;Retries, cursors and reconciliation" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#F1F4F2;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;dashed=1;dashPattern=6 4;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="860" y="420" width="375" height="110" />
+        </mxCell>
+        <mxCell id="e16" value="local writes" source="n13" target="n14" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e17" value="source-side publication" source="n14" target="n15" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;dashed=1;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n18" value="Payroll Management system&#10;Own business rules, users and operational records" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1275" y="150" width="375" height="90" />
+        </mxCell>
+        <mxCell id="n19" value="Payroll Management database&#10;Independent ownership; engine agreed by its group" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#F1F4F2;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;shape=cylinder;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1275" y="280" width="375" height="90" />
+        </mxCell>
+        <mxCell id="n20" value="PLANNED: source API adapter / outbox&#10;Consistent initial snapshot + ordered revisions&#10;Retries, cursors and reconciliation" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#F1F4F2;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;dashed=1;dashPattern=6 4;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1275" y="420" width="375" height="110" />
+        </mxCell>
+        <mxCell id="e21" value="local writes" source="n18" target="n19" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e22" value="source-side publication" source="n19" target="n20" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;dashed=1;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n23" value="DMS integration boundary — IMPLEMENTED&#10;/api/v1/history, documents, files and events&#10;Bearer connector token → source + school + campus scope&#10;No direct writes to another group’s database" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="400" y="590" width="880" height="125" />
+        </mxCell>
+        <mxCell id="e24" value="authenticated API" source="n5" target="n23" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;dashed=1;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e25" value="authenticated API" source="n10" target="n23" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;dashed=1;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e26" value="authenticated API" source="n15" target="n23" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;dashed=1;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e27" value="authenticated API" source="n20" target="n23" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;dashed=1;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n28" value="DMS standalone application&#10;Personal and office workspaces • accounts • documents&#10;Versions • sharing permissions • comments • received history" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="400" y="760" width="880" height="100" />
+        </mxCell>
+        <mxCell id="e29" value="validated requests / scoped responses" source="n23" target="n28" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n30" value="DMS MySQL database — the fifth database&#10;Own documents and central source history&#10;No sixth shared enterprise database" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#F1F4F2;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;shape=cylinder;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="250" y="900" width="540" height="100" />
+        </mxCell>
+        <mxCell id="n31" value="Private version-file storage&#10;storage/app/private/documents/&lt;version UUID&gt;&#10;Bytes kept outside public web directory" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#F1F4F2;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="880" y="900" width="540" height="100" />
+        </mxCell>
+        <mxCell id="e32" value="transactions / metadata" source="n28" target="n30" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e33" value="private bytes" source="n28" target="n31" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n34" value="Legend: solid green = implemented DMS component; gray dashed = planned cross-system work. A connection does not automatically copy all external data. Initial imports require agreed API contracts and source adapters. Integrations are optional to standalone DMS operation." style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFF4C7;strokeColor=#6E937B;fontColor=#173F30;fontSize=13;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="1020" width="1620" height="80" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="1" name="02 - Four logical tiers">
+    <mxGraphModel dx="1680" dy="1410" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1680" pageHeight="1410" math="0" shadow="0" background="#FFFFFF">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="n1" value="02 - Four logical tiers" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#173F30;strokeColor=#6E937B;fontColor=#FFFFFF;fontSize=24;align=left;verticalAlign=middle;spacing=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="20" width="1620" height="55" />
+        </mxCell>
+        <mxCell id="n2" value="School Document Management System | PHP 8.2 / Laravel 12 | 10 October 2026" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#FFFFFF;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="85" width="1620" height="35" />
+        </mxCell>
+        <mxCell id="n3" value="ONE LARAVEL DEPLOYMENT: logical responsibilities below are not four servers or microservices." style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFF4C7;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="135" width="1620" height="55" />
+        </mxCell>
+        <mxCell id="n4" value="TIER 1 — PRESENTATION&#10;Blade + Bootstrap 5.3 CSS + jQuery 3.7 + jQuery UI 1.14" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#173F30;strokeColor=#6E937B;fontColor=#FFFFFF;fontSize=14;align=left;verticalAlign=middle;spacing=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="220" width="1620" height="55" />
+        </mxCell>
+        <mxCell id="n5" value="Blade views&#10;layout: assets / page title / skip link&#10;login: school account sign-in&#10;workspace: role-aware navigation&#10;accounts: admin account access" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="50" y="300" width="480" height="150" />
+        </mxCell>
+        <mxCell id="n6" value="Workspace interactions&#10;+ New → folder / file / folder upload&#10;My files + nested folder navigation&#10;Shared with me + comments&#10;Details/Activity sidebar; grid/list; hover help" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="600" y="300" width="480" height="150" />
+        </mxCell>
+        <mxCell id="n7" value="Role-aware experience&#10;Student / Teacher / Employee: own files&#10;Admin: school repository + accounts + audit&#10;Registrar / HR / Payroll: source-scoped office access" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1150" y="300" width="480" height="150" />
+        </mxCell>
+        <mxCell id="n8" value="TIER 2 — APPLICATION&#10;PHP 8.2 • Laravel 12 MVC • controllers + shared DocumentService" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#173F30;strokeColor=#6E937B;fontColor=#FFFFFF;fontSize=14;align=left;verticalAlign=middle;spacing=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="500" width="1030" height="55" />
+        </mxCell>
+        <mxCell id="n9" value="Session security&#10;Active account • CSRF • sign-in throttling&#10;School/campus boundaries&#10;Personal ownership and explicit grants" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="50" y="590" width="300" height="130" />
+        </mxCell>
+        <mxCell id="n10" value="DocumentController + DocumentService&#10;Metadata / actual-content validation&#10;Immutable upload versions / scan&#10;Idempotency / checksums / audit" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="380" y="590" width="300" height="130" />
+        </mxCell>
+        <mxCell id="n11" value="DriveController&#10;Folders, rename, move, star&#10;Trash / restore / safe previews&#10;Named share creation / revocation" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="710" y="590" width="330" height="130" />
+        </mxCell>
+        <mxCell id="n12" value="AccountController&#10;Admin-only create / role / activation&#10;No self-demotion or self-deactivation&#10;Scope inherited from administrator" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="50" y="770" width="300" height="120" />
+        </mxCell>
+        <mxCell id="n13" value="ShareController&#10;Viewer / Commenter / Editor grants&#10;Pinned downloads / comments&#10;Rename + new-version editor actions" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="380" y="770" width="300" height="120" />
+        </mxCell>
+        <mxCell id="n14" value="HistoryController&#10;Canonical receipt hashing&#10;Revision ordering / record locks&#10;Snapshots + immutable receipt history" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="710" y="770" width="330" height="120" />
+        </mxCell>
+        <mxCell id="n15" value="TIER 3 — INTEGRATION&#10;/API boundary inside the same application" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#173F30;strokeColor=#6E937B;fontColor=#FFFFFF;fontSize=14;align=left;verticalAlign=middle;spacing=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1110" y="500" width="540" height="55" />
+        </mxCell>
+        <mxCell id="n16" value="IntegrationAuth + API routes&#10;Hashed token lookup&#10;Credentials bind source, school, campus&#10;120 requests/minute throttle&#10;POST /api/v1/history and documents&#10;GET documents, files, history and events" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1130" y="590" width="500" height="180" />
+        </mxCell>
+        <mxCell id="n17" value="Integration contracts&#10;Stable IDs / complete source snapshots&#10;Event ID + revision + operation&#10;Same-content retries / cursor-based reads&#10;Source adapters and live contracts: PLANNED" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFF4C7;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1130" y="810" width="500" height="130" />
+        </mxCell>
+        <mxCell id="e18" value="session requests" source="n5" target="n9" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e19" value="workspace endpoints" source="n6" target="n10" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e20" value="authorized actions" source="n7" target="n11" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e21" value="source-bound input" source="n16" target="n14" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e22" value="agreed schema / delivery" source="n17" target="n16" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n23" value="TIER 4 — PERSISTENCE&#10;DMS-owned MySQL (InnoDB) + private version files" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#173F30;strokeColor=#6E937B;fontColor=#FFFFFF;fontSize=14;align=left;verticalAlign=middle;spacing=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="1010" width="1620" height="55" />
+        </mxCell>
+        <mxCell id="n24" value="Eloquent User + Laravel query builder&#10;Transactions / unique constraints / revision CAS&#10;Documents • access • comments • audit&#10;Source snapshots / received history / API receipts" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#F1F4F2;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;shape=cylinder;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="50" y="1110" width="730" height="150" />
+        </mxCell>
+        <mxCell id="n25" value="Private storage + configured malware scanner&#10;UUID paths • SHA-256 integrity&#10;Pending/failed/quarantined files blocked&#10;ClamAV command + scan-retry Artisan command" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#F1F4F2;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="860" y="1110" width="770" height="150" />
+        </mxCell>
+        <mxCell id="e26" value="metadata / receipts" source="n10" target="n24" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e27" value="workspace state" source="n11" target="n24" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e28" value="grants / comments" source="n13" target="n24" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e29" value="snapshot + history" source="n14" target="n24" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e30" value="store / scan" source="n10" target="n25" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n31" value="Implementation is Laravel MVC with a service, not fully isolated Clean Architecture. Eloquent handles user identity; remaining persistence predominantly uses the query builder. File scanning is a security control, not business approval. TLS, restore tests, monitoring and live API adapters remain deployment work." style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFF4C7;strokeColor=#6E937B;fontColor=#173F30;fontSize=13;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="1290" width="1620" height="80" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="2" name="03 - Data domains and relationships">
+    <mxGraphModel dx="1680" dy="1210" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1680" pageHeight="1210" math="0" shadow="0" background="#FFFFFF">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="n1" value="03 - Data domains and relationships" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#173F30;strokeColor=#6E937B;fontColor=#FFFFFF;fontSize=24;align=left;verticalAlign=middle;spacing=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="20" width="1620" height="55" />
+        </mxCell>
+        <mxCell id="n2" value="School Document Management System | PHP 8.2 / Laravel 12 | 10 October 2026" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#FFFFFF;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="85" width="1620" height="35" />
+        </mxCell>
+        <mxCell id="n3" value="IDENTITY&#10;users: id, email, password hash, role, active&#10;school_id, campus&#10;sessions: authentication sessions" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="160" width="470" height="145" />
+        </mxCell>
+        <mxCell id="n4" value="ORGANIZATION&#10;folders: UUID, parent_id, owner_user_id&#10;name, source, school_id, campus, revision&#10;Self-reference: parent → child folders" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="600" y="160" width="480" height="145" />
+        </mxCell>
+        <mxCell id="n5" value="DOCUMENT AGGREGATE&#10;documents: UUID, owner_user_id, folder_id&#10;title, subject, reference, source, category&#10;classification, revision, trashed_at, timestamps" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="395" width="470" height="160" />
+        </mxCell>
+        <mxCell id="n6" value="IMMUTABLE FILE VERSIONS&#10;document_versions: UUID, document_id, number&#10;filename, MIME type, byte size, checksum&#10;storage_key, scan, expires_at, actor&#10;UNIQUE(document_id, number)" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="600" y="395" width="480" height="160" />
+        </mxCell>
+        <mxCell id="n7" value="ACCESS / COLLABORATION&#10;document_shares: UUID, document_id, version_id&#10;created_by, recipient_id, permission&#10;expires_at, revoked_at&#10;document_comments: document_id, user_id, body&#10;document_stars: user_id + document_id" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1180" y="160" width="470" height="205" />
+        </mxCell>
+        <mxCell id="n8" value="AUDIT + OUTGOING EVENTS&#10;audit_entries: school/campus, actor, action&#10;document_id + detail (logical references)&#10;integration_events: cursor ID, event UUID&#10;source, document/version IDs, type, revision" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1180" y="440" width="470" height="175" />
+        </mxCell>
+        <mxCell id="n9" value="CONNECTOR IDENTITIES / UPLOAD RECEIPTS&#10;integration_accounts: source + school/campus&#10;token_hash, active&#10;idempotency_requests: hashed actor/request key&#10;request hash + serialized response receipt" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="710" width="470" height="175" />
+        </mxCell>
+        <mxCell id="n10" value="LATEST SOURCE SNAPSHOT&#10;source_records: SHA-256 scoped record key&#10;source, school/campus, record_type, record_id&#10;revision, deleted, payload JSON text&#10;Current snapshot changes only for newer revisions" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="600" y="710" width="480" height="175" />
+        </mxCell>
+        <mxCell id="n11" value="IMMUTABLE RECEIVED HISTORY&#10;source_history: cursor ID, record_key&#10;integration_account_id, event_id, revision&#10;request_hash, operation, payload, applied&#10;occurred_at / received_at&#10;UNIQUE(account,event); UNIQUE(record_key,revision)" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1180" y="710" width="470" height="195" />
+        </mxCell>
+        <mxCell id="e12" value="owner_user_id" source="n3" target="n5" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e13" value="owner_user_id" source="n3" target="n4" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e14" value="folder_id" source="n4" target="n5" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e15" value="1 → many" source="n5" target="n6" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e16" value="version_id: pinned version" source="n6" target="n7" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e17" value="creator / recipient / author / stars" source="n3" target="n7" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e18" value="document references" source="n5" target="n8" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;dashed=1;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e19" value="integration_account_id" source="n9" target="n11" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e20" value="record_key: 1 → many" source="n10" target="n11" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n21" value="Solid edges identify database relationships; dashed document→audit/event references are logical. Nullable owners preserve legacy/imported records; they are not automatically assigned to students. Payloads are source evidence, not account-provisioning instructions. Private file bytes are stored on disk; storage_key/checksum remain in MySQL. Framework cache/jobs tables exist but do not imply running background synchronization." style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFF4C7;strokeColor=#6E937B;fontColor=#173F30;fontSize=13;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="1010" width="1620" height="80" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="3" name="04 - Documents and audience permissions">
+    <mxGraphModel dx="1680" dy="1340" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1680" pageHeight="1340" math="0" shadow="0" background="#FFFFFF">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="n1" value="04 - Documents and audience permissions" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#173F30;strokeColor=#6E937B;fontColor=#FFFFFF;fontSize=24;align=left;verticalAlign=middle;spacing=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="20" width="1620" height="55" />
+        </mxCell>
+        <mxCell id="n2" value="School Document Management System | PHP 8.2 / Laravel 12 | 10 October 2026" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#FFFFFF;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="85" width="1620" height="35" />
+        </mxCell>
+        <mxCell id="n3" value="1. Sign in / authenticate&#10;Active session or scoped connector" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="155" width="300" height="145" />
+        </mxCell>
+        <mxCell id="n4" value="2. Validate input + permission&#10;Scope, category, actual MIME/signature&#10;Nonempty supported file ≤10 MB" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="360" y="155" width="300" height="145" />
+        </mxCell>
+        <mxCell id="e5" value="" source="n3" target="n4" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n6" value="3. Idempotency + revision checks&#10;Same key/content → prior receipt&#10;Changed request/stale revision → 409" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFF4C7;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="690" y="155" width="300" height="145" />
+        </mxCell>
+        <mxCell id="e7" value="" source="n4" target="n6" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n8" value="4. Private file + security scan&#10;Version UUID path; SHA-256&#10;ClamAV if configured" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1020" y="155" width="300" height="145" />
+        </mxCell>
+        <mxCell id="e9" value="" source="n6" target="n8" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n10" value="5. Commit evidence&#10;Document/version + audit + event&#10;Preserve all prior versions" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1350" y="155" width="300" height="145" />
+        </mxCell>
+        <mxCell id="e11" value="" source="n8" target="n10" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n12" value="Clean version&#10;Authorized private download / preview&#10;Checksum reverified on access&#10;No DMS business review required" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="700" y="390" width="440" height="120" />
+        </mxCell>
+        <mxCell id="n13" value="Scanner unavailable / failed / infected&#10;File remains blocked&#10;Pending / Failed / Quarantined&#10;Retry scanning via configured Artisan command" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFF4C7;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="390" width="440" height="120" />
+        </mxCell>
+        <mxCell id="e14" value="scan passed" source="n10" target="n12" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e15" value="not clean" source="n10" target="n13" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n16" value="Authorized document user creates a share&#10;Named active recipient in same school/campus&#10;Choose permission + expiry (≤30 days)&#10;Pin a clean version; record grant + audit" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="570" width="500" height="150" />
+        </mxCell>
+        <mxCell id="n17" value="VIEWER&#10;Read shared metadata/comments&#10;Download pinned clean version&#10;Cannot comment or change document" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="620" y="570" width="300" height="150" />
+        </mxCell>
+        <mxCell id="n18" value="COMMENTER&#10;Viewer actions + add comments&#10;Comments bounded to 2,000 characters&#10;Cannot rename or upload" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="975" y="570" width="300" height="150" />
+        </mxCell>
+        <mxCell id="n19" value="EDITOR&#10;Commenter actions + rename&#10;Upload new immutable version&#10;Revision checks; ownership preserved" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1330" y="570" width="300" height="150" />
+        </mxCell>
+        <mxCell id="e20" value="explicit share" source="n12" target="n16" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e21" value="viewer grant" source="n16" target="n17" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e22" value="includes viewer rights" source="n17" target="n18" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e23" value="includes commenter rights" source="n18" target="n19" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n24" value="Every shared operation rechecks:&#10;Recipient identity + active account • same school/campus&#10;Live grant • expiry/revocation • sender still has access&#10;Document not in Trash • download is clean and checksum valid&#10;Shared writes lock grant/document in a transaction" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFF4C7;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="350" y="820" width="950" height="155" />
+        </mxCell>
+        <mxCell id="e25" value="authorization" source="n17" target="n24" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e26" value="authorization" source="n18" target="n24" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e27" value="authorization" source="n19" target="n24" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n28" value="Grant boundaries&#10;No delete / move / reshare through recipient grant&#10;No source-wide access; no anonymous public links&#10;Editor uploads do NOT change the pinned version&#10;No browser document-content editing" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#F1F4F2;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="1050" width="760" height="145" />
+        </mxCell>
+        <mxCell id="n29" value="Workspace operations&#10;Nested folders • list/grid • details/activity sidebar&#10;Stars per user • Trash and restore • comments&#10;+ New: folder / file / folder upload (≤50 files/batch)&#10;Folder upload is sequential; partial success persists for retry" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#F1F4F2;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="860" y="1050" width="770" height="145" />
+        </mxCell>
+        <mxCell id="e30" value="enforced limits" source="n24" target="n28" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e31" value="visible in Shared with me" source="n16" target="n29" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n32" value="Business approval belongs to school users or originating applications. DMS enforces storage/security/access, preserves evidence, and never automatically verifies admission, enrollment, employment or payroll decisions. Folder-level sharing is not implemented." style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFF4C7;strokeColor=#6E937B;fontColor=#173F30;fontSize=13;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="1220" width="1620" height="80" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="4" name="05 - History sync and race conditions">
+    <mxGraphModel dx="1680" dy="1330" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1680" pageHeight="1330" math="0" shadow="0" background="#FFFFFF">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="n1" value="05 - History sync and race conditions" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#173F30;strokeColor=#6E937B;fontColor=#FFFFFF;fontSize=24;align=left;verticalAlign=middle;spacing=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="20" width="1620" height="55" />
+        </mxCell>
+        <mxCell id="n2" value="School Document Management System | PHP 8.2 / Laravel 12 | 10 October 2026" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#FFFFFF;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="85" width="1620" height="35" />
+        </mxCell>
+        <mxCell id="n3" value="SOURCE SYSTEM — PLANNED DELIVERY WORK&#10;Commit local business transaction + outbox&#10;Consistent initial snapshot / change cursor&#10;Complete snapshots; monotonically increasing revision&#10;Stable event_id retained across retries" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#F1F4F2;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;dashed=1;dashPattern=6 4;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="160" width="480" height="160" />
+        </mxCell>
+        <mxCell id="n4" value="POST /api/v1/history — IMPLEMENTED&#10;Bearer token binds source + school + campus&#10;Validate event_id, record identity, operation, revision&#10;Payload ≤256 KiB; canonical JSON request hash" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="600" y="160" width="480" height="160" />
+        </mxCell>
+        <mxCell id="n5" value="BEGIN TRANSACTION&#10;Insert-or-ignore scoped source_records slot&#10;Lock record key&#10;Key = hash(school,campus,source,type,record_id)" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1170" y="160" width="480" height="160" />
+        </mxCell>
+        <mxCell id="e6" value="snapshot event" source="n3" target="n4" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;dashed=1;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e7" value="validated event" source="n4" target="n5" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n8" value="Receipt/revision uniqueness&#10;Existing same event + same hash → replay receipt (200)&#10;Same event + altered hash → 409&#10;Another event at same record revision → 409&#10;Unique constraints remain authoritative" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFF4C7;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1170" y="420" width="480" height="180" />
+        </mxCell>
+        <mxCell id="n9" value="Compare incoming revision with current revision&#10;Newer → CAS update latest snapshot&#10;Older → keep snapshot unchanged, applied=false&#10;Delete → tombstone; historical payloads preserved&#10;Do not reject gaps in complete snapshots" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="600" y="420" width="480" height="180" />
+        </mxCell>
+        <mxCell id="n10" value="COMMIT atomically&#10;Append source_history receipt + audit&#10;Apply current snapshot only when newer&#10;Return history_id, applied, duplicate&#10;New event → 201; identical replay → 200" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="420" width="480" height="180" />
+        </mxCell>
+        <mxCell id="e11" value="check identity" source="n5" target="n8" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e12" value="new event / unused revision" source="n8" target="n9" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e13" value="preserve receipt" source="n9" target="n10" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n14" value="READ / RECONCILE&#10;GET /api/v1/history?after=cursor&amp;limit=1..100&#10;GET /api/v1/events?after=cursor&#10;Office/admin history UI: inspect received vs current&#10;Personal roles cannot read institutional history" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E7F2E9;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="750" width="480" height="180" />
+        </mxCell>
+        <mxCell id="n15" value="CONTENTION / CONFLICT&#10;Bounded internal transaction retries&#10;Exhausted lock/uniqueness conflicts → 409&#10;Source retries same event with backoff + jitter&#10;Persistent conflicts require operator investigation" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFF4C7;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="600" y="750" width="480" height="180" />
+        </mxCell>
+        <mxCell id="n16" value="Example: revision 12 arrives before revision 11&#10;12: snapshot becomes revision 12; applied=true&#10;11: receipt saved; applied=false; snapshot stays 12&#10;Retry of 12: original receipt returned; no extra history&#10;Different source with same record_id: different scoped key" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#F1F4F2;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1170" y="750" width="480" height="180" />
+        </mxCell>
+        <mxCell id="e17" value="cursor consumption" source="n10" target="n14" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e18" value="conflict" source="n8" target="n15" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e19" value="ordering rule" source="n9" target="n16" parent="1" edge="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#537561;fontColor=#173F30;fontSize=12;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n20" value="Protection is per scoped record, not a global enterprise person row. Each group must coordinate its own revisions and outbox. DMS does not guarantee all external revisions were delivered. Full import, source identity matching, per-source payload schemas, retention/holds, tested restore, SSO and real multi-writer MySQL load testing remain coordinated production work." style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFF4C7;strokeColor=#6E937B;fontColor=#173F30;fontSize=13;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="1050" width="1620" height="80" />
+        </mxCell>
+        <mxCell id="n21" value="Deployment boundary: PHP/Laravel + MySQL + private storage + configured scan service. Serve only public/ over HTTPS. MySQL and private-file backups must be recovered together. TLS, monitoring and restore verification are operational requirements; they are not proven by an architecture diagram." style="rounded=1;whiteSpace=wrap;html=0;fillColor=#F1F4F2;strokeColor=#6E937B;fontColor=#173F30;fontSize=14;align=left;verticalAlign=middle;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="1160" width="1620" height="105" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
