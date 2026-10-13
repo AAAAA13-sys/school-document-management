@@ -26,6 +26,14 @@ The DMS owns its database. Other groups submit source-owned snapshots through an
 - Deletion uses `operation: delete` and `payload: []`. It creates a tombstone; previous history remains subject to the institution's retention/hold policy. It is not a destruction request. A newer upsert may restore the current snapshot if the source intentionally does so.
 - Request body limit is 256 KiB, metadata fields are bounded, and existing connector throttling applies. Send document files through the separate private upload endpoint, not base64 inside event payloads.
 
+## Connector identity and retries
+
+Receipt replay is currently scoped to the integration account ID and event ID. Retrying identical content through the same integration account returns the original receipt. Replacing its token hash while retaining that account identity preserves the replay lookup; this describes the code boundary, not a provided rotation-management feature.
+
+Creating a new integration account, even for the same source/school/campus, does not transfer old receipts. Replaying an already-received record revision through that new account returns 409 because the scoped record revision remains occupied. Do not change the event ID or invent a newer revision merely to bypass this conflict.
+
+Before connector replacement, agree how outstanding deliveries and receipts will be reconciled. Transparent replay across account replacement requires an explicit contract and implementation/tests; it is not supported by the current lookup. Source record revisions must continue increasing regardless of token/account replacement.
+
 ## Read
 
 `GET /api/v1/history?after=0&limit=50` returns permitted source history and `next_cursor`. Limit is 1–100. Staff may use `GET /workspace/history` with their session; existing role/school/campus boundaries apply. Reads and new receipts are audited without copying payloads into the audit log.
