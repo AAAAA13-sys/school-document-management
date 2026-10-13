@@ -2,7 +2,7 @@
 
 Institution-neutral document and central-history workspace. Backend: **PHP 8.2 · Laravel 12 · Eloquent · Blade**. Frontend: **Bootstrap 5.3 · jQuery 3.7 · jQuery UI 1.14**. Database: **MySQL**.
 
-Read [MASTERPLAN.md](MASTERPLAN.md), [AGENTS.md](AGENTS.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/README.md](docs/README.md). Five school systems keep independent databases; DMS owns its document/history repository and integrates through authenticated APIs. The editable diagram is docs/ARCHITECTURE.drawio.
+Read [MASTERPLAN.md](MASTERPLAN.md), [AGENTS.md](AGENTS.md), [Implementation.md](Implementation.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/README.md](docs/README.md). Five school systems keep independent databases; DMS owns its document/history repository and integrates through authenticated APIs. The editable diagram is docs/ARCHITECTURE.drawio.
 
 ## Run
 
