@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -163,7 +164,14 @@ class DocumentService
             });
         } catch (\Throwable $e) {
             if ($stored) {
-                Storage::disk('local')->delete($stored);
+                try {
+                    $cleaned = Storage::disk('local')->delete($stored);
+                } catch (\Throwable $cleanupError) {
+                    $cleaned = false;
+                }
+                if (! $cleaned) {
+                    Log::warning('Failed upload file cleanup requires reconciliation.', ['storage_key' => $stored]);
+                }
             }
             if ($e instanceof UniqueConstraintViolationException && str_contains($e->getMessage(), 'name_key')) {
                 abort(409, 'A file with this name already exists in your workspace. Choose a different name.');

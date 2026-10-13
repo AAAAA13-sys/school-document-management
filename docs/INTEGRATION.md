@@ -28,6 +28,8 @@ Server supplies school/campus from the authenticated account; submitted values c
 
 201 result: `document_id`, `version_id`, `version`, `scan`, `status`. Repeating the same request/key returns the same receipt. Reusing a key with changed metadata or content returns 409. Keys are actor-scoped and retained indefinitely in this baseline; a production expiry policy remains to be defined. Clients should reuse keys after a network failure and use a fresh key for a changed request.
 
+Failed intake rolls back its metadata and attempts to remove uncommitted private bytes. If removal returns false or throws, the original intake error is preserved and a warning records only the generated storage key for operator reconciliation. Cleanup failure does not acknowledge the upload; an unreferenced private file may remain. Operators must check committed version references before removing an orphan.
+
 ## Event contract
 
 Envelope: `schema_version: 1`, `items`, `next_cursor`. Each item has ordered `id`, unique `event_id`, source/school/campus, `type`, document/version IDs, revision and timestamp. No subject names or document content are included.

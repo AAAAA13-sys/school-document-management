@@ -198,3 +198,9 @@ The first recovery test attempt exposed a test-injection issue: replacing the se
 | 6 | Requires school-approved retention/hold/disposal and recovery targets plus deployment access |
 
 No release gate is declared complete from these partial results. Continue with runtime/browser and contract dependencies when available; do not substitute guessed source contracts or school policy for accepted decisions.
+
+## Backend increment — preserve upload errors when cleanup fails
+
+Step 3 / DMS-17: DocumentService now catches deletion errors during failed-upload cleanup and handles deletion returning false. It preserves the original intake exception/response and logs a reconciliation warning containing only the generated storage key. This applies to all callers of the shared upload service; no new storage abstraction or public endpoint is added.
+
+Parameterized regressions cover false-return and throwing cleanup adapters, original 503 response preservation, rolled-back metadata/events/audit/receipts, and the warning's limited context. Current increment CI must pass before claiming verification. Process interruption, outer transaction commit failures, automated orphan reconciliation and production recovery drills remain open.

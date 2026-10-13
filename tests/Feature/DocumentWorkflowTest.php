@@ -191,4 +191,38 @@ class DocumentWorkflowTest extends TestCase
         $this->assertSame($bytes, Storage::disk('local')->get($version->storage_key));
     }
 
+    public static function cleanupFailures(): array
+    {
+        return [
+            'delete returned false' => [false],
+            'delete threw' => [new \RuntimeException('Simulated cleanup failure')],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('cleanupFailures')]
+    public function test_cleanup_failure_preserves_original_upload_error_and_reports_orphan($cleanupFailure): void
+    {
+        $this->actingAs($this->account());
+        \Illuminate\Support\Facades\Log::spy();
+        $disk = \Mockery::mock();
+        $disk->shouldReceive('put')->once()->andReturn(false);
+        $delete = $disk->shouldReceive('delete')->once();
+        if ($cleanupFailure instanceof \Throwable) {
+            $delete->andThrow($cleanupFailure);
+        } else {
+            $delete->andReturn($cleanupFailure);
+        }
+        Storage::shouldReceive('disk')->with('local')->andReturn($disk);
+
+        $this->upload()->assertStatus(503)->assertJsonPath('message', 'Private file storage is unavailable.');
+        foreach (['documents', 'document_versions', 'audit_entries', 'integration_events', 'idempotency_requests'] as $table) {
+            $this->assertDatabaseCount($table, 0);
+        }
+        \Illuminate\Support\Facades\Log::shouldHaveReceived('warning')->once()->with(
+            'Failed upload file cleanup requires reconciliation.',
+            \Mockery::on(fn ($context) => count($context) === 1
+                && preg_match('/^documents\/[0-9a-f-]{36}$/', $context['storage_key']) === 1)
+        );
+    }
+
 }
