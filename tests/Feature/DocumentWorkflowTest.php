@@ -168,17 +168,20 @@ class DocumentWorkflowTest extends TestCase
         $first = $this->upload()->assertCreated();
         $version = DB::table('document_versions')->first();
         $bytes = Storage::disk('local')->get($version->storage_key);
-        $this->partialMock(\App\Services\DocumentService::class, function ($mock) {
-            $mock->shouldReceive('event')->once()->andThrow(new \RuntimeException('Simulated event failure'));
+        DB::listen(function ($query) {
+            if (str_contains($query->sql, 'insert into') && str_contains($query->sql, 'integration_events')) {
+                throw new \RuntimeException('Simulated event failure');
+            }
         });
         $this->withoutExceptionHandling();
 
         try {
             $this->upload(['document_id' => $first['document_id'], 'revision' => 1], 'failed-version-0002');
-            $this->fail('The failed version must not be acknowledged.');
         } catch (\RuntimeException $exception) {
             $this->assertSame('Simulated event failure', $exception->getMessage());
+            $failureObserved = true;
         }
+        $this->assertTrue($failureObserved ?? false, 'The failed version must not be acknowledged.');
 
         $this->assertDatabaseHas('documents', ['id' => $first['document_id'], 'revision' => 1]);
         foreach (['documents', 'document_versions', 'audit_entries', 'integration_events', 'idempotency_requests'] as $table) {
