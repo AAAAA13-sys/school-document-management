@@ -123,7 +123,7 @@ Connector routes currently use a 120 requests/minute throttle. History reads use
 | Received snapshots/history/replay/order/tombstones | Implemented baseline; generic payload schema, no automatic source import. |
 | Scoped tokens and event feed | Implemented; operational rotation/reconciliation tooling remains pending. |
 | UI refinement | Folder-tree refresh now follows the expansion state; navigation clears stale selection before loading. Visual acceptance and Figma comparison remain incomplete. |
-| Tests | Latest local application verification: 30 tests / 323 assertions; frontend folder-upload regression previously passed. This documentation update is not a new runtime verification. |
+| Tests | CI run 38339639050 passed Blade compilation, application JavaScript syntax, SQLite/frontend and isolated MySQL suites for commit 336455072b27e25d80be7da702418d17670775bc. Includes storage and post-write transaction failure tests; browser/multi-writer acceptance remains open. |
 | Database target | MySQL. Local preview remains SQLite; existing CI is configured for PHP 8.2/MySQL 8.4. Check actual CI results before claiming verification. |
 | Deployment readiness | Not established: real source contracts, MySQL contention, recovery, governance and operations still require evidence. |
 
@@ -163,7 +163,7 @@ This active backlog has 24 stories, below the original maximum of 50. It superse
 | DMS-14 / P1 | As an admin, I need scoped accounts and audit. | Personal users cannot administer; new scope inherited; invalid roles rejected; self-demotion/deactivation blocked; inactive sessions lose access; changes audited. | Baseline |
 | DMS-15 / P2 | As an operator, I need safe database migrations. | Restore backup exists; naming migration is rehearsed on representative MySQL data; collisions disambiguate without byte loss; rollback limits and large-dataset cost documented. | Open |
 | DMS-16 / P2 | As a developer, I need proof under competing writes. | MySQL tests race duplicate intake, same document revision, version numbering, grants and history; valid winner and safe loser; no partial evidence/orphaned references. | Open |
-| DMS-17 / P2 | As an operator, I need safe upload failure recovery. | Simulated storage/write/commit failures leave no exposed or falsely acknowledged version; cleanup/reconciliation procedure identifies orphan bytes without deleting referenced content. | Open |
+| DMS-17 / P2 | As an operator, I need safe upload failure recovery. | Simulated storage/write/commit failures leave no exposed or falsely acknowledged version; cleanup/reconciliation procedure identifies orphan bytes without deleting referenced content. | Partial: storage/post-write rollback tests pass; commit/interruption and orphan procedure open |
 | DMS-18 / P3 | As a source architect, I need an agreed v1 contract. | Each source defines IDs/types/allowed fields/revisions/events/errors and sample fixtures; secrets excluded; unknown schema versions fail safely; conformance tests pass. | Open |
 | DMS-19 / P3 | As a source, I need replay-safe history delivery. | Same event/content replays; altered replay/revision collision conflicts; 12-before-11 cannot regress snapshot; tombstone preserved; source boundaries and cursors tested. | Baseline; source conformance open |
 | DMS-20 / P4 | As an integration operator, I need initial import plus ongoing changes. | Consistent snapshot/change checkpoint agreed; interrupted import resumes; source retries durable deliveries; newer changes beat older snapshot; expected counts/revisions reconcile. | Open |
