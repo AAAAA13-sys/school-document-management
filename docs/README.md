@@ -1,6 +1,6 @@
 # Documentation map
 
-Start with [MASTERPLAN.md](../MASTERPLAN.md) for product direction, status, backlog, acceptance criteria and production gates. Read [AGENTS.md](../AGENTS.md) before implementation.
+Start with [MASTERPLAN.md](../MASTERPLAN.md) for product direction, status, backlog, acceptance criteria and production gates. Read [AGENTS.md](../AGENTS.md) before implementation and [Implementation.md](../Implementation.md) for ordered tasks, dependencies and evidence tracking.
 
 | Document | Purpose |
 |---|---|
