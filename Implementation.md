@@ -179,3 +179,22 @@ Scope: Steps 1–2; DMS-02, DMS-08 and DMS-13. Changes retain the existing Larav
 - Previous documentation increment CI passed: [run 38338703290](https://github.com/AAAAA13-sys/school-document-management/actions/runs/38338703290), commit be7e7e867f3157b264a496e9ead5b550502116aa. Current increment CI results must be checked separately.
 
 Remaining dependencies: local shell execution is rejected by sandbox approval policy; no browser session or approved Figma node is available for rendered comparison. MySQL multi-writer/failure drills, actual source contracts and school retention/recovery decisions remain open. Source/policy locations have been requested; no contracts or policy values are invented.
+
+## Verified increment — upload failure recovery
+
+Step 3 / DMS-17 partial evidence: tests/Feature/DocumentWorkflowTest.php now injects a failed private-storage write and a transactional event-write failure after writing replacement bytes. Assertions verify metadata/audit/events/receipts roll back, uncommitted bytes are cleaned up, and the original version content/revision remains intact.
+
+[CI run 38339639050](https://github.com/AAAAA13-sys/school-document-management/actions/runs/38339639050) passed on commit 336455072b27e25d80be7da702418d17670775bc: Blade compilation, all application JavaScript syntax checks, SQLite application tests, folder-upload frontend regression, and the isolated MySQL feature/unit suite. The earlier navigation/CI increment also passed [run 38339398081](https://github.com/AAAAA13-sys/school-document-management/actions/runs/38339398081).
+
+The first recovery test attempt exposed a test-injection issue: replacing the service binding after the first request did not replace the controller's existing dependency. Failure injection now occurs at the database event write; no production upload behavior was changed for this test.
+
+| Plan step | Evidence and remaining work |
+|---|---|
+| 1 | Documentation alignment and automated baseline verified in CI; local environment inspection remains unavailable |
+| 2 | Folder visibility/navigation selection fixes committed; desktop/mobile/Figma/keyboard acceptance remains open |
+| 3 | Storage-write and post-write transaction failure regressions pass on SQLite/MySQL; actual commit failure, process interruption, orphan reconciliation, migration rehearsal and competing-writer checks remain open |
+| 4 | Approved source contracts, schema/field grants and identity mapping document locations requested; not supplied |
+| 5 | Requires Step 4 plus source snapshot/change delivery contract |
+| 6 | Requires school-approved retention/hold/disposal and recovery targets plus deployment access |
+
+No release gate is declared complete from these partial results. Continue with runtime/browser and contract dependencies when available; do not substitute guessed source contracts or school policy for accepted decisions.
