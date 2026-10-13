@@ -153,3 +153,17 @@ For each completed increment, record:
 | Acceptance | Accountable owner and criteria met |
 
 Update MASTERPLAN.md story states only when their acceptance evidence exists. Prefer small reviewable increments: workspace usability, MySQL correctness, source contracts, first import, remaining sources, then operations.
+
+## Execution record — 13 October 2026
+
+Step 1 documentation alignment is completed for this increment; local runtime setup and broader verification remain incomplete.
+
+- Linked this plan from the root README and documentation index.
+- Replaced obsolete accordion guidance with actual workspace widget and contextual-help behavior, grounded in Blade/app.js/dialog-scroll.js inspection.
+- Aligned the framework reference to Laravel 12.
+- Documented integration-account-scoped receipt replay and the conflict boundary when an account is replaced, based on HistoryController.php inspection.
+- Checked the existing [GitHub Actions run 38338162589](https://github.com/AAAAA13-sys/school-document-management/actions/runs/38338162589), for commit 4710c9c610d855205d1866bef5d38080d2afd578. Its job steps passed Composer installation, the SQLite application suite, folder-upload frontend regression and the MySQL suite. The workflow targets PHP 8.2 and MySQL 8.4; these results predate this increment.
+- Local shell execution was rejected by automatic approval policy because sandbox approval is disabled. No local dependency installation, database setup, Blade compilation, browser review or multi-writer test was performed.
+- Relative repository links and changed-file whitespace were checked before saving. Readback verification follows saving.
+
+No product story is newly marked complete by these documentation changes. Next executable work is student workspace verification/refinement (Step 2) and MySQL contention/failure evidence (Step 3), subject to runtime/browser access. Credential replacement still requires conformance tests before its operational use is certified.
