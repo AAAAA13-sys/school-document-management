@@ -26,7 +26,7 @@ $(function () {
                 });
             }
             append(null, 0);
-            if (!all.length) container.prop('hidden', true);
+            container.prop('hidden', !all.length || $('#folders-toggle').attr('aria-expanded') !== 'true');
         }).fail(fail);
     }
     $('#folders-toggle').on('click', function () {
@@ -96,11 +96,12 @@ $(function () {
 
         if(request) request.abort();
 
+        $(document).trigger('item:clear');
         $('#drive-items').text('Loading files…');
 
         request=$.getJSON(location==='shared'?'/workspace/shared-with-me':'/workspace/drive',{location,folder,page,search:$('#drive-search').val(),sort:$('#drive-sort').val()}).done(result=>{
 
-            files=result.files.data; folders=result.folders; $(document).trigger('item:clear');
+            files=result.files.data; folders=result.folders;
 
             folderSource=result.breadcrumbs.at(-1)?.source||null;
 

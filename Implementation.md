@@ -138,7 +138,7 @@ Use node --check for changed JavaScript and targeted feature filters during impl
 
 ## Progress and evidence tracking
 
-All application steps above remain pending verification/execution in this review. Existing baseline capabilities are documented implementation, not newly tested completion.
+The initial documentation alignment and Step 2 folder/navigation fixes have been implemented. Full application acceptance above remains pending verification/execution. Existing baseline capabilities are documented implementation, not newly tested completion.
 
 For each completed increment, record:
 
@@ -167,3 +167,15 @@ Step 1 documentation alignment is completed for this increment; local runtime se
 - Relative repository links and changed-file whitespace were checked before saving. Readback verification follows saving.
 
 No product story is newly marked complete by these documentation changes. Next executable work is student workspace verification/refinement (Step 2) and MySQL contention/failure evidence (Step 3), subject to runtime/browser access. Credential replacement still requires conformance tests before its operational use is certified.
+
+## Execution increment — baseline checks and folder navigation
+
+Scope: Steps 1–2; DMS-02, DMS-08 and DMS-13. Changes retain the existing Laravel/jQuery architecture and server authorization.
+
+- CI now compiles Blade with php artisan view:cache and checks every public/assets/*.js using node --check before running the existing application/frontend/MySQL suites.
+- Folder-tree refresh derives visibility from available folders and the existing expansion button state. This fixes a tree remaining hidden after an empty workspace gains its first folder.
+- File-list loading clears selection immediately, invalidating pending inspector responses before navigation completes or fails.
+- Feature contract updated in docs/DRIVE-WORKSPACE.md; no product story marked Done.
+- Previous documentation increment CI passed: [run 38338703290](https://github.com/AAAAA13-sys/school-document-management/actions/runs/38338703290), commit be7e7e867f3157b264a496e9ead5b550502116aa. Current increment CI results must be checked separately.
+
+Remaining dependencies: local shell execution is rejected by sandbox approval policy; no browser session or approved Figma node is available for rendered comparison. MySQL multi-writer/failure drills, actual source contracts and school retention/recovery decisions remain open. Source/policy locations have been requested; no contracts or policy values are invented.

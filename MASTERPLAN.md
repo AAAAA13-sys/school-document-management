@@ -122,7 +122,7 @@ Connector routes currently use a 120 requests/minute throttle. History reads use
 | Immediate uploads and name conflict protection | Implemented; database keys protect collisions. Unicode normalization improvements are not implemented. |
 | Received snapshots/history/replay/order/tombstones | Implemented baseline; generic payload schema, no automatic source import. |
 | Scoped tokens and event feed | Implemented; operational rotation/reconciliation tooling remains pending. |
-| UI refinement | Recent Blade/CSS fixes implemented; Figma sidebar transfer blocked by tool quota, not completed. |
+| UI refinement | Folder-tree refresh now follows the expansion state; navigation clears stale selection before loading. Visual acceptance and Figma comparison remain incomplete. |
 | Tests | Latest local application verification: 30 tests / 323 assertions; frontend folder-upload regression previously passed. This documentation update is not a new runtime verification. |
 | Database target | MySQL. Local preview remains SQLite; existing CI is configured for PHP 8.2/MySQL 8.4. Check actual CI results before claiming verification. |
 | Deployment readiness | Not established: real source contracts, MySQL contention, recovery, governance and operations still require evidence. |
