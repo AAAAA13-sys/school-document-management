@@ -147,4 +147,45 @@ class DocumentWorkflowTest extends TestCase
         $u->save();
         $this->getJson('/workspace/documents')->assertForbidden();
     }
+    public function test_storage_failure_rolls_back_upload_metadata_and_receipt(): void
+    {
+        $this->actingAs($this->account());
+        $disk = \Mockery::mock();
+        $disk->shouldReceive('put')->once()->andReturn(false);
+        $disk->shouldReceive('delete')->once()->andReturn(true);
+        Storage::shouldReceive('disk')->with('local')->andReturn($disk);
+
+        $this->upload()->assertStatus(503);
+        foreach (['documents', 'document_versions', 'audit_entries', 'integration_events', 'idempotency_requests'] as $table) {
+            $this->assertDatabaseCount($table, 0);
+        }
+    }
+
+    public function test_failure_after_file_write_cleans_bytes_and_rolls_back_version(): void
+    {
+        Storage::fake('local');
+        $this->actingAs($this->account());
+        $first = $this->upload()->assertCreated();
+        $version = DB::table('document_versions')->first();
+        $bytes = Storage::disk('local')->get($version->storage_key);
+        $this->partialMock(\App\Services\DocumentService::class, function ($mock) {
+            $mock->shouldReceive('event')->once()->andThrow(new \RuntimeException('Simulated event failure'));
+        });
+        $this->withoutExceptionHandling();
+
+        try {
+            $this->upload(['document_id' => $first['document_id'], 'revision' => 1], 'failed-version-0002');
+            $this->fail('The failed version must not be acknowledged.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Simulated event failure', $exception->getMessage());
+        }
+
+        $this->assertDatabaseHas('documents', ['id' => $first['document_id'], 'revision' => 1]);
+        foreach (['documents', 'document_versions', 'audit_entries', 'integration_events', 'idempotency_requests'] as $table) {
+            $this->assertDatabaseCount($table, 1);
+        }
+        $this->assertSame([$version->storage_key], Storage::disk('local')->allFiles('documents'));
+        $this->assertSame($bytes, Storage::disk('local')->get($version->storage_key));
+    }
+
 }
