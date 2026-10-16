@@ -199,6 +199,97 @@ The first recovery test attempt exposed a test-injection issue: replacing the se
 
 No release gate is declared complete from these partial results. Continue with runtime/browser and contract dependencies when available; do not substitute guessed source contracts or school policy for accepted decisions.
 
+## UI increment — upload dialog collapsed from two tabs to one file-first form
+
+Story: DMS-04 (usable dialogs), FR-02, NFR-09. Reported as "the upload document popup is weird — is it really okay to split dropping the file and the metadata editing?"
+
+The split was not defensible. Picking a file auto-fills the Title (`app.js` binds `#file` change to set `#title` from `file.name`), so the two tabs were coupled: filling the title first meant the file tab overwrote it, and picking the file meant going back to tab one. That ordering bug was reproduced during this work. The tab split also forced a pile of machinery that existed only to compensate for it — a `Next: file intake` / `Back` wizard pair, a submit button hidden until the second tab, and three separate handlers that jumped tabs when a required field failed. Two of the project's own acceptance criteria are about exactly this: `MASTERPLAN.md` DMS-04 requires that an "invalid required field becomes visible", and `AGENTS.md` requires required fields to be "visible/focusable before native validation", which a hidden tab cannot satisfy.
+
+Changes:
+
+- `resources/views/workspace.blade.php` — removed the `#upload-tabs` tab strip. One scrolling form, file first: the drop zone, file input and selected-file label, then the metadata block, then the scan notice and locked scope line. The `Next` and `Back` buttons are gone and `Upload document` is always present. The locked School and Campus read-only inputs were replaced by one informational line, because they consumed two grid rows to display two static values.
+- `public/assets/app.js` — removed every `tabs('option','active',…)` call. The dialog-open handler resets scroll; the invalid handlers now scroll the offending field into view with `scrollIntoView`, and the file-size guard scrolls the drop zone into view.
+- `public/assets/staff-workspace.js` — deleted the `updateUploadActions` wizard logic and the `Next`/`Back`/`tabsactivate` bindings. Choosing a file now scrolls to the metadata block so the title it just filled is visible.
+- `public/assets/staff-workspace.css` — the dialog action bar is `position:sticky` with a top border, so `Upload document` stays reachable regardless of scroll depth; the drop zone and the scan notice were tightened.
+
+Two intermediate problems were caught by measuring rather than assuming. Removing the tabs first made the body 1048px in a 671px viewport, which pushed the submit button 353px below the fold and left a form with no reachable submit control. The sticky action bar plus compacted copy brought the body to 943px and returned both the drop zone and the submit button to the visible area.
+
+Verified in the browser against the local server: `#upload-tabs`, `#upload-next` and `#upload-back` no longer exist; `#upload-file` precedes `#upload-record`; the drop zone is visible on open with no scrolling; the submit button is visible without scrolling at a 943px body in a 671px viewport; and the action bar computes `position: sticky`. A full upload still succeeds, the title still auto-fills from the chosen filename, the destination still defaults to the folder being browsed, and the file lands in `test folder`. Probe documents created during verification were deleted with their stored bytes.
+
+`node --check` passed for all four scripts, `php artisan view:cache` compiled, `node tests/Frontend/folder-upload.test.cjs` passed and `git diff --check` reported no whitespace errors. `env-hahaha.txt` in `test folder` is not mine and was left untouched. No application, MySQL or accessibility suite was run.
+
+## UI increment — choose which folder an upload is saved into
+
+Story: DMS-08 / FR-02 (folders and folder intake). Reported as "can we make a way to add files directly to the folder we want".
+
+Cause: uploading did already follow the folder being browsed. `drive:uploaded` moved the new document into `pendingFolder || folder` after the upload, and `docs/DRIVE-WORKSPACE.md` describes that second authorised move. The gap was that this was invisible: opening the upload dialog inside a folder showed no destination anywhere, so the file appeared to go to My files, and there was no way to target any other folder from the dialog at all. Only drag-and-drop set `pendingFolder`.
+
+Changes:
+
+- `resources/views/workspace.blade.php` — added a "Save into folder" row with `#upload-folder` and an explanatory `#upload-destination-note` to the upload dialog's metadata tab, placed directly below Title. It was first appended after the locked School/Campus row, which put it below the fold: the dialog content measured 803px inside a 671px viewport, so the control existed but required scrolling to find and read as missing. It is now the second field in the form and is visible without scrolling.
+- `public/assets/drive.js` — `fillDestination()` populates that select with "My files — no folder" plus every folder matching the currently chosen source, so the list can never offer a folder from a different source system, which the server would reject with 422. It defaults to the folder currently being browsed and updates the note. It runs on the upload dialog's `open` event and again whenever the source changes, so switching source refreshes the choices.
+- `public/assets/drive.js` — folder card menus gained "Add file to this folder", which opens the upload dialog already aimed at that folder and sets the source to match it, so a folder can be filled without navigating into it first.
+- `public/assets/app.js` — `drive:uploaded` now also reports whether the upload was a new version, and the destination row is hidden when adding a version to an existing document.
+
+That last point fixed a latent defect. The `drive:uploaded` handler moved any uploaded document into the folder being browsed, with no distinction between a new document and a new version. Adding a version from the details dialog while inside a folder would therefore have relocated the existing document. Version uploads now return before the move, so a version stays with its document. `docs/DRIVE-WORKSPACE.md` already records that folder assignment follows intake as a separate revision-checked action.
+
+Verified in the browser against the local server: opening the dialog inside `test folder` showed the row with `test folder` preselected and the note "This document will be saved into the selected folder."; completing an upload placed the new document in `test folder` rather than the root, confirmed by querying `documents.folder_id`; the folder card menu listed "Open folder", "Add file to this folder" and "Rename folder", and choosing the middle item opened the dialog with `test folder` preselected and source `Employee Management`; the option list contained only folders matching the selected source. No document was moved by a version upload, confirmed across all rows of the `documents` table afterwards.
+
+The probe document created to verify this was deleted, including its stored bytes and related rows. `env-hahaha.txt`, which is not mine, was left untouched. `node --check` passed for both scripts, `php artisan view:cache` compiled, `node tests/Frontend/folder-upload.test.cjs` passed and `git diff --check` reported no whitespace errors. No application, MySQL or accessibility suite was run.
+
+Folder upload for batches still assigns the destination folder once and asks for shared metadata; it was not changed.
+
+## UI increment — moving a file could fail silently and wedge the dialog
+
+Story: DMS-02 (FR-02 workspace organization). Reported as "when I tried moving the txt file to test folder it doesn't".
+
+Two separate problems, only one of which was a real defect.
+
+First, the move was working. Verified against the database: `Saved Via Save Button` moved from `folder_id` null into the `test folder` row and its revision advanced from 12 to 13. The apparent failure was that `DriveController::index` filters the file list to `folder_id = $folder` when browsing My files, so a file moved into a folder correctly disappears from the current list. There was no confirmation, so the action looked like a no-op. A successful move now writes "Moved to <folder>." to the existing `#notice` region so the result is visible.
+
+Second, a genuine silent failure. `send()` did `files.find(d=>d.id===id).revision`. When the in-memory `files` array no longer contained the item, that dereferenced undefined and threw. The submit handler disables its buttons immediately before calling `send()`, and re-enables them only in `.always()`, so the throw skipped the re-enable: the dialog was left permanently disabled, every subsequent Save did nothing, and no message was shown. Reproduced live — after one stale-list attempt the Save button was already `disabled` and a further click produced no request at all.
+
+Changes, all in `public/assets/drive.js`:
+
+- `send()` returns a rejected jQuery promise with a readable message when the item is missing from the current list, instead of throwing. Because it is a promise, `.done/.fail/.always` still run, so the dialog re-enables.
+- The `.file-action` click handler resolves the document first and shows the same message if it is gone, rather than passing `undefined` into `dialog()` where `d.source` would throw.
+- Successful moves set a success notice naming the destination folder.
+
+Verified in the browser against the local server: a synthetic menu click for an unknown id now shows "This item is no longer in the current view. Refresh and try again." instead of wedging; a real move into `test folder` shows "Moved to test folder." and closes the dialog; no uncaught JavaScript errors were raised. The document was left inside `test folder` afterwards, which is the state originally requested.
+
+`node --check public/assets/drive.js` passed, `php artisan view:cache` compiled, `node tests/Frontend/folder-upload.test.cjs` passed and `git diff --check` reported no whitespace errors. `tests/Frontend/staff-workspace.test.cjs` still fails for the pre-existing unrelated reason recorded above. No application, MySQL or accessibility suite was run.
+
+Still open and unchanged: the root-only file filter means Home "Total documents" counts every non-trashed document while My files lists only the current folder, so the tile and the list can disagree. That remains a product decision about what My files should show.
+
+## UI increment — folder chevron overflowed the My files pill
+
+Story: DMS-02 (workspace navigation). Reported as "the arrow is too close to the border of the button highlight".
+
+Cause: `#folders-toggle` is absolutely positioned, and its containing block is `.files-navigation`, not the `.nav-item` pill. The wrapper is a block-level div that filled the sidebar's content width (200px) while the pill inside it is fixed at 180px, so `right` resolved against the wrong box. The button's right edge landed 10px beyond the pill's right border, putting the drawn chevron roughly 2.5px from the button edge — which reads as touching the highlight, and on a focused pill collides with the focus outline.
+
+Fix, in two existing stylesheets:
+
+- `public/assets/workspace-refresh.css` — `.files-navigation` now uses `width:fit-content` with `max-width:100%`, so the positioning box shrink-wraps the pill and absolute offsets resolve against the visible control. No hardcoded width was introduced, so the pill keeps its own sizing.
+- `public/assets/staff-workspace.css` — the staff-theme offset moved from `right:10px` to `right:12px` for a little more breathing room from the border.
+
+Verified in the browser against the local server: the wrapper now measures 180px and matches the pill's right edge exactly; the toggle's right edge sits at 188 against the pill's 200, so it no longer overflows; the gap from the toggle to the pill edge is 12px and the chevron glyph sits about 25px from the edge, up from about 2.5px. Vertical centring still measures within 1.5px. A screenshot with the folder tree expanded confirms the chevron reads clearly inside the pill.
+
+`node --check public/assets/drive.js` passed, `php artisan view:cache` compiled, `node tests/Frontend/folder-upload.test.cjs` passed and `git diff --check` reported no whitespace errors.
+
+Noted but unchanged: `.files-navigation>.nav-item` keeps `padding-right:46px` to reserve space for the absolutely positioned chevron. Because the staff theme centres the label with `justify-content:center`, that padding shifts "My files" about 23px left of true centre. Removing it would recentre the label but risks the text colliding with the chevron on long localized strings, so it was left alone rather than changed without a visual decision.
+
+## UI increment — unreadable link buttons inside dialogs
+
+Story: DMS-04 (usable dialogs), NFR-09 (readable text). Reported as "cannot see the text inside the button".
+
+Cause: jQuery UI's bundled theme sets `.ui-widget-content a{color:#333}`. That selector is specificity 0,2,1 and it is loaded from `jquery-ui.css`, which comes after `bootstrap.min.css` but the application button palette is defined in `app.css`. Specificity, not source order, decided it: `.btn-green{color:white}` is 0,1,0 and lost to `.ui-widget-content a`, so every link styled as a button inside a jQuery UI dialog rendered #333 text on the #075b3d green background, roughly 1.6:1 contrast. Real `<button>` elements were unaffected, which is why "Close" and "Add new version" read correctly while "Download version 1" did not, and why only link buttons were affected.
+
+Change, in `public/assets/app.css`: restore the button palette inside jQuery UI widgets with `.ui-widget-content a.btn-green`, `.ui-widget-content a.btn-yellow` and `.ui-widget-content a.btn-quiet`, plus matching hover/focus colours and text-decoration removal. `app.css` loads after `jquery-ui.css`, so the later, higher-specificity rules win without touching the vendored theme.
+
+Verified in the browser against the local server: every button in the details dialog now computes white `#fff` on `rgb(8,99,71)` and every quiet button computes `rgb(8,99,71)` on white, all at 7.28:1 contrast, up from about 1.6:1. This covers the version-history download link, the footer download link and the shared-document download link. A screenshot of the version history tab confirms the text is legible. `node --check public/assets/app.js` passed, `php artisan view:cache` compiled, `node tests/Frontend/folder-upload.test.cjs` passed and `git diff --check` reported no whitespace errors.
+
+No application, MySQL or accessibility suite was run. This corrects a contrast failure only; it is not a WCAG conformance claim, which still has no approved target.
+
 ## Data increment — personal workspaces were empty because records had no owner
 
 Stories: DMS-02, FR-02, FR-09. Found while verifying the FR/NFR register against the running system.
