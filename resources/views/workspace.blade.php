@@ -8,7 +8,7 @@
 <input id="folder-upload-picker" type="file" webkitdirectory multiple hidden>
 <nav aria-label="File navigation">
 <button type="button" class="nav-item active" data-view="overview">Home</button>
-<div class="files-navigation"><button type="button" class="nav-item" data-view="files">My files</button><button type="button" id="folders-toggle" class="folders-toggle" aria-label="Expand My files folders" aria-expanded="false" aria-controls="sidebar-folders" hidden>⌄</button></div>
+<div class="files-navigation"><button type="button" class="nav-item" data-view="files">My files</button><button type="button" id="folders-toggle" class="folders-toggle" aria-label="Expand My files folders" aria-expanded="false" aria-controls="sidebar-folders" hidden></button></div>
 <div id="sidebar-folders" class="sidebar-folders" hidden></div>
 <button type="button" class="nav-item" data-view="recent">Recent</button>
 <button type="button" class="nav-item" data-view="starred">Starred</button>
@@ -42,7 +42,7 @@
 <div class="table-footer"><span id="history-count" role="status">No history loaded</span><button id="history-more" class="btn btn-quiet" disabled>Load more</button></div>
 </section>
 <section id="drive-panel" class="panel" data-folder-colors='@json(config('dms.folder_colors'))' hidden>
-<div class="panel-heading"><nav id="drive-crumbs" aria-label="Folder path"></nav><div><button id="details-toggle" class="btn btn-quiet" aria-label="Show item details" aria-expanded="false" aria-controls="item-details">ⓘ</button> <button id="drive-layout" class="btn btn-quiet" aria-pressed="false">List view</button></div></div>
+<div class="panel-heading"><div class="drive-heading"><button type="button" id="drive-back" class="btn btn-quiet" aria-label="Back to My files" hidden>←&nbsp;Back</button><nav id="drive-crumbs" aria-label="Folder path"></nav></div><div><button id="details-toggle" class="btn btn-quiet" aria-label="Show item details" aria-expanded="false" aria-controls="item-details">ⓘ</button> <button id="drive-layout" class="btn btn-quiet" aria-pressed="false">List view</button></div></div>
 <div id="selection-toolbar" class="selection-toolbar" hidden><button id="selection-clear" class="btn btn-quiet" aria-label="Clear selection">×</button><strong id="selection-label">1 selected</strong><div id="selection-actions"></div></div><form id="drive-filter" class="filter-bar"><input id="drive-search" class="form-control" maxlength="200" placeholder="Search files by name" aria-label="Search files by name"><select id="drive-sort" class="form-select" aria-label="Sort files"><option value="updated">Last modified</option><option value="name">Name</option></select><button class="btn btn-quiet">Search</button></form>
 <div id="drive-drop" tabindex="0" aria-label="Drop files here or use Upload document"><p>Drop files here to upload · Files stay private; access requires a clean security scan</p><div id="drive-items" class="drive-grid"></div></div>
 <div class="table-footer"><span id="drive-count" role="status"></span><div><button id="drive-prev" class="btn btn-quiet">Previous</button><button id="drive-next" class="btn btn-quiet">Next</button></div></div>
@@ -50,30 +50,27 @@
 <aside id="item-details" class="item-details panel" aria-label="Item details" hidden><header><h2 id="inspector-title">Details</h2><button id="details-close" class="btn btn-quiet" aria-label="Close details">×</button></header><div id="inspector-tabs"><ul><li><a href="#inspector-details">Details</a></li><li><a href="#inspector-activity">Activity</a></li></ul><div id="inspector-details"><div class="inspector-empty"><span aria-hidden="true">▤</span><p>Select an item to see its details</p></div></div><div id="inspector-activity"><p>Select an item to see its activity.</p></div></div></aside><footer class="workspace-footer"><span>School Documents</span><span>Private files · Preserved history</span></footer></main></div></div>
 <div id="upload-dialog" title="Upload document" hidden>
 <form id="upload-form">
-<div id="upload-tabs">
-<ul><li><a href="#upload-record">Record metadata</a></li><li><a href="#upload-file">File intake</a></li></ul>
+<div id="upload-file">
+<label for="file" id="upload-dropzone" class="file-drop-zone"><span aria-hidden="true">↑</span><strong>Drop a file here or browse</strong><small>PDF, PNG, JPG or TXT · Maximum 10 MB</small></label>
+<input type="file" id="file" name="file" class="form-control" accept=".pdf,.png,.jpg,.jpeg,.txt" aria-label="Choose the document file" required>
+<p id="selected-file-label" class="selected-file-label" role="status">No file selected</p>
+</div>
 <div id="upload-record">
 <p class="form-instruction">Use a clear title and reference. Earlier versions remain preserved when a document is replaced.</p>
 <div class="row g-3">
 <div class="col-12"><label for="title" class="form-label">Title</label><input id="title" name="title" class="form-control" required maxlength="200"></div>
+<div class="col-12" id="upload-destination-row"><label for="upload-folder" class="form-label">Save into folder</label><select id="upload-folder" name="folder_id" class="form-select"></select><p id="upload-destination-note" class="form-instruction"></p></div>
 <div class="col-md-6"><label for="subject" class="form-label">Subject / record owner</label><input id="subject" name="subject" value="{{ $personal ? auth()->user()->name : '' }}" class="form-control" required maxlength="200"></div>
 <div class="col-md-6"><label for="reference" class="form-label">Reference</label><input id="reference" name="reference" class="form-control" placeholder="e.g. EMP-2026-0142" required maxlength="200"></div>
 <div class="col-md-6"><label for="source" class="form-label">Source</label><select id="source" name="source" class="form-select">@foreach(app(\App\Services\DocumentService::class)->sources(auth()->user()) as $source)<option>{{ $source }}</option>@endforeach</select></div>
 <div class="col-md-6"><label for="category" class="form-label">Category</label><select id="category" name="category" class="form-select">@foreach(($personal ? array_diff(config('dms.categories'), ['Payslip']) : config('dms.categories')) as $category)<option>{{ $category }}</option>@endforeach</select></div>
 <div class="col-md-6"><label for="classification" class="form-label">Classification</label><select id="classification" name="classification" class="form-select"><option>Confidential</option><option>Restricted</option><option>Internal</option></select></div>
 <div class="col-md-6"><label for="expires_at" class="form-label">Expires at (optional)</label><input id="expires_at" name="expires_at" class="form-control" placeholder="YYYY-MM-DD" autocomplete="off"></div>
-<div class="col-md-6"><label for="upload-school" class="form-label">School · locked</label><input id="upload-school" class="form-control" value="School workspace" readonly></div>
-<div class="col-md-6"><label for="upload-campus" class="form-label">Campus · locked</label><input id="upload-campus" class="form-control" value="{{ auth()->user()->campus }}" readonly></div>
 </div></div>
-<div id="upload-file">
-<label for="file" id="upload-dropzone" class="file-drop-zone"><span aria-hidden="true">↑</span><strong>Drop a file here or browse</strong><small>PDF, PNG, JPG or TXT · Maximum 10 MB</small></label>
-<input type="file" id="file" name="file" class="form-control" accept=".pdf,.png,.jpg,.jpeg,.txt" aria-label="Choose the document file" required>
-<p id="selected-file-label" class="selected-file-label" role="status">No file selected</p>
-<p class="upload-availability">Every version is security-scanned. Download, preview and sharing are available only after a clean result.</p>
-<p class="form-instruction">The detected file type must match its extension. Existing filenames and titles cannot be reused in another document, including files in Trash.</p>
-</div></div>
+<p class="upload-availability">Every version is security-scanned. Download, preview and sharing unlock only after a clean result. The detected file type must match its extension, and a filename or title cannot be reused in another document, including in Trash.</p>
+<p class="form-instruction">School workspace · {{ auth()->user()->campus }} · locked</p>
 <div id="upload-error" class="alert alert-danger mt-3" role="alert" hidden></div>
-<div class="dialog-actions"><button type="button" id="upload-cancel" class="btn btn-quiet">Cancel</button><button type="button" id="upload-back" class="btn btn-quiet" hidden>Back</button><button type="button" id="upload-next" class="btn btn-green">Next: file intake</button><button type="submit" id="upload-submit" class="btn btn-green" hidden>Upload document</button></div>
+<div class="dialog-actions"><button type="button" id="upload-cancel" class="btn btn-quiet">Cancel</button><button type="submit" id="upload-submit" class="btn btn-green">Upload document</button></div>
 </form></div>
 <div id="detail-dialog" title="Document details" hidden><div id="detail-content"></div></div>
 <div id="history-dialog" title="Business record history" hidden><div id="history-detail"></div></div>

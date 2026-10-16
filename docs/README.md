@@ -1,9 +1,10 @@
 # Documentation map
 
-Start with [SDD-ALIGNMENT.md](SDD-ALIGNMENT.md) for the 16 October staff-only and scan-gated implementation, then [MASTERPLAN.md](../MASTERPLAN.md) for product direction, status, backlog, acceptance criteria and production gates. Read [AGENTS.md](../AGENTS.md) before implementation and [Implementation.md](../Implementation.md) for ordered tasks and evidence tracking.
+Start with [SDD-ALIGNMENT.md](SDD-ALIGNMENT.md) for the 16 October staff-only and scan-gated implementation, then [MASTERPLAN.md](../MASTERPLAN.md) for product direction, status, backlog, acceptance criteria and production gates. Read [AGENTS.md](../AGENTS.md) before implementation and [Implementation.md](../Implementation.md) for ordered tasks and evidence tracking. Use [SDD-REQUIREMENTS.md](SDD-REQUIREMENTS.md) when you need the SDD's functional and non-functional requirements as separate, reviewable lists.
 
 | Document | Purpose |
 |---|---|
+| [SDD-REQUIREMENTS.md](SDD-REQUIREMENTS.md) | FR-01…FR-09 and NFR-01…NFR-09 split register extracted from the SDD, plus OBJ/INT/R/AD indexes and traceability gaps |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Approved four-tier structure and database boundaries |
 | [ARCHITECTURE.png](ARCHITECTURE.png) | Final user-supplied visual reference |
 | [ARCHITECTURE.drawio](ARCHITECTURE.drawio) / [ARCHITECTURE.xml](ARCHITECTURE.xml) | Editable visible system-context page extracted from PNG metadata |

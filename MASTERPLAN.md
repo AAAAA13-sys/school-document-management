@@ -4,6 +4,8 @@ Version 2.0 | 16 October 2026 | Final SDD adopted; implementation remains in pro
 
 **Current authority:** [SDD alignment and verification](docs/SDD-ALIGNMENT.md), based on [the supplied SDD](docs/reference/DMS-SDD-2026-10-13.pdf). The user explicitly confirmed that staff-only access and ClamAV scanning replace the 10 October decisions. Existing accounts/files are preserved. Historical master plan: docs/archive/2026-10-10-MASTERPLAN.md.
 
+**Requirement identifiers:** the SDD's functional (FR-01…FR-09) and non-functional (NFR-01…NFR-09) requirements are split into separate reviewable lists in [docs/SDD-REQUIREMENTS.md](docs/SDD-REQUIREMENTS.md). That register copies SDD section 5 wording and does not alter scope; code-level tracing stays in [docs/SDD-ALIGNMENT.md](docs/SDD-ALIGNMENT.md).
+
 ## 1. Outcome
 
 Deliver a school DMS that school staff can use independently to store, organize, retrieve and share files. Authorized office staff manage scoped institutional records. The DMS also preserves agreed evidence delivered by Employee Management, Online Admission, Enrollment and Payroll through authenticated APIs.
