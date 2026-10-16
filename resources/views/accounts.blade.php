@@ -3,7 +3,7 @@
 @php($roles = config('dms.role_labels'))
 @section('content')
 <main class="container accounts-page py-4" id="main-content" tabindex="-1">
-<a href="/" class="btn btn-quiet">← Workspace</a>
+<div class="accounts-toolbar"><a href="/" class="btn btn-quiet">← Workspace</a><form id="signout-form" action="/logout" method="post">@csrf<button type="submit" class="btn btn-quiet signout-trigger" title="Sign out" aria-label="Sign out" aria-haspopup="dialog" aria-controls="signout-dialog">Sign out</button></form></div>
 <header class="accounts-heading"><p class="eyebrow green mt-4">ADMINISTRATION</p><h1>Accounts &amp; access</h1>
 <p>Manage who can use your school document workspace.</p><span class="scope-label">{{ auth()->user()->campus }} · {{ $users->total() }} accounts</span></header>
 @if(session('status'))<div class="alert alert-success" role="status">{{ session('status') }}</div>@endif

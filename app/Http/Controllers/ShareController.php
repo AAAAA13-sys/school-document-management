@@ -62,6 +62,43 @@ class ShareController extends Controller
         return response()->json(DB::table('document_comments')->join('users', 'users.id', '=', 'document_comments.user_id')->where('document_id', $d->id)->orderByDesc('document_comments.id')->limit(100)->get(['body', 'users.name', 'document_comments.created_at']));
     }
 
+    /** Resolves a folder grant plus one document inside the granted folder tree. */
+    private function folderGrant(Request $r, string $id, string $document): array
+    {
+        $a = $this->dms->actor($r);
+        abort_unless(in_array($a->role, ['teacher', 'employee', 'admin', 'registrar', 'hr', 'payroll']), 403);
+        $g = DB::table('folder_shares')->where('id', $id)->where('recipient_id', $a->id)->whereNull('revoked_at')->where('expires_at', '>', now())->first();
+        abort_unless($g, 404);
+        $folder = DB::table('folders')->where('id', $g->folder_id)->first();
+        $sender = User::find($g->created_by);
+        abort_unless($folder && $sender && $sender->active && $this->dms->scope(DB::table('folders'), $sender)->where('id', $folder->id)->exists(), 404);
+        $d = DB::table('documents')->where('id', $document)->whereIn('folder_id', $this->dms->folderSubtree($folder->id))
+            ->where('school_id', $a->school_id)->where('campus', $a->campus)->whereNull('trashed_at')->first();
+        abort_unless($d, 404, 'Document not found.');
+
+        return [$a, $g, $d];
+    }
+
+    public function folderComments(Request $r, string $id, string $document)
+    {
+        [$a, $g, $d] = $this->folderGrant($r, $id, $document);
+
+        return response()->json(DB::table('document_comments')->join('users', 'users.id', '=', 'document_comments.user_id')->where('document_id', $d->id)->orderByDesc('document_comments.id')->limit(100)->get(['body', 'users.name', 'document_comments.created_at']));
+    }
+
+    public function folderComment(Request $r, string $id, string $document)
+    {
+        return DB::transaction(function () use ($r, $id, $document) {
+            [$a, $g, $d] = $this->folderGrant($r, $id, $document);
+            abort_unless(in_array($g->permission, ['commenter', 'editor']), 403);
+            $p = $r->validate(['body' => 'required|string|max:2000']);
+            DB::table('document_comments')->insert(['document_id' => $d->id, 'user_id' => $a->id, 'body' => $p['body'], 'created_at' => now()]);
+            $this->dms->log($a, 'Folder shared document commented', $d->id);
+
+            return response()->json(['ok' => true], 201);
+        });
+    }
+
     public function comment(Request $r, string $id)
     {
         return DB::transaction(fn () => $this->commentLocked($r, $id));
