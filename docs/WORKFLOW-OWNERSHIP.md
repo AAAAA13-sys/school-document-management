@@ -1,5 +1,8 @@
 # Current workflow ownership
 
+> Superseded scope notice (16 October 2026): the final SDD requires staff-only DMS access and ClamAV scan gating. Earlier student-access and scanning-removal descriptions below are historical. Use [SDD-ALIGNMENT.md](SDD-ALIGNMENT.md) and the root master plan for current behavior.
+
+
 The user's revised requirement supersedes the original review/verification stories: DMS stores, organizes, shares and preserves documents and source history. Business verification and approval belong to users' processes or originating systems. DMS provides no approval/rejection endpoint or review queue.
 
 Valid uploads are Available without any reviewer decision or scanning prerequisite. Scanning was explicitly removed. Upload type/content/size validation, checksum integrity, access scopes, audit and versions remain enforced. Retention/hold/disposal procedures still require school policy and implementation.

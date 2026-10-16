@@ -1,5 +1,8 @@
 # Role-based access
 
+> Superseded scope notice (16 October 2026): the final SDD requires staff-only DMS access and ClamAV scan gating. Earlier student-access and scanning-removal descriptions below are historical. Use [SDD-ALIGNMENT.md](SDD-ALIGNMENT.md) and the root master plan for current behavior.
+
+
 Role checks run on the server. School and campus boundaries apply to every role.
 
 | Role | Document access | Administration |

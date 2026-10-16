@@ -165,6 +165,7 @@ class DriveController extends Controller
         abort_unless($v, 404);
         $this->dms->document($v->document_id, $a);
 
+        app(\App\Services\FileScanner::class)->requireClean($v);
         abort_unless(in_array($v->media_type, ['text/plain', 'application/pdf', 'image/png', 'image/jpeg']), 415);
         $path = Storage::disk('local')->path($v->storage_key);
         abort_unless(is_file($path), 503);
@@ -189,8 +190,9 @@ class DriveController extends Controller
         $d = $this->dms->document($id, $a);
         $recipient = User::where('email', $p['email'])->where('active', true)->first();
         abort_unless($recipient, 422, 'Active recipient not found.');
-        abort_unless($recipient->school_id === $a->school_id && $recipient->campus === $a->campus && in_array($recipient->role, ['student','teacher','employee','admin','registrar','hr','payroll']), 403, 'Recipient must be an active workspace user in your school and campus.');
+        abort_unless($recipient->school_id === $a->school_id && $recipient->campus === $a->campus && in_array($recipient->role, ['teacher','employee','admin','registrar','hr','payroll']), 403, 'Recipient must be an active workspace user in your school and campus.');
         $v = $this->dms->latest($id);
+        app(\App\Services\FileScanner::class)->requireClean($v);
 
         $grant = (string) Str::uuid();
         DB::transaction(function () use ($grant, $id, $v, $a, $recipient, $p) {

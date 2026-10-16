@@ -31,7 +31,7 @@ class AccountController extends Controller
         $a = $this->admin($r);
         $p = $r->validate([
             'name' => 'required|string|max:200', 'email' => 'required|email|max:200|unique:users,email',
-            'role' => 'required|in:student,teacher,employee,admin,registrar,hr,payroll',
+            'role' => 'required|in:employee,admin,registrar,hr,payroll',
             'password' => ['required', 'confirmed', Password::min(12)->letters()->numbers()],
         ]);
         unset($p['password_confirmation']);
@@ -48,7 +48,7 @@ class AccountController extends Controller
     {
         $a = $this->admin($r);
         abort_if((string) $a->id === $id, 422, 'Use another administrator to change your own access.');
-        $p = $r->validate(['role' => 'required|in:student,teacher,employee,admin,registrar,hr,payroll', 'active' => 'required|boolean']);
+        $p = $r->validate(['role' => 'required|in:employee,admin,registrar,hr,payroll', 'active' => 'required|boolean']);
         DB::transaction(function () use ($a, $id, $p) {
             $u = User::where('school_id', $a->school_id)->where('campus', $a->campus)->whereKey($id)->lockForUpdate()->firstOrFail();
             $u->forceFill($p)->save();

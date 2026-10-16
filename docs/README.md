@@ -1,6 +1,6 @@
 # Documentation map
 
-Start with [MASTERPLAN.md](../MASTERPLAN.md) for product direction, status, backlog, acceptance criteria and production gates. Read [AGENTS.md](../AGENTS.md) before implementation and [Implementation.md](../Implementation.md) for ordered tasks, dependencies and evidence tracking.
+Start with [SDD-ALIGNMENT.md](SDD-ALIGNMENT.md) for the 16 October staff-only and scan-gated implementation, then [MASTERPLAN.md](../MASTERPLAN.md) for product direction, status, backlog, acceptance criteria and production gates. Read [AGENTS.md](../AGENTS.md) before implementation and [Implementation.md](../Implementation.md) for ordered tasks and evidence tracking.
 
 | Document | Purpose |
 |---|---|

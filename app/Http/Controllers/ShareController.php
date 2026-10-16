@@ -14,7 +14,7 @@ class ShareController extends Controller
     private function grant(Request $r, string $id): array
     {
         $a = $this->dms->actor($r);
-        abort_unless(in_array($a->role, ['student','teacher','employee','admin','registrar','hr','payroll']), 403);
+        abort_unless(in_array($a->role, ['teacher','employee','admin','registrar','hr','payroll']), 403);
         $g = DB::table('document_shares')->where('id', $id)->where('recipient_id', $a->id)->whereNull('revoked_at')->where('expires_at', '>', now())->lockForUpdate()->first();
         abort_unless($g, 404);
         $d = DB::table('documents')->where('id', $g->document_id)->where('school_id', $a->school_id)->where('campus', $a->campus)->whereNull('trashed_at')->lockForUpdate()->first();
@@ -49,6 +49,7 @@ class ShareController extends Controller
         [$a, $g, $d] = $this->grant($r, $id);
         $v = DB::table('document_versions')->where('id', $g->version_id)->where('document_id', $d->id)->first();
         abort_unless($v, 404, 'Shared version not found.');
+        app(\App\Services\FileScanner::class)->requireClean($v);
         abort_unless(Storage::disk('local')->exists($v->storage_key), 503);
         abort_unless(hash_equals($v->checksum, hash_file('sha256', Storage::disk('local')->path($v->storage_key))), 409, 'File integrity check failed.');
         $this->dms->log($a, 'Shared document downloaded', $d->id, $id);
@@ -107,6 +108,7 @@ class ShareController extends Controller
         [$a, $g, $d] = $this->grant($r, $id);
         abort_unless($g->permission === 'editor', 403);
         $r->merge(array_intersect_key((array) $d, array_flip(['title', 'subject', 'reference', 'source', 'category', 'classification'])) + ['document_id' => $d->id]);
-        return response()->json($this->dms->upload($r, $a, true), 201);
+        $receipt = $this->dms->upload($r, $a, true);
+        return response()->json($receipt, $r->attributes->get('dms_replayed') ? 200 : 201);
     }
 }

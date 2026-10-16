@@ -46,7 +46,7 @@ $(function () {
 
         for (const key of ['files','recent','starred','trash']) names[key] = [{files:'My files',recent:'Recent files',starred:'Starred files',trash:'Trash'}[key], 'Organize your documents while preserving their evidence and history.'];
 
-        names.overview = [personal ? 'Home' : 'Workspace overview', personal ? 'Everything you need, organized in one place.' : 'Documents, people and history, at a glance.'];
+        names.overview = ['Welcome to your workspace', personal ? 'Everything you need, organized in one place.' : 'Documents, people and history, at a glance.'];
 
         $('#drive-panel').prop('hidden', !['overview','files','recent','starred','trash','shared'].includes(next));
 
@@ -59,7 +59,7 @@ $(function () {
 
         $('#breadcrumb').text(next === 'overview' ? 'Overview' : names[next][0]);
 
-        $('.nav-item').removeClass('active').filter('[data-view="' + next + '"]').addClass('active');
+        $('.nav-item').removeClass('active').removeAttr('aria-current').filter('[data-view="' + next + '"]').addClass('active').attr('aria-current','page');
 
         $('#overview-panel').prop('hidden', true);
 
@@ -73,7 +73,7 @@ $(function () {
 
         $('#list-title').text(next === 'overview' ? 'Recent documents' : 'Document repository');
 
-        $('#source-filter').val(''); $('#search').val(''); $('#notice').prop('hidden', true); $('.sidebar').removeClass('open');
+        $('#source-filter').val(''); $('#search').val(''); $('#notice').prop('hidden', true); $('.sidebar').removeClass('open');$('#sidebar-dismiss').prop('hidden',true);$('#menu-toggle').attr('aria-expanded','false');
 
         if (next === 'documents') loadDocuments();
 
@@ -111,7 +111,7 @@ $(function () {
 
         $.getJSON('/workspace/stats').done(stats => {
 
-            $('#stat-total').text(stats.total);
+            $('#stat-total').text(stats.total); $('#stat-available').text(stats.available); $('#stat-shared').text(stats.shared);
 
 
             $('#source-bars').html(stats.sources.map(s => '<div class="source-row"><div><span>' + escape(s.source) + '</span><strong>' + s.count + '</strong></div><div class="bar-track"><div class="bar-fill" style="width:' + (stats.total ? s.count / stats.total * 100 : 0) + '%"></div></div></div>').join(''));
@@ -121,33 +121,58 @@ $(function () {
     }
 
     $(document).on('drive:refresh',loadStats);
+    let documentRequest = null;
     function openDocument(id) {
-
-        $.getJSON('/workspace/documents/' + id).done(result => {
-
+        if(documentRequest)documentRequest.abort();
+        documentRequest = $.getJSON('/workspace/documents/' + id).done(result => {
             selected = result;
-
-            const d = result.document, v = result.versions[0];
-
-            let meta = [['Record owner',d.subject],['Business reference',d.reference],['Source system',d.source],['Category',d.category],['Classification',d.classification],['School / campus',d.school_id + ' / ' + d.campus],['Expiry date',v.expires_at || 'Not set']];
-
-            if (personal) meta = meta.filter(x => !['Source system','School / campus','Classification'].includes(x[0]));
-
-            let html = '<div class="detail-header"><span class="file-icon">DOC</span><div><h2>' + escape(d.title) + '</h2>' + '</div></div><div id="detail-tabs"><ul><li><a href="#document-summary">Record details</a></li><li><a href="#document-history">Version history (' + result.versions.length + ')</a></li></ul><div id="document-summary"><dl class="detail-grid">' + meta.map(x => '<div><dt>' + escape(x[0]) + '</dt><dd>' + escape(x[1]) + '</dd></div>').join('') + '</dl>';
-
-            if (v.reason) html += '<div class="alert alert-warning">Historical decision note: ' + escape(v.reason) + '</div>';
-
-
-            if (result.comments?.length) html += '<h3>Comments</h3>'+result.comments.map(c => '<article class="shared-comment"><strong>'+escape(c.name)+'</strong><p>'+escape(c.body)+'</p></article>').join('');
-            html += '<div class="dialog-actions">' + '<a class="btn btn-quiet" href="/workspace/files/' + escape(v.id) + '">Download v' + v.number + '</a>' + '<button class="btn btn-green" id="replacement-open">Add new version</button></div>';
-
-            html += '</div><div id="document-history">' + result.versions.map(x => '<div class="version-card"><div class="version-heading"><strong>Version ' + x.number + '</strong>' + '</div><p>' + escape(x.filename) + ' · ' + Math.ceil(x.size / 1024) + ' KB · Uploaded by ' + escape(x.actor) + '</p><p>Created ' + date(x.created_at) + (x.reviewer ? ' · Historical decision by ' + escape(x.reviewer) + ': ' + escape(x.status) : '') + '</p><code>SHA-256: ' + escape(x.checksum) + '</code>' + '<div class="dialog-actions"><a class="btn btn-quiet" href="/workspace/files/' + escape(x.id) + '">Download version</a></div>' + '</div>').join('') + '</div></div>';
-
-            $('#detail-content').html(html); $('#detail-tabs').tabs(); $('#detail-dialog').dialog('open');
-
-        }).fail(xhr => notice(message(xhr), true));
-
+            const d = result.document, v = result.versions[0], clean = v.scan === 'Clean';
+            const state = clean ? 'Available' : ({Pending:'Pending scan',Failed:'Scan failed',Quarantined:'Quarantined'}[v.scan] || 'Awaiting scan');
+            const meta = [['Title',d.title],['Subject',d.subject],['Reference',d.reference],['Source',d.source],['Category',d.category],['Classification',d.classification],['Expires',v.expires_at || 'No expiry'],['Created',date(d.created_at)],['Modified',date(d.updated_at)],['Uploaded by',v.actor],['Version',v.number],['Checksum',v.checksum]];
+            const download = x => x.scan === 'Clean' ? '<a class="btn btn-green" href="/workspace/files/'+escape(x.id)+'">Download version '+x.number+'</a>' : '<p class="scan-notice">Security scan: '+escape(x.scan)+'. File access remains blocked.</p>';
+            const comments = result.comments?.length ? result.comments.map(c=>'<article class="shared-comment"><strong>'+escape(c.name)+'</strong><p>'+escape(c.body)+'</p></article>').join('') : '<p class="muted-label">No comments yet.</p>';
+            const html = '<div class="document-state"><span class="file-state '+(clean?'is-clean':'is-blocked')+'">'+escape(state)+'</span><span>'+escape(d.source)+' · '+escape(d.classification)+'</span></div>'+
+                '<div id="detail-tabs"><ul><li><a href="#document-summary">Details</a></li><li><a href="#document-history">Version history</a></li><li><a href="#document-preview">Preview</a></li><li><a href="#document-access">Shares</a></li></ul>'+
+                '<div id="document-summary"><dl class="document-metadata">'+meta.map(x=>'<div><dt>'+escape(x[0])+'</dt><dd>'+escape(x[1])+'</dd></div>').join('')+'</dl>'+(v.reason?'<p class="form-instruction">Historical decision note: '+escape(v.reason)+'</p>':'')+'</div>'+
+                '<div id="document-history">'+result.versions.map(x=>'<article class="version-card"><header class="version-heading"><strong>Version '+x.number+'</strong><span class="file-state '+(x.scan==='Clean'?'is-clean':'is-blocked')+'">'+escape(x.scan==='Clean'?'Available':x.scan)+'</span></header><p>'+escape(x.filename)+' · '+Math.ceil(x.size/1024)+' KB</p><p>'+escape(x.actor)+' · '+date(x.created_at)+'</p><code>SHA-256: '+escape(x.checksum)+'</code><div class="dialog-actions">'+download(x)+'</div></article>').join('')+'</div>'+
+                '<div id="document-preview">'+(clean?'<p class="form-instruction">Preview of version '+v.number+'. Your access and file integrity are checked again when opened.</p><div id="document-preview-content" class="document-preview-content"></div>':'<p class="scan-notice">Preview is unavailable while this version is '+escape(state.toLowerCase())+'. Its metadata and version history are preserved.</p>')+'</div>'+
+                '<div id="document-access"><div class="access-heading"><div><h3>People with access</h3><p>Named grants preserve the version shared with each recipient.</p></div>'+(clean?'<button type="button" class="btn btn-green" id="document-share-open">Share version</button>':'')+'</div><div id="document-grant-list" aria-live="polite">Loading access…</div><h3 class="mt-4">Comments</h3>'+comments+'</div></div>'+
+                '<div class="dialog-actions document-footer"><button type="button" class="btn btn-quiet" id="document-close">Close</button>'+download(v)+'<button type="button" class="btn btn-quiet" id="replacement-open">Add new version</button></div>';
+            $('#detail-content').html(html);
+            let previewLoaded = false;
+            $('#detail-tabs').tabs({activate: function (event, ui) {
+                if (ui.newPanel.attr('id') !== 'document-preview' || previewLoaded || !clean) return;
+                previewLoaded = true;
+                const url = '/workspace/preview/'+v.id, area = $('#document-preview-content').empty();
+                if (v.media_type === 'text/plain') {
+                    const text = $('<pre class="history-payload">').text('Loading preview…').appendTo(area);
+                    $.ajax({url,dataType:'text'}).done(value=>text.text(value)).fail(xhr=>text.text(message(xhr)));
+                } else if (v.media_type.startsWith('image/')) {
+                    $('<img class="document-image-preview" alt="Private document preview">').attr('src',url).on('error',()=>area.text('Preview unavailable. Reopen the document or download the clean version.')).appendTo(area);
+                } else if (v.media_type === 'application/pdf') {
+                    $('<iframe title="Private PDF preview" sandbox>').attr('src',url).appendTo(area);
+                    $('<p class="form-instruction">').text('PDF viewing depends on your browser. Use Download if it is unavailable.').appendTo(area);
+                } else area.text('A browser preview is not available for this format.');
+            }});
+            $('#detail-dialog').dialog('option','title',d.title).dialog('option','width',Math.min(1100,window.innerWidth-32)).dialog('open');
+            $.getJSON('/workspace/drive/'+d.id+'/shares').done(grants=>{
+                if(selected?.document.id!==d.id)return;
+                const area=$('#document-grant-list').empty();
+                if(!grants.length)area.append($('<p class="access-empty">').text('No named shares yet. Existing workspace role permissions still apply.'));
+                grants.forEach(g=>{
+                    const expired = new Date(g.expires_at.replace(' ','T')+'Z') <= new Date();
+                    const row=$('<article class="access-row">').append($('<div>').append($('<strong>').text(g.email),$('<p>').text((g.permission||'viewer')+' · expires '+date(g.expires_at))));
+                    if(g.revoked_at||expired)row.append($('<span class="muted-label">').text(g.revoked_at?'Revoked':'Expired'));
+                    else row.append($('<button type="button" class="btn btn-quiet">').text('Revoke').on('click',function(){const b=$(this).prop('disabled',true);$.ajax({url:'/workspace/shares/'+g.id,method:'DELETE'}).done(()=>{row.find('button').remove();row.append($('<span class="muted-label">').text('Revoked'));$(document).trigger('drive:refresh');}).fail(xhr=>{b.prop('disabled',false);notice(message(xhr),true);});}));
+                    row.appendTo(area);
+                });
+            }).fail(xhr=>{if(selected?.document.id===d.id)$('#document-grant-list').text(message(xhr));});
+        }).fail(xhr=>{if(xhr.statusText!=='abort')notice(message(xhr),true);});
     }
+
+    $(document).on('click','#document-close',()=>$('#detail-dialog').dialog('close'));
+    $(document).on('click','#document-share-open',()=>{if(selected){$('#detail-dialog').dialog('close');$(document).trigger('document:share',[selected.document]);}});
+    $('#detail-dialog').on('dialogclose',function(){$(this).find('iframe').attr('src','about:blank');$(this).find('.document-image-preview').removeAttr('src');});
 
     function openUpload(existing = null) {
 
@@ -256,7 +281,7 @@ $(function () {
 
     $('.nav-item[data-view]').on('click',function(){setView($(this).data('view'));});
 
-    $('#menu-toggle').on('click',()=>$('.sidebar').toggleClass('open'));
+    $('#menu-toggle').on('click',function(){const open=$('.sidebar').toggleClass('open').hasClass('open');$(this).attr('aria-expanded',String(open));$('#sidebar-dismiss').prop('hidden',!open);});
 
     $('#show-all').on('click',()=>setView('documents'));
 
@@ -296,7 +321,7 @@ $(function () {
 
         $.ajax({url:'/workspace/documents',method:'POST',data,processData:false,contentType:false,headers:{'Idempotency-Key':uploadKey}})
 
-            .done(result=>{$('#upload-dialog').dialog('close');notice('File uploaded. Ready to open.');if(view==='documents')loadDocuments();loadStats();$(document).trigger('drive:uploaded',[result]);})
+            .done(result=>{$('#upload-dialog').dialog('close');notice(result.scan === 'Clean' ? 'Upload and security scan complete.' : 'Upload saved. File access is blocked until its security scan passes.');if(view==='documents')loadDocuments();loadStats();$(document).trigger('drive:uploaded',[result]);})
 
             .fail(xhr=>$('#upload-error').text(message(xhr)).prop('hidden',false))
 

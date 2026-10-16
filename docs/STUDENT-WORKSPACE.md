@@ -1,5 +1,8 @@
 # Student workspace implementation
 
+> Superseded scope notice (16 October 2026): the final SDD requires staff-only DMS access and ClamAV scan gating. Earlier student-access and scanning-removal descriptions below are historical. Use [SDD-ALIGNMENT.md](SDD-ALIGNMENT.md) and the root master plan for current behavior.
+
+
 Students see their own files, folders, recent and starred documents, Trash, and explicit shares. Administrative repository, integration history and account management remain role restricted.
 
 The student shell uses green/yellow navigation, a top search, compact welcome area, upload/folder shortcuts, grid/list controls, and a page-local hover help icon. Uploads are usable immediately. There is no scanning service, scanner configuration or scan retry command. Existing pending/failed records become available when the migration runs; legacy scan metadata remains in the schema for API compatibility and historical records.

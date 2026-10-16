@@ -16,16 +16,21 @@ $(function () {
     function refreshFolderTree() {
         $.getJSON('/workspace/folders').done(all => {
             $('#folders-toggle').prop('hidden', !all.length);
-            const container = $('#sidebar-folders').empty(), seen = new Set(), ids = new Set(all.map(f => f.id));
-            function append(parent, depth) {
-                all.filter(f => parent === null ? !f.parent_id || !ids.has(f.parent_id) : f.parent_id === parent).forEach(f => {
-                    if (seen.has(f.id)) return;
-                    seen.add(f.id);
-                    $('<button type="button" class="sidebar-folder">').attr('data-id', f.id).css('padding-left', 16 + Math.min(depth, 12) * 12).text('▰ '+f.name).appendTo(container);
-                    append(f.id, depth + 1);
+            const container = $('#sidebar-folders').empty(), ids = new Set(all.map(f => f.id));
+            function append(parent, depth, target = container, source = null, visited = new Set()) {
+                all.filter(f => (!source || f.source === source) && (parent === null ? !f.parent_id || !ids.has(f.parent_id) : f.parent_id === parent)).forEach(f => {
+                    if (visited.has(f.id)) return;
+                    visited.add(f.id);
+                    $('<button type="button" class="sidebar-folder">').attr('data-id', f.id).css('padding-left', 16 + Math.min(depth, 12) * 12).text('▰ '+f.name).appendTo(target);
+                    append(f.id, depth + 1, target, source, visited);
                 });
             }
             append(null, 0);
+            $('.source-folder-list').each(function(){
+                const group=$(this).empty(), source=$(this).attr('data-source');
+                append(null,0,group,source);
+                if(!group.children().length)group.append($('<span class="source-empty">').text('No folders yet'));
+            });
             container.prop('hidden', !all.length || $('#folders-toggle').attr('aria-expanded') !== 'true');
         }).fail(fail);
     }
@@ -49,7 +54,7 @@ $(function () {
     function openShared(d) {
         sharedTarget = d; sharedUploadKey = crypto.randomUUID();
         $('#shared-title').text(d.title); $('#shared-access').text('Shared by '+d.shared_by+' · '+d.permission);
-        $('#shared-download').attr('href', '/workspace/shared/'+d.grant_id).prop('hidden', false);
+        $('#shared-download').attr('href', '/workspace/shared/'+d.grant_id).prop('hidden', d.current.scan !== 'Clean');
         $('#shared-comment-form').prop('hidden', !['commenter','editor'].includes(d.permission));
         $('#shared-rename-form,#shared-version-form').prop('hidden', d.permission !== 'editor');
         $('#shared-name').val(d.title); $('#shared-comment,#shared-file').val('');$('#shared-error').empty();
@@ -78,15 +83,33 @@ $(function () {
     $('#shared-detail-dialog').prop('hidden',false).dialog({autoOpen:false,modal:true,width:Math.min(720,window.innerWidth-32),resizable:false,draggable:false});
     function render() {
 
-        const actions = d => location==='shared' ? '<button class="btn btn-quiet file-details" data-id="'+escape(d.grant_id||d.id)+'">Open shared file</button>' : location==='trash' ? '<button class="btn btn-quiet file-action" data-action="restore" data-id="'+escape(d.id)+'">Restore</button>' : ['star','rename','move','share','trash'].map(a=>'<button class="btn btn-quiet file-action" data-action="'+a+'" data-id="'+escape(d.id)+'">'+({star:d.starred?'Unstar':'Star',rename:'Rename',move:'Move',share:'Share',trash:'Move to Trash'}[a])+'</button>').join('')+'<button class="btn btn-quiet file-preview" data-version="'+escape(d.current.id)+'">Preview</button><a class="btn btn-quiet" href="/workspace/files/'+escape(d.current.id)+'">Download</a>';
+        const actions = d => location==='shared' ? '<button class="btn btn-quiet file-details" data-id="'+escape(d.grant_id||d.id)+'">Open shared file</button>' : location==='trash' ? '<button class="btn btn-quiet file-action" data-action="restore" data-id="'+escape(d.id)+'">Restore</button>' : ['star','rename','move',...(d.current.scan === 'Clean' ? ['share'] : []),'trash'].map(a=>'<button class="btn btn-quiet file-action" data-action="'+a+'" data-id="'+escape(d.id)+'">'+({star:d.starred?'Unstar':'Star',rename:'Rename',move:'Move',share:'Share',trash:'Move to Trash'}[a])+'</button>').join('')+(d.current.scan === 'Clean' ? '<button class="btn btn-quiet file-preview" data-version="'+escape(d.current.id)+'">Preview</button><a class="btn btn-quiet" href="/workspace/files/'+escape(d.current.id)+'">Download</a>' : '<p class="scan-notice">Security scan: '+escape(d.current.scan)+'</p>');
 
         const folderCards=folders.map(f=>'<article class="drive-card folder-card"><button class="drive-folder drive-name" data-id="'+escape(f.id)+'"><span class="drive-symbol">▰</span><strong>'+escape(f.name)+'</strong></button><span class="drive-owner">'+escape(f.source)+'</span><span class="drive-date">'+date(f.updated_at)+'</span><span class="drive-size">—</span><details class="drive-menu"><summary aria-label="Folder actions for '+escape(f.name)+'">⋮</summary><div><button class="btn btn-quiet folder-rename" data-id="'+escape(f.id)+'">Rename folder</button></div></details></article>').join('');
 
-        const fileCards=files.map(d=>'<article class="drive-card file-card"><button class="drive-name file-details" data-id="'+escape(d.grant_id||d.id)+'"><span class="drive-symbol">▤</span><strong>'+escape(d.title)+'</strong></button><div class="drive-thumbnail" aria-hidden="true"><span>'+escape(d.current.filename.split('.').pop().toUpperCase())+'</span></div><span class="drive-owner">'+escape(location==='shared'?d.shared_by+' · '+d.permission:d.subject)+'</span><span class="drive-date">'+date(d.updated_at)+'</span><span class="drive-size">'+(d.current.size/1024).toFixed(1)+' KB</span><details class="drive-menu"><summary aria-label="File actions for '+escape(d.title)+'">⋮</summary><div>'+actions(d)+'</div></details></article>').join('');
+        const fileCards=files.map(d=>{
+            const clean=d.current.scan==='Clean', extension=d.current.filename.split('.').pop().toUpperCase();
+            const state=clean?'Available':({Pending:'Pending scan',Failed:'Scan failed',Quarantined:'Quarantined'}[d.current.scan]||'Awaiting scan');
+            return '<article class="drive-card file-card"><button type="button" class="drive-name file-details" data-id="'+escape(d.grant_id||d.id)+'"><span class="file-extension">'+escape(extension)+'</span><strong>'+escape(d.title)+'</strong></button>'+
+                '<div class="drive-thumbnail" aria-label="Record summary"><strong>'+escape(d.category)+'</strong><p>'+escape(d.reference)+'</p><p>Version '+d.current.number+'</p><p>'+escape(d.classification)+'</p></div>'+
+                '<span class="file-state '+(clean?'is-clean':'is-blocked')+'">'+escape(state)+'</span>'+
+                '<span class="drive-owner">'+escape(location==='shared'?d.shared_by+' · '+d.permission:d.source)+'</span><span class="drive-date">'+date(d.updated_at)+'</span><span class="drive-size">'+(d.current.size/1024).toFixed(1)+' KB</span>'+
+                '<details class="drive-menu"><summary aria-label="File actions for '+escape(d.title)+'">⋮</summary><div>'+actions(d)+'</div></details></article>';
+        }).join('');
 
-        const headings='<div class="drive-columns"><span>Name</span><span>Owner</span><span>Date modified</span><span>File size</span><span></span></div>';
+        const headings='<div class="drive-columns"><span>Name</span><span>Source / shared by</span><span>Availability</span><span>Date modified</span><span>File size</span><span></span></div>';
 
-        $('#drive-items').html(home?'<h2 class="suggestion-title">Folders</h2><div class="suggested-folders">'+(folderCards||'<p>No folders yet. Create one to organize your records.</p>')+'</div><h2 class="suggestion-title">Recent documents <small>Last updated</small></h2>'+headings+fileCards:headings+folderCards+fileCards);
+        if (home) {
+            const cards = $(fileCards).toArray();
+            const take = list => list.map(n => n.outerHTML).join('');
+            const starred = cards.filter((n, i) => files[i].starred);
+            $('#drive-items').addClass('drive-home-items').html(
+                '<h2 class="suggestion-title">Suggested documents</h2><div class="home-file-grid">'+(take(cards.slice(0,3))||'<p class="home-empty">Upload a document to get started.</p>')+'</div>'+
+                '<h2 class="suggestion-title">Recent</h2><div class="home-file-list drive-list">'+headings+take(cards.slice(0,5))+'</div>'+
+                '<h2 class="suggestion-title">Starred</h2><div class="home-file-list drive-list">'+(starred.length?headings+take(starred.slice(0,3)):'<p class="home-empty">Star a file to keep it close.</p>')+'</div>'+
+                '<h2 class="suggestion-title">Folders</h2><div class="suggested-folders">'+(folderCards||'<p class="home-empty">No folders yet.</p>')+'</div>'+
+                '<h2 class="suggestion-title">Files</h2><div class="home-file-list drive-list">'+headings+fileCards+'</div>');
+        } else $('#drive-items').removeClass('drive-home-items').html(headings+folderCards+fileCards);
 
         if(!files.length&&!folders.length)$('#drive-items').html('<p class="empty-state">No files here.</p>');
 
@@ -147,7 +170,7 @@ $(function () {
 
     }
 
-    $(document).on('drive:view',(event,next)=>{if(['overview','files','recent','starred','trash','shared'].includes(next)){home=next==='overview';location=home?'home':next;folder=null;page=1;$('#drive-panel').toggleClass('drive-home',home);$('#drive-items').toggleClass('drive-list',home);$('#drive-layout').text(home?'Grid view':'List view').attr('aria-pressed',home);load();}});
+    $(document).on('drive:view',(event,next)=>{if(['overview','files','recent','starred','trash','shared'].includes(next)){home=next==='overview';location=home?'home':next;folder=null;page=1;$('#drive-panel').toggleClass('drive-home',home);$('#drive-items').removeClass('drive-list');$('#drive-layout').text('List view').attr('aria-pressed',false);load();}});
 
     $('#drive-filter').on('submit',event=>{event.preventDefault();page=1;load();}); $('#drive-sort').on('change',()=>{page=1;load();});
 
@@ -200,6 +223,8 @@ $(function () {
         else {$('#file-preview').attr('src',url).prop('hidden',false);$('#preview-note').text('PDF viewing depends on browser support. Use Download if the preview is unavailable.');}
 
     });
+
+    $(document).on('document:share',(event,document)=>dialog('share',document));
 
     $('#drive-dialog,#preview-dialog').prop('hidden',false).dialog({autoOpen:false,modal:true,width:Math.min(760,window.innerWidth-32),resizable:false,draggable:false});
 

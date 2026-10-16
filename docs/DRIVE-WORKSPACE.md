@@ -1,5 +1,8 @@
 # Drive-style workspace
 
+> Superseded scope notice (16 October 2026): the final SDD requires staff-only DMS access and ClamAV scan gating. Earlier student-access and scanning-removal descriptions below are historical. Use [SDD-ALIGNMENT.md](SDD-ALIGNMENT.md) and the root master plan for current behavior.
+
+
 The file workspace adds nested source-scoped folders and breadcrumbs, grid/list layouts, name search, name/modified sorting, paginated files, Recent, personal stars, recoverable Trash, rename, move, file details/version history, safe previews and named sharing.
 
 Folders belong to a source system and school/campus and carry a local owner. Students, teachers and employees see their own folders; office/admin roles see their permitted institutional workspace. My files expands into a nested folder list in the sidebar when folders exist. Folder-list refresh respects the expansion state, including after creating the first folder in an empty workspace. Starting a new file-list request clears the selected-item details and pending inspector request so the previous selection is not shown during navigation or after a failed list request. Moving a file does not change its source, subject, classification or ownership. Folder creation and rename are supported; folder deletion/movement and bulk operations are not included. Files can be moved between folders of the same source or returned to the root.

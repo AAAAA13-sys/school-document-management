@@ -38,4 +38,5 @@ jobs:
           done
       - run: php artisan test --compact
       - run: node tests/Frontend/folder-upload.test.cjs
+      - run: node tests/Frontend/staff-workspace.test.cjs
       - run: php vendor/phpunit/phpunit/phpunit --configuration phpunit.mysql.xml

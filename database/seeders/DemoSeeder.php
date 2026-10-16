@@ -20,7 +20,7 @@ class DemoSeeder extends Seeder
         if (! $password) {
             throw new \RuntimeException('Set DMS_DEMO_PASSWORD before seeding.');
         }
-        foreach (['student' => 'Demo Student', 'teacher' => 'Demo Teacher', 'employee' => 'Demo Employee', 'admin' => 'Records Administrator', 'registrar' => 'Admissions Registrar', 'hr' => 'HR Officer', 'payroll' => 'Payroll Officer'] as $role => $name) {
+        foreach (['employee' => 'Demo Employee', 'admin' => 'Records Administrator', 'registrar' => 'Admissions Registrar', 'hr' => 'HR Officer', 'payroll' => 'Payroll Officer'] as $role => $name) {
             $u = User::firstOrNew(['email' => $role.'@demo.school']);
             $u->forceFill(['name' => $name, 'password' => $password, 'role' => $role, 'school_id' => 'DEMO-SCHOOL', 'campus' => 'Main campus', 'active' => true])->save();
         }
@@ -46,7 +46,7 @@ class DemoSeeder extends Seeder
             Storage::disk('local')->put($key, $content);
             DB::transaction(function () use ($id, $v, $key, $content, $title, $subject, $ref, $source, $category, $classification, $status, $i) {
                 DB::table('documents')->insert(['id' => $id, 'title' => $title, 'subject' => $subject, 'reference' => $ref, 'source' => $source, 'category' => $category, 'classification' => $classification, 'school_id' => 'DEMO-SCHOOL', 'campus' => 'Main campus', 'revision' => 1, 'created_at' => now()->subDays($i), 'updated_at' => now()->subHours($i)]);
-                DB::table('document_versions')->insert(['id' => $v, 'document_id' => $id, 'number' => 1, 'filename' => 'demonstration.txt', 'media_type' => 'text/plain', 'size' => strlen($content), 'checksum' => hash('sha256', $content), 'storage_key' => $key, 'scan' => 'Clean', 'status' => $status, 'actor' => 'Synthetic demo import', 'reason' => null, 'reviewer' => null, 'reviewed_at' => null, 'created_at' => now()->subDays($i), 'expires_at' => $category === 'Qualification' ? now()->addDays(21)->format('Y-m-d') : null]);
+                DB::table('document_versions')->insert(['id' => $v, 'document_id' => $id, 'number' => 1, 'filename' => 'demonstration.txt', 'media_type' => 'text/plain', 'size' => strlen($content), 'checksum' => hash('sha256', $content), 'storage_key' => $key, 'scan' => 'Pending', 'status' => $status, 'actor' => 'Synthetic demo import', 'reason' => null, 'reviewer' => null, 'reviewed_at' => null, 'created_at' => now()->subDays($i), 'expires_at' => $category === 'Qualification' ? now()->addDays(21)->format('Y-m-d') : null]);
                 $service = app(DocumentService::class);
                 $a = (object) ['name' => 'Synthetic demo import', 'school_id' => 'DEMO-SCHOOL', 'campus' => 'Main campus'];
                 $service->log($a, 'Demo record created', $id, 'Synthetic example only');

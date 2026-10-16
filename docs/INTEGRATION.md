@@ -1,5 +1,8 @@
 # Integration contract v1
 
+> Superseded scope notice (16 October 2026): the final SDD requires staff-only DMS access and ClamAV scan gating. Earlier student-access and scanning-removal descriptions below are historical. Use [SDD-ALIGNMENT.md](SDD-ALIGNMENT.md) and the root master plan for current behavior.
+
+
 This slice exposes a source-scoped pull API. It does not claim live ERP connectivity, webhook delivery, or complete reconciliation.
 
 ## Credentials

@@ -15,9 +15,9 @@ class SharingPermissionsTest extends TestCase
     public function test_named_grants_allow_only_the_selected_operations_and_preserve_ownership(): void
     {
         Storage::fake('local');
-        $owner = User::factory()->create(['role'=>'student','active'=>true,'school_id'=>'DEMO-SCHOOL','campus'=>'Main campus']);
+        $owner = User::factory()->create(['role'=>'employee','active'=>true,'school_id'=>'DEMO-SCHOOL','campus'=>'Main campus']);
         $this->actingAs($owner);
-        $file=$this->withHeader('Idempotency-Key','share-owner-upload')->post('/workspace/documents', ['title'=>'Shared evidence','subject'=>'Owner','reference'=>'REF-1','source'=>'Enrollment','category'=>'Academic record','classification'=>'Confidential','file'=>UploadedFile::fake()->createWithContent('proof.txt','Synthetic shared record.')], ['Accept'=>'application/json'])->assertCreated()->json();
+        $file=$this->withHeader('Idempotency-Key','share-owner-upload')->post('/workspace/documents', ['title'=>'Shared evidence','subject'=>'Owner','reference'=>'REF-1','source'=>'Employee Management','category'=>'Academic record','classification'=>'Confidential','file'=>UploadedFile::fake()->createWithContent('proof.txt','Synthetic shared record.')], ['Accept'=>'application/json'])->assertCreated()->json();
         DB::table('document_versions')->where('id',$file['version_id'])->update(['scan'=>'Clean']);
         foreach (['viewer','commenter','editor'] as $permission) {
             $recipient=User::factory()->create(['role'=>'employee','active'=>true,'school_id'=>'DEMO-SCHOOL','campus'=>'Main campus']);
@@ -36,7 +36,7 @@ class SharingPermissionsTest extends TestCase
                 $rename->assertOk();
                 $this->patchJson($base.'/document',['title'=>'Stale name','revision'=>$doc->revision])->assertConflict();
                 $this->withHeader('Idempotency-Key','shared-new-version')->post($base.'/versions', ['revision'=>$doc->revision+1,'document_id'=>\Illuminate\Support\Str::uuid(),'source'=>'Payroll Management','file'=>UploadedFile::fake()->createWithContent('new.txt','A new synthetic version.')], ['Accept'=>'application/json'])->assertCreated();
-                $this->assertDatabaseHas('documents',['id'=>$doc->id,'owner_user_id'=>$owner->id,'source'=>'Enrollment']);
+                $this->assertDatabaseHas('documents',['id'=>$doc->id,'owner_user_id'=>$owner->id,'source'=>'Employee Management']);
                 $this->assertDatabaseCount('document_versions',2);
                 $this->get($grant['url'])->assertOk()->assertDownload('proof.txt');
                 $this->assertDatabaseHas('document_shares', ['id'=>$grant['id'], 'version_id'=>$file['version_id']]);
@@ -58,8 +58,9 @@ class SharingPermissionsTest extends TestCase
         config(['dms.demo_password' => 'Test-only-password-2026']);
         $this->seed(\Database\Seeders\DemoSeeder::class);
         $owner=User::where('role','admin')->first();
-        $recipient=User::factory()->create(['role'=>'student','active'=>true,'school_id'=>'DEMO-SCHOOL','campus'=>'Elsewhere']);
+        $recipient=User::factory()->create(['role'=>'employee','active'=>true,'school_id'=>'DEMO-SCHOOL','campus'=>'Elsewhere']);
         $doc=DB::table('documents')->first();
+        DB::table('document_versions')->where('document_id', $doc->id)->update(['scan' => 'Clean']);
         $this->actingAs($owner)->postJson('/workspace/drive/'.$doc->id.'/shares',['email'=>$recipient->email,'permission'=>'editor','expires_at'=>now()->addDay()->toIso8601String()])->assertForbidden();
         $recipient->forceFill(['campus'=>'Main campus'])->save();
         $this->postJson('/workspace/drive/'.$doc->id.'/shares',['email'=>$recipient->email,'permission'=>'owner','expires_at'=>now()->addDay()->toIso8601String()])->assertUnprocessable();

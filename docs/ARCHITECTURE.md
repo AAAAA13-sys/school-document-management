@@ -1,5 +1,8 @@
 # Approved proposed architecture
 
+> Superseded scope notice (16 October 2026): the final SDD requires staff-only DMS access and ClamAV scan gating. Earlier student-access and scanning-removal descriptions below are historical. Use [SDD-ALIGNMENT.md](SDD-ALIGNMENT.md) and the root master plan for current behavior.
+
+
 Reference accepted 10 October 2026. Read [MASTERPLAN.md](../MASTERPLAN.md) for scope, status, phases, backlog and production gates; [AGENTS.md](../AGENTS.md) defines implementation rules.
 
 ![Approved four-tier system context](ARCHITECTURE.png)

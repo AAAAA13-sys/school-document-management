@@ -15,6 +15,7 @@ class DocumentService
     {
         $a = $r->attributes->get('integration') ?? $r->user();
         abort_unless($a && $a->active, 403, 'Account is inactive.');
+        abort_if(($a->role ?? null) === 'student', 403, 'Student access is outside the DMS staff workspace.');
 
         return $a;
     }
@@ -26,7 +27,7 @@ class DocumentService
         }
 
         return match ($a->role) {
-            'student' => ['Online Admission', 'Enrollment'],
+            'student' => [],
             'teacher', 'employee' => ['Employee Management'],
             'admin' => config('dms.systems'), 'registrar' => ['Online Admission', 'Enrollment'],
             'hr' => ['Employee Management'], 'payroll' => ['Payroll Management'], default => [],
@@ -120,10 +121,11 @@ class DocumentService
         $key = hash('sha256', ($a->role ?? 'integration').':'.$a->id.':'.$key);
         $stored = null;
         try {
-            return DB::transaction(function () use ($p, $a, $name, $bytes, $ext, $types, $hash, $key, $requestHash, $sharedEditor, &$stored) {
+            return DB::transaction(function () use ($r, $p, $a, $name, $bytes, $ext, $types, $hash, $key, $requestHash, $sharedEditor, &$stored) {
                 $prior = DB::table('idempotency_requests')->where('key', $key)->first();
                 if ($prior) {
                     abort_unless(hash_equals($prior->hash, $requestHash), 409, 'Key already used for a different submission.');
+                    $r->attributes->set('dms_replayed', true);
 
                     return json_decode($prior->response, true);
                 }
@@ -150,8 +152,8 @@ class DocumentService
                 $version = (string) Str::uuid();
                 $stored = 'documents/'.$version;
                 abort_unless(Storage::disk('local')->put($stored, $bytes), 503, 'Private file storage is unavailable.');
-                $scan = 'Not required';
-                $status = 'Available';
+                $scan = app(FileScanner::class)->scan(Storage::disk('local')->path($stored));
+                $status = $scan === 'Clean' ? 'Available' : 'Awaiting scan';
                 DB::table('document_versions')->insert(['id' => $version, 'document_id' => $id, 'number' => $number, 'filename' => $name, 'media_type' => $types[$ext], 'size' => strlen($bytes), 'checksum' => $hash, 'storage_key' => $stored, 'scan' => $scan, 'status' => $status, 'actor' => $a->name, 'actor_key' => (isset($a->source) ? 'connector:' : 'user:').$a->id, 'expires_at' => $p['expires_at'] ?? null, 'created_at' => now()]);
                 $d = $sharedEditor ? DB::table('documents')->where('school_id', $a->school_id)->where('campus', $a->campus)->whereNull('trashed_at')->where('id', $id)->first() : $this->document($id, $a);
                     abort_unless($d, 404);

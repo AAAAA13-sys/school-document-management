@@ -10,8 +10,12 @@ use Illuminate\Support\Facades\Route;
 Route::get('/login', fn () => view('login'))->name('login');
 Route::post('/login', function (Request $r) {
     $p = $r->validate(['email' => 'required|email', 'password' => 'required|string']);
-    if (! Auth::attempt([...$p, 'active' => true])) {
+    if (! Auth::attempt([...$p, 'active' => true], false)) {
         return back()->withErrors(['email' => 'The account or password is incorrect.'])->onlyInput('email');
+    }
+    if (! in_array(Auth::user()->role, ['teacher','employee','admin','registrar','hr','payroll'])) {
+        Auth::logout();
+        return back()->withErrors(['email' => 'This workspace is for authorized school staff.'])->onlyInput('email');
     }
     $r->session()->regenerate();
 

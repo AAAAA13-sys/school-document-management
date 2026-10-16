@@ -5,7 +5,7 @@ use App\Http\Controllers\HistoryController;
 use App\Http\Middleware\IntegrationAuth;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('v1')->middleware([IntegrationAuth::class, 'throttle:120,1'])->group(function () {
+Route::prefix('v1')->middleware([IntegrationAuth::class, 'throttle:integration'])->group(function () {
     Route::get('/documents', [DocumentController::class, 'index']);
     Route::post('/documents', [DocumentController::class, 'store']);
     Route::get('/documents/{id}', [DocumentController::class, 'show']);

@@ -1,10 +1,12 @@
 # School Document Management System master plan
 
-Version 1.0 | 10 October 2026 | Proposed architecture accepted; implementation remains in progress.
+Version 2.0 | 16 October 2026 | Final SDD adopted; implementation remains in progress.
+
+**Current authority:** [SDD alignment and verification](docs/SDD-ALIGNMENT.md), based on [the supplied SDD](docs/reference/DMS-SDD-2026-10-13.pdf). The user explicitly confirmed that staff-only access and ClamAV scanning replace the 10 October decisions. Existing accounts/files are preserved. Historical master plan: docs/archive/2026-10-10-MASTERPLAN.md.
 
 ## 1. Outcome
 
-Deliver a school DMS that students and employees can use independently to store, organize, retrieve and share files. Authorized office staff manage scoped institutional records. The DMS also preserves agreed evidence delivered by Employee Management, Online Admission, Enrollment and Payroll through authenticated APIs.
+Deliver a school DMS that school staff can use independently to store, organize, retrieve and share files. Authorized office staff manage scoped institutional records. The DMS also preserves agreed evidence delivered by Employee Management, Online Admission, Enrollment and Payroll through authenticated APIs.
 
 The intended result is a maintainable production deployment with clear ownership, dependable history and recoverable data. The current application is an implemented baseline, not a certified production service. An architecture diagram, passing local tests, and a working development server are different kinds of evidence.
 
@@ -12,18 +14,18 @@ The intended result is a maintainable production deployment with clear ownership
 
 | Decision | Rule |
 |---|---|
-| Final architectural reference | The visible diagram in `docs/ARCHITECTURE.png`, supplied as `ARCHITECTURE.drawio.png`. Its visible system-context page is exported to `docs/ARCHITECTURE.drawio` and `.xml`. |
+| Final architectural reference | The final SDD in `docs/reference/DMS-SDD-2026-10-13.pdf`, explicitly adopted 16 October. The existing PNG/draw.io context remains the structural reference. |
 | Deployment | One PHP/Laravel application; four logical responsibilities, not four servers or microservices. |
 | Database ownership | Five standalone operational databases. DMS owns its database and central history; other groups integrate through APIs. |
 | Stack | PHP 8.2, Laravel 12, Eloquent/Blade, Bootstrap 5.3 CSS, jQuery 3.7, jQuery UI 1.14, MySQL/InnoDB. |
 | Business decisions | Admission, enrollment, employment and payroll decisions belong to users/source systems. No DMS approval/rejection workflow. |
-| Scanning | Removed by explicit user decision, reconfirmed 10 October 2026. No ClamAV, quarantine or scanner prerequisite. Preserve validation and integrity checks. |
-| File availability | Valid authorized uploads are available immediately. The legacy `scan` field may remain for compatibility; it is not an active pipeline. |
+| Scanning | Required by final SDD and explicit confirmation on 16 October 2026. ClamAV on upload; retry pending/failed versions. Non-clean versions remain blocked. |
+| File availability | Only clean authorized versions can be downloaded, previewed or shared. Missing scanner yields Pending; process failures yield Failed; detected threats yield Quarantined. |
 | Names | Filename and display-name uniqueness per owner workspace, case-insensitive, including Trash. Different owners may reuse names. |
-| Design | Institution-neutral green/yellow interface; Drive-inspired organization with a student-first experience. |
+| Design | Institution-neutral green/yellow interface; Drive-inspired organization with a staff-first experience. |
 | Integration readiness | A versioned API baseline, not plug-and-play integration with unknown source contracts. |
 
-The PNG includes hidden editable data for older detailed pages. Those pages contain obsolete scanning labels and are not adopted as new requirements. The visible system-context diagram and the decisions above are the accepted reference. Older copies remain in `docs/archive/` for traceability.
+The existing context PNG remains a structural reference. The final SDD now governs detailed security and staff scope. Historical copies in `docs/archive/` are not current instructions.
 
 ## 3. System responsibilities
 
@@ -52,8 +54,8 @@ Presentation and integration both enter the application tier. The application us
 
 | Role | Normal workspace | Institutional access |
 |---|---|---|
-| Student | Own Admission/Enrollment files and folders; explicit incoming shares | No institutional history, audit, integration feed or accounts |
-| Teacher / Employee | Own Employee Management files/folders; explicit incoming shares | No HR/payroll authority from personal role |
+| Student | No DMS access; legacy records preserved | No access |
+| Employee, including teaching staff | Own Employee Management files/folders; explicit incoming shares | No HR/payroll authority from personal role; teacher is a legacy alias only |
 | Admin | Personal workspace plus school repository | All four sources within school/campus; accounts, audit and history |
 | Registrar | Source-scoped office records | Admission and Enrollment history |
 | HR | Source-scoped office records | Employee Management history |
@@ -80,7 +82,7 @@ File content lives in private storage, not MySQL BLOBs. Database metadata and by
 
 ### Upload and retrieval
 
-Authenticate an active user/connector; authorize school/campus/source and ownership or grant; validate metadata and actual file content; enforce name/idempotency/revision rules; store a new private version; commit document metadata, audit and event; return the receipt. Do not run scanning or a business review.
+Authenticate an active user/connector; authorize school/campus/source and ownership or grant; validate metadata and actual file content; enforce name/idempotency/revision rules; store a new private version; commit document metadata, audit and event; return the receipt. Run a bounded ClamAV command; persist its result and block non-clean file access. Do not run a business review.
 
 Supported uploads are nonempty PDF, PNG, JPG/JPEG and UTF-8 TXT up to 10 MB. Folder intake is sequential with at most 50 files per batch. Successful items survive later failures and retries. Download/preview rechecks scope, grant/Trash where relevant and checksum, then returns private content. A checksum failure is a conflict, not permission to serve damaged bytes.
 
@@ -119,11 +121,12 @@ Connector routes currently use a 120 requests/minute throttle. History reads use
 | Local authentication/RBAC/accounts | Implemented; feature tests cover role, ownership, scope and inactive-account boundaries. SSO is pending. |
 | Files/folders/grid/list/Trash/stars | Implemented; production usability and visual review remain incomplete. |
 | Viewer/commenter/editor shares | Implemented with pinned versions, expiry and revocation. |
-| Immediate uploads and name conflict protection | Implemented; database keys protect collisions. Unicode normalization improvements are not implemented. |
+| Scan-gated uploads and name conflict protection | Implemented; database keys protect collisions. Unicode normalization improvements are not implemented. |
 | Received snapshots/history/replay/order/tombstones | Implemented baseline; generic payload schema, no automatic source import. |
 | Scoped tokens and event feed | Implemented; operational rotation/reconciliation tooling remains pending. |
-| UI refinement | Folder-tree refresh now follows the expansion state; navigation clears stale selection before loading. Visual acceptance and Figma comparison remain incomplete. |
-| Tests | CI run 38339639050 passed Blade compilation, application JavaScript syntax, SQLite/frontend and isolated MySQL suites for commit 336455072b27e25d80be7da702418d17670775bc. Includes storage and post-write transaction failure tests; browser/multi-writer acceptance remains open. |
+| UI refinement | Recent Blade/CSS fixes implemented; Figma sidebar/sign-in/Home references retrieved; staff UI implemented and editable employee/scan prototype states added. Runtime visual review remains incomplete. |
+| Tests | Latest local verification: 34 tests / 453 assertions and frontend folder-upload regression pass using a mocked scanner. Real ClamAV is not installed/configured locally; real scanner verification remains open. |
+| Earlier verified baseline | Upstream CI run 38339639050 passed for commit 336455072b27e25d80be7da702418d17670775bc, including upload-failure coverage. This is not verification of the current SDD/UI changes. |
 | Database target | MySQL. Local preview remains SQLite; existing CI is configured for PHP 8.2/MySQL 8.4. Check actual CI results before claiming verification. |
 | Deployment readiness | Not established: real source contracts, MySQL contention, recovery, governance and operations still require evidence. |
 
@@ -132,7 +135,7 @@ Connector routes currently use a 120 requests/minute throttle. History reads use
 | Phase | Work | Exit evidence | Dependencies |
 |---|---|---|---|
 | P0: Architecture and documentation | Adopt final reference; remove contradictory current requirements; record boundaries and ownership | Linked diagram, AGENTS/master plan, accurate contracts and decision log | User-approved architecture and scanning decision |
-| P1: Student experience | Finish sidebar, responsive hierarchy, navigation, modal/forms, keyboard help and sharing states | Desktop/mobile visual review plus functional upload/folder/share checks; no overflow or unreadable states | Accessible design reference; working app |
+| P1: Staff experience | Finish sidebar, responsive hierarchy, navigation, modal/forms, keyboard help and sharing states | Desktop/mobile visual review plus functional upload/folder/share checks; no overflow or unreadable states | Accessible design reference; working app |
 | P2: DMS correctness | Validate names, versions, grants, race/error paths, migration and storage failures | Targeted regressions and isolated MySQL results; competing writes cannot corrupt state | Test MySQL and representative files |
 | P3: Integration contract | Agree per-source IDs, schemas, field grants, revisions, snapshots, errors and credentials | Four signed-off contract fixtures and conformance results | Four source architects and enterprise architect |
 | P4: First source end-to-end | Start with Admission/Enrollment contract readiness; implement one agreed adapter/import/reconciliation path | Snapshot plus changes survives replay, outage and reconciliation without regression | Source snapshot/change cursor, reliable delivery mechanism |
@@ -147,11 +150,11 @@ This active backlog has 24 stories, below the original maximum of 50. It superse
 
 | ID / priority | User story | Acceptance criteria | State |
 |---|---|---|---|
-| DMS-01 / P0 | As a maintainer, I need one current architecture reference. | Visible final diagram is checked in; tier/database boundaries match both new documents; scanning is explicitly absent. | This documentation increment |
-| DMS-02 / P1 | As a student, I need a readable sidebar matching the approved design. | Available design is compared with rendered output; all six personal destinations work; no office controls; mobile navigation closes without losing context. | Open; design access blocked |
+| DMS-01 / P0 | As a maintainer, I need one current architecture reference. | Visible final diagram is checked in; tier/database boundaries match both new documents; scan gating follows the final SDD and student access is excluded. | This documentation increment |
+| DMS-02 / P1 | As an employee, I need a readable sidebar matching the approved design. | Available design is compared with rendered output; all six personal destinations work; no office controls; mobile navigation closes without losing context. | Implemented baseline; visual review open |
 | DMS-03 / P1 | As a user, I need clear page hierarchy and contextual help. | One page h1; `?` beside title works on hover/focus; headings/body readable at normal zoom; no overlap at 360/768/1440px. | Refinement open |
 | DMS-04 / P1 | As a user, I need usable dialogs. | Background scroll locks/restores; Escape/close work; labels/focus are clear; invalid required field becomes visible; repeated openings do not duplicate handlers. | Baseline; verify |
-| DMS-05 / P1 | As a student, I need private immediate file upload. | Supported valid file becomes available without review/scan; unauthorized access is rejected; MIME/size/empty violations give usable errors. | Baseline |
+| DMS-05 / P1 | As an employee, I need private scanned file upload. | Supported valid file is available only after a clean scan, without business review; unauthorized access is rejected; MIME/size/empty violations give usable errors. | Baseline |
 | DMS-06 / P1 | As an owner, I need unique names without overwriting evidence. | Case-insensitive filename/title conflicts across folders/Trash return 409; competing requests cannot both create conflicting rows; different owners may reuse names. | Baseline; MySQL race check open |
 | DMS-07 / P1 | As an owner, I need replacement versions. | Older bytes remain retrievable by authorized users; stale revision conflicts; new version has a new UUID/checksum; replacement does not collide with another document name. | Baseline |
 | DMS-08 / P1 | As a user, I need folders and folder intake. | Nested paths remain scoped/cycle-free; `+ New` exposes all three actions; <=50 files upload sequentially; failures retain successes and retry does not duplicate them. | Baseline |
@@ -182,8 +185,8 @@ Track each integration agreement with: source owner; contract version; record ty
 
 All gates require recorded evidence and an accountable owner. Unchecked items block a production claim.
 
-- [ ] Final diagrams and current contracts match actual behavior; no active scan/review requirement.
-- [ ] Student/staff/admin desktop and mobile journeys reviewed visually and functionally; keyboard access works.
+- [ ] Final diagrams and current contracts match actual behavior; scan requirement matches the SDD; no business-review requirement.
+- [ ] Employee/office/admin desktop and mobile journeys reviewed visually and functionally; keyboard access works.
 - [ ] Isolated MySQL suite and real multi-writer tests pass on the selected deployment version.
 - [ ] Migrations rehearsed with recoverable data; private bytes and metadata remain consistent.
 - [ ] Required sources pass conformance and initial/change/reconciliation tests; deliberately absent connections identified.
@@ -198,6 +201,6 @@ National/institutional requirements are policy inputs, not blanket validation ru
 
 ## 13. Explicit exclusions and next action
 
-No automatic full-database replication, direct external database writes, DMS business approval, scan pipeline, anonymous public links, folder sharing, browser content editor, assumed SSO, guaranteed source completeness, or guaranteed API-only plug-and-play setup. Introduce these only through a new explicit requirement and impact review.
+No automatic full-database replication, direct external database writes, DMS business approval, student access, anonymous public links, folder sharing, browser content editor, assumed SSO, guaranteed source completeness, or guaranteed API-only plug-and-play setup. Introduce these only through a new explicit requirement and impact review.
 
-Next implementation focus: finish and visually verify the student's navigation/sidebar and main file journeys, then validate MySQL collision/transaction behavior. In parallel with that independent work, obtain the four source contracts through the enterprise coordination process. Record each completed story with the commit, test result and remaining limits rather than changing “Open” to “Done” based on a screenshot or proposal.
+Next implementation focus: finish and visually verify the staff navigation/sidebar and main file journeys, then validate MySQL collision/transaction behavior. In parallel with that independent work, obtain the four source contracts through the enterprise coordination process. Record each completed story with the commit, test result and remaining limits rather than changing “Open” to “Done” based on a screenshot or proposal.

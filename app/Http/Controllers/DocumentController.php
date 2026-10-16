@@ -23,12 +23,13 @@ class DocumentController extends Controller
             $q->where('source', $s);
         }
         if ($s = $r->input('status')) {
-            abort_unless($s === 'Available', 422, 'Only Available is supported.');
+            abort_unless(in_array($s, ['Available','Awaiting scan']), 422);
+            $q->whereRaw("(SELECT scan FROM document_versions WHERE document_id = documents.id ORDER BY number DESC LIMIT 1) ".($s === 'Available' ? '= ?' : '<> ?'), ['Clean']);
         }
         $items = $q->orderByDesc('updated_at')->orderBy('id')->paginate((int) $r->input('per_page', 50));
         $items->getCollection()->transform(function ($d) {
             $d->current = $this->dms->latest($d->id);
-            $d->availability = 'Available';
+            $d->availability = $d->current->scan === 'Clean' ? 'Available' : 'Awaiting scan';
             unset($d->current->storage_key);
 
             return $d;
@@ -53,7 +54,8 @@ class DocumentController extends Controller
 
     public function store(Request $r)
     {
-        return response()->json($this->dms->upload($r, $this->dms->actor($r)), 201);
+        $receipt = $this->dms->upload($r, $this->dms->actor($r));
+        return response()->json($receipt, $r->attributes->get('dms_replayed') ? 200 : 201);
     }
 
     public function stats(Request $r)
@@ -61,7 +63,9 @@ class DocumentController extends Controller
         $a = $this->dms->actor($r);
         $docs = $this->dms->scope(DB::table('documents'), $a)->whereNull('trashed_at')->get();
 
-        return response()->json(['total' => $docs->count(), 'available' => $docs->count(), 'scan' => 0, 'sources' => collect($this->dms->sources($a))->map(fn ($s) => ['source' => $s, 'count' => $docs->where('source', $s)->count()])]);
+        $available = $docs->filter(fn ($d) => $this->dms->latest($d->id)?->scan === 'Clean')->count();
+        $shared = isset($a->source) ? 0 : app(ShareController::class)->index($r)->getData()->files->total;
+        return response()->json(['shared' => $shared, 'total' => $docs->count(), 'available' => $available, 'scan' => $docs->count() - $available, 'sources' => collect($this->dms->sources($a))->map(fn ($s) => ['source' => $s, 'count' => $docs->where('source', $s)->count()])]);
     }
 
     public function download(Request $r, string $id)
@@ -71,6 +75,7 @@ class DocumentController extends Controller
         abort_unless($v, 404);
         $this->dms->document($v->document_id, $a);
 
+        app(\App\Services\FileScanner::class)->requireClean($v);
         abort_unless(Storage::disk('local')->exists($v->storage_key), 503, 'File unavailable.');
         abort_unless(hash_equals($v->checksum, hash_file('sha256', Storage::disk('local')->path($v->storage_key))), 409, 'File integrity check failed.');
         $this->dms->log($a, 'Document downloaded', $v->document_id, 'Version '.$v->number);

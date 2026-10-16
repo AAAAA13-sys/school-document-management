@@ -20,5 +20,8 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         \Illuminate\Pagination\Paginator::useBootstrapFive();
+        \Illuminate\Support\Facades\RateLimiter::for('integration', fn ($request) =>
+            \Illuminate\Cache\RateLimiting\Limit::perMinute(120)
+                ->by('connector:'.$request->attributes->get('integration')->id));
     }
 }

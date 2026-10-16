@@ -16,12 +16,12 @@ class RoleAccessTest extends TestCase
     public function test_personal_roles_own_their_workspace_and_cannot_access_other_users_or_admin_data(): void
     {
         Storage::fake('local');
-        foreach (['student', 'teacher', 'employee'] as $role) {
+        foreach (['teacher', 'employee'] as $role) {
             $owner = User::factory()->create(['role' => $role, 'active' => true, 'school_id' => 'DEMO-SCHOOL', 'campus' => 'Main campus']);
             $other = User::factory()->create(['role' => $role, 'active' => true, 'school_id' => 'DEMO-SCHOOL', 'campus' => 'Main campus']);
             $source = $role === 'student' ? 'Enrollment' : 'Employee Management';
             $this->actingAs($owner)->get('/')->assertOk()->assertDontSee('Central history')->assertDontSee('Accounts &amp; roles', false);
-            $this->get('/')->assertDontSee('id="repository-panel"', false)->assertDontSee('data-view="documents"', false)->assertSee('Ready for your next school day.');
+            $this->get('/')->assertDontSee('id="repository-panel"', false)->assertDontSee('data-view="documents"', false)->assertSee('Workspace summary');
             $file = $this->withHeader('Idempotency-Key', 'role-upload-'.$role)->post('/workspace/documents', [
                 'title' => 'My evidence', 'subject' => 'Person', 'reference' => 'REF-1', 'source' => $source,
                 'category' => 'Identity evidence', 'classification' => 'Confidential',
@@ -56,16 +56,16 @@ class RoleAccessTest extends TestCase
         $this->actingAs($admin)->get('/')->assertOk()->assertSee('School repository')->assertSee('id="repository-panel"', false);
         $this->get('/accounts')->assertOk()->assertSee('Existing accounts')->assertSee('Administrator')->assertSee('Create account');
         $this->actingAs($admin)->post('/accounts', ['name' => 'Student One', 'email' => 'student@example.test',
-            'role' => 'student', 'password' => 'Student-pass-2026!', 'password_confirmation' => 'Student-pass-2026!',
+            'role' => 'employee', 'password' => 'Student-pass-2026!', 'password_confirmation' => 'Student-pass-2026!',
         ])->assertRedirect();
         $student = User::where('email', 'student@example.test')->firstOrFail();
         $this->assertSame($admin->school_id, $student->school_id);
         $this->assertTrue(\Illuminate\Support\Facades\Hash::check('Student-pass-2026!', $student->password));
         $this->patch('/accounts/'.$student->id, ['role' => 'employee', 'active' => 0])->assertRedirect();
         $this->assertDatabaseHas('users', ['id' => $student->id, 'role' => 'employee', 'active' => 0]);
-        $this->patchJson('/accounts/'.$admin->id, ['role' => 'student', 'active' => 0])->assertUnprocessable();
+        $this->patchJson('/accounts/'.$admin->id, ['role' => 'employee', 'active' => 0])->assertUnprocessable();
         $foreign = User::factory()->create(['school_id' => 'OTHER']);
-        $this->patchJson('/accounts/'.$foreign->id, ['role' => 'student', 'active' => 1])->assertNotFound();
+        $this->patchJson('/accounts/'.$foreign->id, ['role' => 'employee', 'active' => 1])->assertNotFound();
         $this->patchJson('/accounts/'.$student->id, ['role' => 'superuser', 'active' => 1])->assertUnprocessable();
         $this->assertDatabaseHas('audit_entries', ['action' => 'Account access changed']);
         $this->actingAs($student->fresh())->get('/')->assertForbidden();
@@ -74,9 +74,9 @@ class RoleAccessTest extends TestCase
 
     public function test_personal_roles_cannot_create_accounts_or_promote_themselves(): void
     {
-        $student = User::factory()->create(['role' => 'student', 'active' => true, 'school_id' => 'DEMO-SCHOOL', 'campus' => 'Main campus']);
+        $student = User::factory()->create(['role' => 'employee', 'active' => true, 'school_id' => 'DEMO-SCHOOL', 'campus' => 'Main campus']);
         $this->actingAs($student)->postJson('/accounts', [])->assertForbidden();
         $this->patchJson('/accounts/'.$student->id, ['role' => 'admin', 'active' => 1])->assertForbidden();
-        $this->assertSame('student', $student->fresh()->role);
+        $this->assertSame('employee', $student->fresh()->role);
     }
 }
