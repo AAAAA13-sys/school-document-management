@@ -4,7 +4,7 @@ $(function () {
 
     let sharedTarget = null, sharedUploadKey = crypto.randomUUID();
 
-    let location = 'files', home = false, folder = null, folderSource = null, page = 1, files = [], folders = [], action = null, target = null, pendingFolder = null, request = null;
+    let location = 'files', home = false, folder = null, folderSource = null, page = 1, files = [], folders = [], action = null, target = null, pendingFolder = null, request = null, crumbs = [];
 
     const escape = value => $('<span>').text(value == null ? '' : value).html();
 
@@ -42,7 +42,7 @@ $(function () {
     $(document).on('click', '.sidebar-folder', function () {
         const id = $(this).attr('data-id');
         $('.nav-item[data-view="files"]').trigger('click');
-        folder = id; page = 1; load();
+        openFolder(id);
     });
     function loadComments() {
         $.getJSON('/workspace/shared/'+sharedTarget.grant_id+'/comments').done(items => {
@@ -85,7 +85,7 @@ $(function () {
 
         const actions = d => location==='shared' ? '<button class="btn btn-quiet file-details" data-id="'+escape(d.grant_id||d.id)+'">Open shared file</button>' : location==='trash' ? '<button class="btn btn-quiet file-action" data-action="restore" data-id="'+escape(d.id)+'">Restore</button>' : ['star','rename','move',...(d.current.scan === 'Clean' ? ['share'] : []),'trash'].map(a=>'<button class="btn btn-quiet file-action" data-action="'+a+'" data-id="'+escape(d.id)+'">'+({star:d.starred?'Unstar':'Star',rename:'Rename',move:'Move',share:'Share',trash:'Move to Trash'}[a])+'</button>').join('')+(d.current.scan === 'Clean' ? '<button class="btn btn-quiet file-preview" data-version="'+escape(d.current.id)+'">Preview</button><a class="btn btn-quiet" href="/workspace/files/'+escape(d.current.id)+'">Download</a>' : '<p class="scan-notice">Security scan: '+escape(d.current.scan)+'</p>');
 
-        const folderCards=folders.map(f=>'<article class="drive-card folder-card"><button class="drive-folder drive-name" data-id="'+escape(f.id)+'"><span class="drive-symbol">▰</span><strong>'+escape(f.name)+'</strong></button><span class="drive-owner">'+escape(f.source)+'</span><span class="drive-date">'+date(f.updated_at)+'</span><span class="drive-size">—</span><details class="drive-menu"><summary aria-label="Folder actions for '+escape(f.name)+'">⋮</summary><div><button class="btn btn-quiet folder-rename" data-id="'+escape(f.id)+'">Rename folder</button></div></details></article>').join('');
+        const folderCards=folders.map(f=>'<article class="drive-card folder-card" data-id="'+escape(f.id)+'" title="Double-click to open this folder"><button class="drive-folder drive-name" data-id="'+escape(f.id)+'"><span class="drive-symbol">▰</span><strong>'+escape(f.name)+'</strong></button><span class="drive-owner">'+escape(f.source)+'</span><span class="drive-date">'+date(f.updated_at)+'</span><span class="drive-size">—</span><details class="drive-menu"><summary aria-label="Folder actions for '+escape(f.name)+'">⋮</summary><div><button class="btn btn-quiet folder-open" data-id="'+escape(f.id)+'">Open folder</button><button class="btn btn-quiet folder-rename" data-id="'+escape(f.id)+'">Rename folder</button></div></details></article>').join('');
 
         const fileCards=files.map(d=>{
             const clean=d.current.scan==='Clean', extension=d.current.filename.split('.').pop().toUpperCase();
@@ -126,9 +126,11 @@ $(function () {
 
             files=result.files.data; folders=result.folders;
 
-            folderSource=result.breadcrumbs.at(-1)?.source||null;
+            crumbs=result.breadcrumbs||[]; folderSource=crumbs.at(-1)?.source||null;
 
-            $('#drive-crumbs').html(location==='shared'?'<strong>Shared with me</strong>':'<button class="btn btn-quiet drive-folder" data-id="">My files</button>'+result.breadcrumbs.map(f=>'<span> / </span><button class="btn btn-quiet drive-folder" data-id="'+escape(f.id)+'">'+escape(f.name)+'</button>').join(''));
+            $('#drive-crumbs').html(location==='shared'?'<strong>Shared with me</strong>':'<button class="btn btn-quiet drive-folder" data-id="">My files</button>'+crumbs.map(f=>'<span> / </span><button class="btn btn-quiet drive-folder" data-id="'+escape(f.id)+'">'+escape(f.name)+'</button>').join(''));
+
+            renderBack();
 
             render();
 
@@ -142,6 +144,20 @@ $(function () {
 
         }).fail(xhr=>{if(xhr.statusText!=='abort'){ $('#drive-items').text('Files unavailable. Try searching again.'); fail(xhr); }});
 
+    }
+
+    function renderBack() {
+        const inside = location==='files' && !!folder;
+        const parent = inside && crumbs.length>1 ? crumbs[crumbs.length-2] : null;
+        $('#drive-back').prop('hidden',!inside)
+            .attr('aria-label', parent ? 'Back to '+parent.name : 'Back to My files');
+    }
+
+    function openFolder(id) {
+        home=false; page=1; location='files'; folder=id||null;
+        $('#drive-panel').removeClass('drive-home');
+        $('#drive-search').val('');
+        load();
     }
 
     function send(id,kind,extra={}) { const d=files.find(d=>d.id===id); return $.post('/workspace/drive/'+id+'/action',{action:kind,revision:d.revision,...extra}).done(load).fail(fail); }
@@ -178,9 +194,22 @@ $(function () {
 
     $('#drive-prev').on('click',()=>{page--;load();}); $('#drive-next').on('click',()=>{page++;load();});
 
-    $(document).on('click','.drive-folder',function(){if($(this).closest('.folder-card').length){inspectFolder($(this).data('id'));return;}const id=$(this).data('id')||null;if(home){$('.nav-item[data-view="files"]').trigger('click');}folder=id;home=false;page=1;location='files';$('#drive-panel').removeClass('drive-home');$('#drive-search').val('');load();});
+    $('#drive-back').on('click',function(){
+        openFolder(folder && crumbs.length>1 ? crumbs[crumbs.length-2].id : null);
+    });
+
+    $(document).on('click','.drive-folder',function(){if($(this).closest('.folder-card').length){inspectFolder($(this).data('id'));return;}const id=$(this).data('id')||null;if(home){$('.nav-item[data-view="files"]').trigger('click');}openFolder(id);});
 
     $(document).on('dblclick','.file-details',function(){if(location==='shared'){openShared(files.find(f=>f.grant_id===$(this).data('id')));}else if(location!=='trash')$(document).trigger('drive:details',[$(this).data('id')]);});
+
+    // Double-click anywhere on a folder card opens it. Single click still opens details,
+    // and the per-card menu keeps a keyboard/pointer path that double-click cannot replace.
+    $(document).on('dblclick','.folder-card',function(event){
+        if($(event.target).closest('.drive-menu,.folder-rename,.folder-open').length)return;
+        openFolder($(this).attr('data-id'));
+    });
+
+    $(document).on('click','.folder-open',function(){openFolder($(this).data('id'));});
 
     $(document).on('click','.folder-rename',function(){dialog('folderRename',folders.find(f=>f.id===$(this).data('id')));});
 
@@ -235,7 +264,7 @@ $(function () {
     function inspectFolder(id) { const d=folders.find(f=>f.id===id);if(d)$(document).trigger('item:select',[{kind:'folder',item:d}]); }
     $(document).on('click','.file-details',function(){const d=files.find(f=>(f.grant_id||f.id)===$(this).data('id'));if(d)$(document).trigger('item:select',[{kind:'file',item:d,shared:location==='shared',trashed:location==='trash'}]);});
     $(document).on('dblclick','.folder-card .drive-folder',function(){const id=$(this).data('id');$('.nav-item[data-view="files"]').trigger('click');folder=id;home=false;location='files';page=1;load();});
-    $(document).on('item:action',(event,kind,data)=>{if(kind==='openFolder'){$('.nav-item[data-view="files"]').trigger('click');folder=data.id;page=1;load();}if(kind==='share')dialog('share',data);if(kind==='renameFolder')dialog('folderRename',data);if(kind==='openFile'){if(data.grant_id)openShared(data);else $(document).trigger('drive:details',[data.id]);}});
+    $(document).on('item:action',(event,kind,data)=>{if(kind==='openFolder'){if(home||location!=='files')$('.nav-item[data-view="files"]').trigger('click');openFolder(data.id);}if(kind==='share')dialog('share',data);if(kind==='renameFolder')dialog('folderRename',data);if(kind==='openFile'){if(data.grant_id)openShared(data);else $(document).trigger('drive:details',[data.id]);}});
 
     $('.nav-item[data-view="overview"]').trigger('click');
 

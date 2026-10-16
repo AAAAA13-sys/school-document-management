@@ -8,7 +8,7 @@ Updated 13 October 2026. Planning document based on the repository's current doc
 
 Read [docs/README.md](docs/README.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/RBAC.md](docs/RBAC.md), [docs/DRIVE-WORKSPACE.md](docs/DRIVE-WORKSPACE.md), [docs/STUDENT-WORKSPACE.md](docs/STUDENT-WORKSPACE.md), [docs/HISTORY-SYNC.md](docs/HISTORY-SYNC.md), [docs/INTEGRATION.md](docs/INTEGRATION.md) and [docs/WORKFLOW-OWNERSHIP.md](docs/WORKFLOW-OWNERSHIP.md) for current contracts.
 
-The local sdd.pdf has not been read. This plan derives from repository sources; any later SDD review must resolve differences against accepted product decisions before changing scope.
+The SDD has since been read for its requirements: FR-01…FR-09 and NFR-01…NFR-09 are split into [docs/SDD-REQUIREMENTS.md](docs/SDD-REQUIREMENTS.md). Hosting, privacy, service-level and source-contract questions in it remain open, and the SDD's open placeholders were preserved rather than filled in.
 
 ## Baseline and constraints
 
@@ -198,6 +198,99 @@ The first recovery test attempt exposed a test-injection issue: replacing the se
 | 6 | Requires school-approved retention/hold/disposal and recovery targets plus deployment access |
 
 No release gate is declared complete from these partial results. Continue with runtime/browser and contract dependencies when available; do not substitute guessed source contracts or school policy for accepted decisions.
+
+## Data increment — personal workspaces were empty because records had no owner
+
+Stories: DMS-02, FR-02, FR-09. Found while verifying the FR/NFR register against the running system.
+
+Cause: `DocumentService::scope()` filters personal roles with `where('owner_user_id', $a->id)`. Uploads assign that correctly, but `DemoSeeder` inserted every seeded document and folder without an owner, so all seeded rows held `owner_user_id = NULL`. No owner ever matches that predicate, so employee and teacher accounts signed in to a permanently empty workspace: `/workspace/stats` returned `total 0`, `/workspace/drive` returned no items and `/workspace/folders` returned no folders. The scope rule was correct; the seeded data contradicted it.
+
+Changes:
+
+- `database/seeders/DemoSeeder.php` — captures each seeded user's id, maps each source to its owning office role (Employee Management to employee, Online Admission and Enrollment to registrar, Payroll Management to payroll), and inserts `owner_user_id` plus a `folder_id` on the seeded records. Two nested folders, "Staff Records" and "Contracts 2026", are now seeded under the employee account in the Employee Management source so FR-02 nesting is visible on a fresh install; previously the seeder created no folders at all. The existing `documents` existence guard is untouched, so a re-run stays a no-op.
+- The running local `school_dms` database was corrected with the same mapping for its 8 existing documents. No other column, file bytes, version rows or audit history were altered, and no table was dropped or reset.
+
+Verified against the running system: `/workspace/stats` for the employee account now returns `total 2, available 2` instead of all zeroes, `/workspace/drive` returns the Employee Management documents, `/workspace/folders` returns the employee's folder, and the Home page renders populated "Suggested documents" and "Recent" sections with real titles, sources and availability. `php -l` passes on the seeder.
+
+Limits. Only the employee workspace was previously empty; the office roles were unaffected because `scope()` does not filter them by owner. Seeded folders already owned by the administrator were deliberately left with the administrator as owner rather than reassigned, so the employee sees only the employee account's own folder, which is the intended personal-scope behaviour. Scan statuses were not changed: all seeded versions were already `Clean`, and `docs/SDD-ALIGNMENT.md` states historical clean results are retained and only provenance-uncertain imports are rescanned. Re-seeding from scratch now produces `Pending`, because the seeder's existing version insert already used that value; existing rows were not rewritten.
+
+This corrects data, not a defect in the scope rule. `tests/Frontend/staff-workspace.test.cjs` still fails for the pre-existing unrelated reason recorded above; `node tests/Frontend/folder-upload.test.cjs` passes and `node --check public/assets/drive.js` passes. No application, MySQL or accessibility suite was run.
+
+## UI increment — My files row and folder-path control
+
+Story: DMS-02 (workspace navigation). Reported as the "My files" sidebar button and its folder-path expander looking unfinished.
+
+Cause: the expander was the literal text glyph `⌄` inside `#folders-toggle`, positioned by `top:7px` and rotated with `.folders-toggle[aria-expanded=true]{transform:rotate(180deg)}` on the button itself. That produced a thin, low-contrast character sitting slightly above the pill's optical centre, with no visible hit area.
+
+Changes:
+
+- `resources/views/workspace.blade.php` — removed the `⌄` text node from `#folders-toggle`. The button keeps `aria-label`, `aria-expanded` and `aria-controls`, so removing the glyph also removes a meaningless "downwards arrow" announcement for screen readers; the existing label swap in `drive.js` still applies.
+- `public/assets/workspace-refresh.css` — the chevron is now drawn with a `::before` pseudo-element (9×9, 2px `border-right`/`border-bottom`, rotated 45°). The button is a 34×34 grid centred with `top:50%` + `translateY(-50%)`, so the 16px `.nav-item` bottom margin can no longer push the chevron off-centre, and the 180° rotation now applies to the pseudo-element instead of the button, which no longer conflicts with centring. Added a 0.18s rotation transition, a hover background and a visible `:focus-visible` outline.
+- `public/assets/staff-workspace.css` — chevron colour `#5d6d63` so it reads clearly on the light staff sidebar, turning `var(--green)` when the My files row is active and `var(--deep)` on hover.
+
+Verified in the browser against the local server, reusing one tab: the chevron computed to a 9×9 element with 2px borders and the expected 45° matrix; its vertical centre matched the My files pill's centre to 0px; the button's text content is empty; `aria-label` and `aria-expanded` still flip between "Expand"/"Collapse My files folders"; the folder tree still shows and hides; and the loaded stylesheet contained all three new `.folder-card`/`.files-navigation` rules. A screenshot confirmed the pill and nested folder list render cleanly in the light staff theme.
+
+`node --check public/assets/drive.js` passed, `php artisan view:cache` compiled, and `node tests/Frontend/folder-upload.test.cjs` passed. The pre-existing `staff-workspace.test.cjs` VM failure is unchanged. No application, MySQL or accessibility suite was run.
+
+## UI increment — open a folder by double-clicking the whole card
+
+Story: DMS-02 / DMS-08 (workspace navigation). Reported as "opening folders is weird; the whole card should be double-clickable, not just the name".
+
+Cause: only the name button was interactive. `render()` built each folder card as a `<button class="drive-folder drive-name">` plus inert `<span>` cells for source, date and size, and the delegated click handler routed any `.folder-card` match to `inspectFolder`, which only fills the details panel. Opening the folder required the sidebar, or an extra "Open folder" click inside that panel. File cards already double-clicked to open via `.file-details`; folders had no equivalent.
+
+Changes, all in existing files:
+
+- `public/assets/drive.js` — folder cards now carry `data-id` and a `title` hint; the card `⋮` menu gained an "Open folder" item next to "Rename folder". A delegated `dblclick` handler on `.folder-card` calls the existing `openFolder()` helper and ignores events originating inside `.drive-menu`, `.folder-open` or `.folder-rename`, so double-clicking the menu does not navigate. `.folder-open` is wired to the same helper.
+- `public/assets/workspace-refresh.css` — `cursor:pointer`, a hover border/shadow and a `:focus-within` border so the card reads as actionable.
+
+Single click still opens details rather than navigating, which keeps the existing inspector path intact. The "Open folder" menu item and the inspector button remain the keyboard and pointer equivalents; double-click is an additional shortcut, not the only route.
+
+Verified in the browser against the local server on one reused tab: double-click on the card body (the source cell, not the name button) navigated to the folder and revealed the Back button labelled "Back to My files"; double-click on the name button also opened it; double-click on the `⋮` summary correctly did not navigate and left breadcrumbs at "My files"; the "Open folder" menu item opened the folder; `cursor` computed to `pointer` and the menu listed "Open folder" then "Rename folder". `node --check public/assets/drive.js` passed, `php artisan view:cache` compiled, and `node tests/Frontend/folder-upload.test.cjs` passed. The pre-existing `staff-workspace.test.cjs` VM failure described below is unchanged and unrelated.
+
+The temporary folder created to exercise this was deleted afterwards.
+
+## UI increment — folder Back button
+
+Story: DMS-02 / DMS-08 (workspace navigation). Reported by a user as "whenever I open a folder I cannot close it".
+
+Root cause: entering a folder was only reversible through the breadcrumb's `My files` text, which is styled by `#drive-crumbs>.btn{border:none;font-size:16px;padding:0 4px}` and therefore reads as static bold text rather than a control. There was no explicit way to step up from a nested folder, and opening a folder from the sidebar tree replaced the whole view.
+
+Changes, all in existing files:
+
+- `resources/views/workspace.blade.php` — added `#drive-back` before `#drive-crumbs`, wrapped both in `.drive-heading`. The button carries `type="button"`, `aria-label` and `hidden` so it cannot submit or appear at the root.
+- `public/assets/drive.js` — added `crumbs` state, a `renderBack()` helper, and an `openFolder(id)` helper that replaces four duplicated "set folder, clear search, drop home mode, reload" sequences. `renderBack()` shows the button only when `location==='files'` and a folder is open, and labels it with the parent folder name. The parent is taken from the second-to-last breadcrumb the API already returns, so no endpoint changed.
+- `public/assets/workspace-refresh.css` — `.drive-heading` flex row, non-shrinking button, visible focus ring, wrapping breadcrumbs.
+
+Back steps to the parent folder, and to `My files` for a top-level folder. It is hidden at the root and on Home, Recent, Starred, Shared with me and Trash.
+
+Verification actually performed, in a browser against the local server: inside a folder the button is visible with label `Back to test folder` and breadcrumbs `My files / test folder / Nested Child`; activating it lands on `My files / test folder` with the button still visible, correctly indicating one level is still open. At the root it is hidden. `node --check public/assets/drive.js` passed and `php artisan view:cache` compiled.
+
+`node tests/Frontend/folder-upload.test.cjs` passes. `tests/Frontend/staff-workspace.test.cjs` fails with `ReferenceError: document is not defined`, which is pre-existing and unrelated: it loads only `public/assets/staff-workspace.js` into a VM context that supplies `$` but no `document`, and that file was not modified here. No application test suite, MySQL suite or accessibility review was run.
+
+Test folders and the probe document created while verifying this increment were removed afterwards. `test folder` was left in place because it was not created during this work.
+
+## Documentation increment — FR/NFR requirement register split
+
+Scope: Step 1 documentation alignment. Documentation only. No application code, schema, test or runtime change.
+
+The manager instruction was to split the SDD's coded requirements into functional and non-functional parts so each can be reviewed and assigned separately, and to place them in the repository.
+
+- Added `docs/SDD-REQUIREMENTS.md`. It holds FR-01…FR-09 and NFR-01…NFR-09 as two independent tables, copied verbatim from SDD §5.1 and §5.2 (pages 6-8), with each SDD priority kept as written.
+- Added indexes for the SDD's other code series so they are not mixed into the requirement tables: OBJ-01…OBJ-05 (§3.3), INT-01…INT-06 (§9), R-01…R-06 (§13.1) and AD-01…AD-07 (§13.3).
+- Recorded SDD Appendix B traceability plus its gap: NFR-04, NFR-05, NFR-07, NFR-08 and NFR-09 have no component or test owner in the SDD. The gap is documented, not filled in.
+- Linked the register from `docs/README.md` and from the authority note in `MASTERPLAN.md`.
+
+Verification: PDF text was extracted with `pypdf` 6.21.0 and FR/NFR wording was compared against SDD §5.1/§5.2. No application tests, Blade compilation, JavaScript syntax check or browser review was run; none was requested. Relative links and paths were checked by reading the saved files back. No release gate or backlog story changed state.
+
+Limits and cautions:
+
+- The FR/NFR to DMS-xx story mapping in `docs/SDD-REQUIREMENTS.md` is **proposed**, not SDD content and not approved. The SDD contains no such mapping.
+- NFR-05 (availability), NFR-07 (privacy) and NFR-08 (auditability) have no agreed target value in the SDD. They are marked unagreed rather than assigned a value.
+- FR/NFR MoSCoW priorities are the SDD's own proposal and remain unconfirmed by the client. The SDD assigns no priority to NFRs at all.
+- The SDD cover reads v0.1 draft. The user's 16 October designation of it as the final implementation plan is unchanged; this register does not alter that.
+- `Implementation.md` previously stated that the SDD had not been read. That is now superseded for content extraction: the PDF has been read for requirements. Hosting, privacy, service-level and contract questions in it remain open.
+
+No product story is newly marked complete by this documentation change.
 
 ## Backend increment — preserve upload errors when cleanup fails
 

@@ -8,7 +8,7 @@
 <input id="folder-upload-picker" type="file" webkitdirectory multiple hidden>
 <nav aria-label="File navigation">
 <button type="button" class="nav-item active" data-view="overview">Home</button>
-<div class="files-navigation"><button type="button" class="nav-item" data-view="files">My files</button><button type="button" id="folders-toggle" class="folders-toggle" aria-label="Expand My files folders" aria-expanded="false" aria-controls="sidebar-folders" hidden>⌄</button></div>
+<div class="files-navigation"><button type="button" class="nav-item" data-view="files">My files</button><button type="button" id="folders-toggle" class="folders-toggle" aria-label="Expand My files folders" aria-expanded="false" aria-controls="sidebar-folders" hidden></button></div>
 <div id="sidebar-folders" class="sidebar-folders" hidden></div>
 <button type="button" class="nav-item" data-view="recent">Recent</button>
 <button type="button" class="nav-item" data-view="starred">Starred</button>
@@ -42,7 +42,7 @@
 <div class="table-footer"><span id="history-count" role="status">No history loaded</span><button id="history-more" class="btn btn-quiet" disabled>Load more</button></div>
 </section>
 <section id="drive-panel" class="panel" hidden>
-<div class="panel-heading"><nav id="drive-crumbs" aria-label="Folder path"></nav><div><button id="details-toggle" class="btn btn-quiet" aria-label="Show item details" aria-expanded="false" aria-controls="item-details">ⓘ</button> <button id="drive-layout" class="btn btn-quiet" aria-pressed="false">List view</button></div></div>
+<div class="panel-heading"><div class="drive-heading"><button type="button" id="drive-back" class="btn btn-quiet" aria-label="Back to My files" hidden>←&nbsp;Back</button><nav id="drive-crumbs" aria-label="Folder path"></nav></div><div><button id="details-toggle" class="btn btn-quiet" aria-label="Show item details" aria-expanded="false" aria-controls="item-details">ⓘ</button> <button id="drive-layout" class="btn btn-quiet" aria-pressed="false">List view</button></div></div>
 <div id="selection-toolbar" class="selection-toolbar" hidden><button id="selection-clear" class="btn btn-quiet" aria-label="Clear selection">×</button><strong id="selection-label">1 selected</strong><div id="selection-actions"></div></div><form id="drive-filter" class="filter-bar"><input id="drive-search" class="form-control" maxlength="200" placeholder="Search files by name" aria-label="Search files by name"><select id="drive-sort" class="form-select" aria-label="Sort files"><option value="updated">Last modified</option><option value="name">Name</option></select><button class="btn btn-quiet">Search</button></form>
 <div id="drive-drop" tabindex="0" aria-label="Drop files here or use Upload document"><p>Drop files here to upload · Files stay private; access requires a clean security scan</p><div id="drive-items" class="drive-grid"></div></div>
 <div class="table-footer"><span id="drive-count" role="status"></span><div><button id="drive-prev" class="btn btn-quiet">Previous</button><button id="drive-next" class="btn btn-quiet">Next</button></div></div>

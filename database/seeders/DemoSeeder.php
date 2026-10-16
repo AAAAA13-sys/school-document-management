@@ -23,9 +23,20 @@ class DemoSeeder extends Seeder
         foreach (['employee' => 'Demo Employee', 'admin' => 'Records Administrator', 'registrar' => 'Admissions Registrar', 'hr' => 'HR Officer', 'payroll' => 'Payroll Officer'] as $role => $name) {
             $u = User::firstOrNew(['email' => $role.'@demo.school']);
             $u->forceFill(['name' => $name, 'password' => $password, 'role' => $role, 'school_id' => 'DEMO-SCHOOL', 'campus' => 'Main campus', 'active' => true])->save();
+            $users[$role] = $u->id;
         }
+        // Personal workspaces are scoped by owner_user_id, so seeded records need a real
+        // owner or a staff account signs in to an empty workspace. Each source belongs
+        // to the office role that owns it.
+        $ownerFor = ['Employee Management' => 'employee', 'Online Admission' => 'registrar', 'Enrollment' => 'registrar', 'Payroll Management' => 'payroll'];
         if (DB::table('documents')->exists()) {
             return;
+        }
+        $folders = [];
+        foreach ([['Staff Records', null], ['Contracts 2026', 'Staff Records']] as [$name, $parent]) {
+            $id = (string) Str::uuid();
+            DB::table('folders')->insert(['id' => $id, 'parent_id' => $folders[$parent] ?? null, 'name' => $name, 'source' => 'Employee Management', 'owner_user_id' => $users['employee'], 'school_id' => 'DEMO-SCHOOL', 'campus' => 'Main campus', 'revision' => 1, 'created_at' => now(), 'updated_at' => now()]);
+            $folders[$name] = $id;
         }
         $examples = [
             ['Birth certificate', 'Andrea Santos', 'APP-2026-0142', 'Online Admission', 'Identity evidence', 'Restricted', 'Available'],
@@ -44,8 +55,10 @@ class DemoSeeder extends Seeder
             $key = 'documents/'.$v;
             $content = "SYNTHETIC DEMONSTRATION RECORD\n\n$title\n$subject\n$ref\n\nThis sample contains no real school records.\n";
             Storage::disk('local')->put($key, $content);
-            DB::transaction(function () use ($id, $v, $key, $content, $title, $subject, $ref, $source, $category, $classification, $status, $i) {
-                DB::table('documents')->insert(['id' => $id, 'title' => $title, 'subject' => $subject, 'reference' => $ref, 'source' => $source, 'category' => $category, 'classification' => $classification, 'school_id' => 'DEMO-SCHOOL', 'campus' => 'Main campus', 'revision' => 1, 'created_at' => now()->subDays($i), 'updated_at' => now()->subHours($i)]);
+            $owner = $users[$ownerFor[$source]] ?? null;
+            $folder = $title === 'Employment agreement' ? $folders['Contracts 2026'] : null;
+            DB::transaction(function () use ($id, $v, $key, $content, $title, $subject, $ref, $source, $category, $classification, $status, $i, $owner, $folder) {
+                DB::table('documents')->insert(['id' => $id, 'title' => $title, 'subject' => $subject, 'reference' => $ref, 'source' => $source, 'category' => $category, 'classification' => $classification, 'owner_user_id' => $owner, 'folder_id' => $folder, 'school_id' => 'DEMO-SCHOOL', 'campus' => 'Main campus', 'revision' => 1, 'created_at' => now()->subDays($i), 'updated_at' => now()->subHours($i)]);
                 DB::table('document_versions')->insert(['id' => $v, 'document_id' => $id, 'number' => 1, 'filename' => 'demonstration.txt', 'media_type' => 'text/plain', 'size' => strlen($content), 'checksum' => hash('sha256', $content), 'storage_key' => $key, 'scan' => 'Pending', 'status' => $status, 'actor' => 'Synthetic demo import', 'reason' => null, 'reviewer' => null, 'reviewed_at' => null, 'created_at' => now()->subDays($i), 'expires_at' => $category === 'Qualification' ? now()->addDays(21)->format('Y-m-d') : null]);
                 $service = app(DocumentService::class);
                 $a = (object) ['name' => 'Synthetic demo import', 'school_id' => 'DEMO-SCHOOL', 'campus' => 'Main campus'];
