@@ -15,18 +15,11 @@ $(function () {
         $('#selected-file-label').text(file ? 'Selected: '+file.name+' · '+(file.size/1024).toFixed(1)+' KB' : 'No file selected');
     }
     function updateUploadActions() {
-        if(!$('#upload-tabs').length)return;
-        const fileTab = $('#upload-tabs').tabs('option','active') === 1;
-        $('#upload-next').prop('hidden',fileTab);
-        $('#upload-submit,#upload-back').prop('hidden',!fileTab);
+        // Metadata and file selection share one scrolling form, so the submit button is
+        // always available and required fields are never hidden on a second tab.
     }
-    $('#file').on('change',updateFileLabel);
+    $('#file').on('change',function(){updateFileLabel();const body=$('#upload-dialog').closest('.ui-dialog-content');if(body&&$('#title').value)body.scrollTop=$('#upload-record').offset().top;});
     $('#upload-dialog').on('dialogopen',function(){updateFileLabel();updateUploadActions();});
-    $('#upload-tabs').on('tabsactivate',updateUploadActions);
-    $('#upload-next').on('click',function(){
-        if($('#upload-record input,#upload-record select').toArray().every(field=>field.reportValidity())) $('#upload-tabs').tabs('option','active',1);
-    });
-    $('#upload-back').on('click',()=>$('#upload-tabs').tabs('option','active',0));
     $('#upload-dropzone').on('dragover',function(event){event.preventDefault();$(this).addClass('is-dragging');})
         .on('dragleave',function(){$(this).removeClass('is-dragging');})
         .on('drop',function(event){

@@ -180,16 +180,16 @@ $(function () {
 
         $('#upload-dialog').dialog('option', 'title', existing ? 'Add document version' : 'Upload document');
 
-        $('#upload-tabs').tabs('option','active',0); $('#upload-form input,#upload-form select').prop('disabled', false);
+        $('#upload-form input,#upload-form select').prop('disabled', false);
+        $('#upload-dialog .ui-dialog-content').scrollTop(0);
         if (personal && !existing) $('#reference').val('PERSONAL-'+crypto.randomUUID().slice(0,8));
 
         if (existing) {
 
             for (const field of ['title','subject','reference','source','category','classification']) $('#' + field).val(existing[field]).prop('disabled', true);
 
-            $('#upload-tabs').tabs('option','active',1);
-
         }
+        $('#upload-destination-row').prop('hidden', !!existing);
 
         $('#upload-dialog').dialog('open');
 
@@ -269,12 +269,12 @@ $(function () {
 
     $('#upload-dialog,#detail-dialog,#history-dialog').prop('hidden',false).dialog({ autoOpen:false, modal:true, width:Math.min(680, window.innerWidth - 32), resizable:false, draggable:false });
 
-    $('#upload-tabs').tabs(); $('#expires_at').datepicker({ dateFormat:'yy-mm-dd', changeMonth:true, changeYear:true });
+    $('#expires_at').datepicker({ dateFormat:'yy-mm-dd', changeMonth:true, changeYear:true });
 
-    // Reveal the tab before the browser focuses a required field.
+    // Metadata and the file chooser are one scrolling form, so an invalid required field is
+    // already on screen. Still bring it into view when the dialog body is scrolled.
     $('#upload-form input,#upload-form select').on('invalid', function () {
-        const panel = $(this).closest('.ui-tabs-panel');
-        if (panel.length) $('#upload-tabs').tabs('option', 'active', panel.attr('id') === 'upload-file' ? 1 : 0);
+        this.scrollIntoView({ block: 'center', behavior: 'smooth' });
     });
 
     $('#subject').autocomplete({ source:[], minLength:1 });
@@ -297,7 +297,7 @@ $(function () {
 
     $('#upload-open').on('click',()=>openUpload()); $('#upload-cancel').on('click',()=>$('#upload-dialog').dialog('close'));
 
-    $(document).on('drive:upload', (event, files) => { openUpload(); const transfer = new DataTransfer(); files.forEach(file => transfer.items.add(file)); $('#file')[0].files = transfer.files; $('#file').trigger('change'); $('#upload-tabs').tabs('option','active',1); });
+    $(document).on('drive:upload', (event, files) => { openUpload(); const transfer = new DataTransfer(); files.forEach(file => transfer.items.add(file)); $('#file')[0].files = transfer.files; $('#file').trigger('change'); $('#upload-dialog .ui-dialog-content').scrollTop($('#upload-file').offset().top); });
 
     $(document).on('drive:details', (event, id) => openDocument(id));
 
@@ -311,7 +311,7 @@ $(function () {
 
         e.preventDefault(); const file=$('#file')[0].files[0];
 
-        if(!file||file.size>10*1024*1024||file.size===0){$('#upload-error').text('Choose a nonempty file up to 10 MB.').prop('hidden',false);$('#upload-tabs').tabs('option','active',1);return;}
+        if(!file||file.size>10*1024*1024||file.size===0){$('#upload-error').text('Choose a nonempty file up to 10 MB.').prop('hidden',false);$('#upload-dropzone').scrollIntoView({block:'center'});return;}
 
         const data=new FormData(this);
 
@@ -321,7 +321,7 @@ $(function () {
 
         $.ajax({url:'/workspace/documents',method:'POST',data,processData:false,contentType:false,headers:{'Idempotency-Key':uploadKey}})
 
-            .done(result=>{$('#upload-dialog').dialog('close');notice(result.scan === 'Clean' ? 'Upload and security scan complete.' : 'Upload saved. File access is blocked until its security scan passes.');if(view==='documents')loadDocuments();loadStats();$(document).trigger('drive:uploaded',[result]);})
+            .done(result=>{$('#upload-dialog').dialog('close');notice(result.scan === 'Clean' ? 'Upload and security scan complete.' : 'Upload saved. File access is blocked until its security scan passes.');if(view==='documents')loadDocuments();loadStats();$(document).trigger('drive:uploaded',[result,!!replacement]);})
 
             .fail(xhr=>$('#upload-error').text(message(xhr)).prop('hidden',false))
 
@@ -333,7 +333,7 @@ $(function () {
 
     // Reveal an invalid field's tab before the browser attempts to focus it.
 
-    $('#upload-form')[0].addEventListener('invalid',event=>{$('#upload-tabs').tabs('option','active',$(event.target).closest('#upload-file').length?1:0);},true);
+    $('#upload-form')[0].addEventListener('invalid',event=>{event.target.scrollIntoView({block:'center',behavior:'smooth'});},true);
 
     $('#refresh-audit').on('click',loadAudit); $('#refresh-events').on('click',loadEvents);
 
