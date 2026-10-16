@@ -53,6 +53,103 @@ class DocumentService
         return $d;
     }
 
+    /** Active folder grants held by the actor, keyed by folder id and expanded to nested folders. */
+    public function sharedFolders(object $a): array
+    {
+        $grants = DB::table('folder_shares')->where('recipient_id', $a->id)
+            ->whereNull('revoked_at')->where('expires_at', '>', now())->get(['folder_id', 'permission']);
+        if ($grants->isEmpty()) {
+            return [];
+        }
+        $rank = ['viewer' => 1, 'commenter' => 2, 'editor' => 3];
+        $permissions = [];
+        $frontier = [];
+        foreach ($grants as $grant) {
+            $folder = DB::table('folders')->where('id', $grant->folder_id)->first();
+            abort_unless($folder && $folder->school_id === $a->school_id && $folder->campus === $a->campus, 403);
+            $current = $permissions[$grant->folder_id] ?? null;
+            if ($current === null || ($rank[$grant->permission] ?? 0) > ($rank[$current] ?? 0)) {
+                $permissions[$grant->folder_id] = $grant->permission;
+            }
+            $frontier[] = $grant->folder_id;
+        }
+        $guard = 0;
+        while ($frontier && $guard++ < 64) {
+            $children = DB::table('folders')->whereIn('parent_id', $frontier)->get(['id', 'parent_id']);
+            $frontier = [];
+            foreach ($children as $child) {
+                if (isset($permissions[$child->id])) {
+                    continue;
+                }
+                $permissions[$child->id] = $permissions[$child->parent_id] ?? 'viewer';
+                $frontier[] = $child->id;
+            }
+        }
+
+        return $permissions;
+    }
+
+    /** Ids of a folder and every folder nested inside it. */
+    public function folderSubtree(string $id): array
+    {
+        $ids = [$id];
+        $frontier = [$id];
+        $guard = 0;
+        while ($frontier && $guard++ < 64) {
+            $children = DB::table('folders')->whereIn('parent_id', $frontier)->pluck('id')->all();
+            $frontier = array_values(array_diff($children, $ids));
+            $ids = array_merge($ids, $frontier);
+        }
+
+        return $ids;
+    }
+
+    public function folderPermission(object $a, string $folderId): ?string
+    {
+        return $this->sharedFolders($a)[$folderId] ?? null;
+    }
+
+    /** Folders directly granted to the actor, so a recipient can navigate to them from their own root. */
+    public function sharedFolderRoots(object $a)
+    {
+        $ids = DB::table('folder_shares')->where('recipient_id', $a->id)->whereNull('revoked_at')
+            ->where('expires_at', '>', now())->pluck('folder_id')->unique()->values()->all();
+
+        return $ids ? DB::table('folders')->whereIn('id', $ids)->orderBy('name')->get() : collect();
+    }
+
+    /** Grants the actor created for one folder, with recipient identity for the share sheet. */
+    public function folderShareList(object $a, object $folder)
+    {
+        return DB::table('folder_shares')->join('users', 'users.id', '=', 'folder_shares.recipient_id')
+            ->where('folder_shares.folder_id', $folder->id)->where('folder_shares.created_by', $a->id)
+            ->orderBy('folder_shares.created_at')->get([
+                'folder_shares.id', 'folder_shares.permission', 'folder_shares.expires_at',
+                'folder_shares.created_at', 'folder_shares.revoked_at', 'users.name', 'users.email',
+            ]);
+    }
+
+    /** Highest folder-grant permission that reaches a document, or null when the actor has no folder access. */
+    public function documentPermission(object $a, string $documentId): ?string
+    {
+        $folderId = DB::table('documents')->where('id', $documentId)->value('folder_id');
+
+        return $folderId ? $this->folderPermission($a, $folderId) : null;
+    }
+
+    public function documentAccess(string $id, object $a): array
+    {
+        $d = $this->scope(DB::table('documents'), $a)->whereNull('trashed_at')->where('id', $id)->first();
+        if ($d) {
+            return [$d, null];
+        }
+        $permission = $this->documentPermission($a, $id);
+        $d = DB::table('documents')->where('id', $id)->whereNull('trashed_at')->first();
+        abort_unless($d && $permission, 404, 'Document not found.');
+
+        return [$d, $permission];
+    }
+
     public function log(object $a, string $action, ?string $doc = null, ?string $detail = null): void
     {
         DB::table('audit_entries')->insert(['school_id' => $a->school_id, 'campus' => $a->campus, 'actor' => $a->name, 'action' => $action, 'document_id' => $doc, 'detail' => $detail, 'created_at' => now()]);

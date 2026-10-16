@@ -72,3 +72,57 @@ body{font-size:15px}.sidebar{width:232px;padding:26px 16px;background:var(--deep
 .page-title-row h1{overflow-wrap:anywhere}
 .help-tooltip{max-width:calc(100vw - 40px)}
 @media(max-width:600px){.selection-toolbar{margin-left:16px;margin-right:16px}.selection-toolbar>div{margin-left:0;width:100%}.drive-list .drive-columns,.drive-list>.drive-card{grid-template-columns:minmax(0,1fr) 80px 28px;gap:8px}.workspace-welcome>div{max-width:100%}.detail-header{flex-wrap:wrap}.version-heading{flex-wrap:wrap}.dialog-actions{flex-wrap:wrap}}
+/* Sign-out confirmation: green/yellow palette, native POST fallback via #signout-form. */
+.accounts-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.signout-lead{font-size:17px;font-weight:600;color:var(--deep);margin:0 0 12px;padding-left:14px;border-left:4px solid var(--yellow);line-height:1.5}
+.signout-note{margin:0 0 0 18px;color:var(--muted);font-size:13px;line-height:1.7;max-width:46ch}
+#signout-dialog.ui-dialog-content{border-top:3px solid var(--yellow)}
+#signout-confirm:focus-visible,.signout-trigger:focus-visible{outline:2px solid var(--deep);outline-offset:2px}
+.app-shell .logout:hover{text-decoration:underline}
+@media(max-width:600px){.signout-note{margin-left:0}}
+/* Folder color palette. Tints and dots only, so folder text keeps the ink contrast. */
+[data-folder-color]{--tone-bg:#f2f6ee;--tone-border:#dde7d8;--tone-ink:#3c5a45}
+[data-folder-color=green]{--tone-bg:#e6f1e8;--tone-border:#c2dcc8;--tone-ink:#0c5b3d}
+[data-folder-color=yellow]{--tone-bg:#fbf3d3;--tone-border:#eddfa1;--tone-ink:#77590a}
+[data-folder-color=teal]{--tone-bg:#e0f0f0;--tone-border:#bbdede;--tone-ink:#0b6367}
+[data-folder-color=blue]{--tone-bg:#e6eef8;--tone-border:#c5d7ec;--tone-ink:#1a4f86}
+[data-folder-color=purple]{--tone-bg:#eee9f7;--tone-border:#d4cbe9;--tone-ink:#4c3a8b}
+[data-folder-color=amber]{--tone-bg:#faeee0;--tone-border:#ecd5bc;--tone-ink:#8a5a17}
+[data-folder-color=rose]{--tone-bg:#f9e8ed;--tone-border:#edc8d2;--tone-ink:#8d2f49}
+[data-folder-color=slate]{--tone-bg:#eceff1;--tone-border:#d2dade;--tone-ink:#3e525d}
+.folder-chip{display:inline-grid;place-items:center;width:38px;height:38px;border-radius:11px;font-size:19px;background:var(--tone-bg,#f2f6ee);border:1px solid var(--tone-border,#dde7d8);color:var(--tone-ink,#3c5a45);flex:0 0 auto}
+.folder-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;background:var(--tone-ink,#8fa694);vertical-align:middle}
+.folder-card{cursor:pointer}
+.folder-card:focus-within{outline:2px solid var(--green);outline-offset:2px}
+.folder-color-target{font-size:13px;color:var(--muted);margin:0 0 14px;overflow-wrap:anywhere}
+.folder-swatches{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.folder-swatch{width:32px;height:32px;border-radius:9px;padding:0;cursor:pointer;border:1px solid var(--tone-border,#dde7d8);background:var(--tone-bg,#f2f6ee)}
+.folder-swatch:hover{border-color:var(--tone-ink,#0c5b3d)}
+.folder-swatch[aria-pressed=true]{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--tone-ink,#075b3d)}
+.folder-swatch:focus-visible{outline:2px solid var(--deep);outline-offset:2px}
+.folder-swatch-default{background:white;border-color:var(--line)}
+/* Folder sharing: a share sheet for the owner, a badge for recipients. */
+.shared-badge{display:inline-block;margin:8px 0 2px;font-size:11px;font-weight:600;color:#375345;background:#eaf2e5;border:1px solid #d3e3cd;border-radius:20px;padding:3px 9px}
+.folder-shared{border-style:dashed}
+.folder-share-intro{margin:0 0 4px;font-size:14px;color:var(--ink)}
+.share-section{border-top:1px solid var(--line);padding-top:16px;margin-top:16px}
+.share-section h3{margin:0 0 12px;font-size:12px;font-weight:650;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+.share-people{display:flex;flex-direction:column;gap:10px;max-height:190px;overflow:auto}
+.share-person{display:flex;align-items:center;gap:12px}
+.share-avatar{flex:0 0 auto;display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--green);color:white;font-size:12px;font-weight:650}
+.share-person-text{display:flex;flex-direction:column;min-width:0;flex:1}
+.share-person-text strong{font-size:14px;font-weight:600;overflow-wrap:anywhere}
+.share-person-text small{color:var(--muted);font-size:12px}
+.share-level{flex:0 0 auto;font-size:12px;color:#375345;background:#eef4ea;border-radius:20px;padding:4px 10px}
+.share-person .btn{padding:5px 10px;font-size:12px}
+.share-invite-row{display:flex;gap:8px;flex-wrap:wrap}
+.share-invite-row .form-control{flex:1 1 220px;min-width:0}
+.share-invite-row .form-select{flex:0 0 140px}
+.share-hint{margin:10px 0 0;font-size:12px;color:var(--muted);line-height:1.6}
+.share-general{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#f8faf7;margin-bottom:10px}
+.share-general.is-unavailable{background:#fafbfa;color:var(--muted)}
+.share-general-title{font-size:13px;font-weight:600;color:var(--ink)}
+.share-general.is-unavailable .share-general-title{color:var(--muted)}
+.share-general .share-hint{flex:1 1 200px;margin:0}
+.share-general .btn{padding:6px 12px;font-size:12px}
+@media(max-width:600px){.share-invite-row .form-select{flex:1 1 100%}}

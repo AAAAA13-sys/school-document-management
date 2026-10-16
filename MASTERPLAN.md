@@ -61,7 +61,7 @@ Presentation and integration both enter the application tier. The application us
 | HR | Source-scoped office records | Employee Management history |
 | Payroll | Source-scoped office records | Payroll Management history |
 
-Every role remains school/campus scoped. Named shares can grant document-specific access beyond a recipient's ordinary source scope, within that boundary. Viewer reads/downloads; commenter also comments; editor also renames/uploads versions. Grants expire within 30 days, are revocable, and pin an exact version. They do not grant move, Trash, reshare or source-wide access. Folder-level sharing and browser editing of document contents are outside the current implementation.
+Every role remains school/campus scoped. Named shares can grant document-specific access beyond a recipient's ordinary source scope, within that boundary. Viewer reads/downloads; commenter also comments; editor also renames/uploads versions. Grants expire within 30 days, are revocable, and pin an exact version. They do not grant move, Trash, reshare or source-wide access. Folder grants follow the same rules, reach the folder and its nested folders read-only plus commenting, and never widen access beyond that folder tree. Browser editing of document contents is outside the current implementation.
 
 ## 6. Data domains and invariants
 
@@ -69,8 +69,8 @@ Every role remains school/campus scoped. Named shares can grant document-specifi
 |---|---|---|
 | Identity | `users`, `sessions` | Active local identity, role, school and campus; source payloads cannot provision accounts. |
 | Documents | `documents`, `document_versions` | Additive version content, UUID paths, checksums, unique version numbers, revision-protected edits. |
-| Organization | `folders`, `document_stars` | Ownership/source scope, nested folders without cycles, personal favorites. |
-| Collaboration | `document_shares`, `document_comments` | Live named grants, pinned versions, bounded escaped comments. |
+| Organization | `folders`, `document_stars` | Ownership/source scope, nested folders without cycles, personal favorites, palette-limited folder colors that change presentation only. |
+| Collaboration | `document_shares`, `folder_shares`, `document_comments` | Live named grants for a document or folder tree, pinned document versions, bounded escaped comments. |
 | Source evidence | `source_records`, `source_history` | Latest accepted snapshot plus immutable receipt history; older deliveries cannot regress current state. |
 | Integration | `integration_accounts`, `idempotency_requests`, `integration_events` | Hashed credentials, actor-scoped upload receipts and scoped event cursors. |
 | Accountability | `audit_entries` | Application append-only activity; not claimed externally tamper-proof. |
@@ -201,6 +201,6 @@ National/institutional requirements are policy inputs, not blanket validation ru
 
 ## 13. Explicit exclusions and next action
 
-No automatic full-database replication, direct external database writes, DMS business approval, student access, anonymous public links, folder sharing, browser content editor, assumed SSO, guaranteed source completeness, or guaranteed API-only plug-and-play setup. Introduce these only through a new explicit requirement and impact review.
+No automatic full-database replication, direct external database writes, DMS business approval, student access, anonymous public links, folder sharing by link, browser content editor, assumed SSO, guaranteed source completeness, or guaranteed API-only plug-and-play setup. Introduce these only through a new explicit requirement and impact review.
 
 Next implementation focus: finish and visually verify the staff navigation/sidebar and main file journeys, then validate MySQL collision/transaction behavior. In parallel with that independent work, obtain the four source contracts through the enterprise coordination process. Record each completed story with the commit, test result and remaining limits rather than changing “Open” to “Done” based on a screenshot or proposal.

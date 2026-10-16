@@ -42,6 +42,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/shared/{id}/comments', [\App\Http\Controllers\ShareController::class, 'comment'])->middleware('throttle:30,1');
         Route::patch('/shared/{id}/document', [\App\Http\Controllers\ShareController::class, 'edit']);
         Route::post('/shared/{id}/versions', [\App\Http\Controllers\ShareController::class, 'replace']);
+        Route::get('/folder-shares/{id}/documents/{document}/comments', [\App\Http\Controllers\ShareController::class, 'folderComments']);
+        Route::post('/folder-shares/{id}/documents/{document}/comments', [\App\Http\Controllers\ShareController::class, 'folderComment'])->middleware('throttle:30,1');
         Route::get('/drive', [DriveController::class, 'index']);
         Route::get('/folders', [DriveController::class, 'folders']);
         Route::get('/folders/{id}', [DriveController::class, 'folderDetails']);
@@ -52,6 +54,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/drive/{id}/shares', [DriveController::class, 'shares']);
         Route::post('/drive/{id}/shares', [DriveController::class, 'share']);
         Route::delete('/shares/{id}', [DriveController::class, 'revoke']);
+        Route::get('/folders/{id}/shares', [DriveController::class, 'folderShares']);
+        Route::post('/folders/{id}/shares', [DriveController::class, 'shareFolder']);
+        Route::delete('/folder-shares/{id}', [DriveController::class, 'revokeFolderShare']);
         Route::get('/shared/{id}', [DriveController::class, 'shared']);
         Route::get('/stats', [DocumentController::class, 'stats']);
         Route::get('/documents', [DocumentController::class, 'index']);

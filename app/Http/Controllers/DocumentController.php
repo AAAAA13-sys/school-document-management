@@ -73,7 +73,7 @@ class DocumentController extends Controller
         $a = $this->dms->actor($r);
         $v = DB::table('document_versions')->where('id', $id)->first();
         abort_unless($v, 404);
-        $this->dms->document($v->document_id, $a);
+        $this->dms->documentAccess($v->document_id, $a);
 
         app(\App\Services\FileScanner::class)->requireClean($v);
         abort_unless(Storage::disk('local')->exists($v->storage_key), 503, 'File unavailable.');
