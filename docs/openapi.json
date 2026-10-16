@@ -1,0 +1,503 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "PLP DMS ERP API",
+    "version": "1.0.0",
+    "description": "Same scoped bearer-token contract for EMS, PMS, ES and OAS. See API.md for replay, scan and cursor semantics."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8011/api/v1",
+      "description": "Loopback development; replace with HTTPS deployment URL"
+    }
+  ],
+  "security": [
+    {
+      "connector": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "connector": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "paths": {
+    "/history": {
+      "get": {
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cursor page: data, next_cursor, has_more"
+          },
+          "401": {
+            "description": "JSON error with message and optional field errors"
+          },
+          "422": {
+            "description": "JSON error with message and optional field errors"
+          },
+          "429": {
+            "description": "JSON error with message and optional field errors"
+          }
+        }
+      },
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "event_id",
+                  "record_type",
+                  "record_id",
+                  "revision",
+                  "operation",
+                  "payload"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "event_id": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "record_type": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "record_id": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 2147483647
+                  },
+                  "operation": {
+                    "type": "string",
+                    "enum": ["upsert", "delete"]
+                  },
+                  "payload": {
+                    "oneOf": [
+                      {
+                        "type": "object"
+                      },
+                      {
+                        "type": "array",
+                        "items": {}
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "history_id, applied, duplicate=false"
+          },
+          "200": {
+            "description": "Original receipt with duplicate=true"
+          },
+          "401": {
+            "description": "JSON error with message and optional field errors"
+          },
+          "409": {
+            "description": "JSON error with message and optional field errors"
+          },
+          "422": {
+            "description": "JSON error with message and optional field errors"
+          },
+          "429": {
+            "description": "JSON error with message and optional field errors"
+          }
+        }
+      }
+    },
+    "/events": {
+      "get": {
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cursor page: data, next_cursor, has_more"
+          },
+          "401": {
+            "description": "JSON error with message and optional field errors"
+          },
+          "422": {
+            "description": "JSON error with message and optional field errors"
+          },
+          "429": {
+            "description": "JSON error with message and optional field errors"
+          }
+        }
+      }
+    },
+    "/documents": {
+      "get": {
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cursor page: data, next_cursor, has_more"
+          },
+          "401": {
+            "description": "JSON error with message and optional field errors"
+          },
+          "422": {
+            "description": "JSON error with message and optional field errors"
+          },
+          "429": {
+            "description": "JSON error with message and optional field errors"
+          }
+        }
+      },
+      "post": {
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["file", "title", "classification"],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "title": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "classification": {
+                    "type": "string",
+                    "enum": ["Internal", "Confidential", "Restricted"]
+                  },
+                  "subject": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "reference": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "category": {
+                    "type": "string",
+                    "maxLength": 100
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Pending version receipt: document_id, version_id, revision, scan_status"
+          },
+          "200": {
+            "description": "Original idempotent receipt"
+          },
+          "401": {
+            "description": "JSON error with message and optional field errors"
+          },
+          "404": {
+            "description": "JSON error with message and optional field errors"
+          },
+          "409": {
+            "description": "JSON error with message and optional field errors"
+          },
+          "422": {
+            "description": "JSON error with message and optional field errors"
+          },
+          "429": {
+            "description": "JSON error with message and optional field errors"
+          }
+        }
+      }
+    },
+    "/files": {
+      "get": {
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cursor page: data, next_cursor, has_more"
+          },
+          "401": {
+            "description": "JSON error with message and optional field errors"
+          },
+          "422": {
+            "description": "JSON error with message and optional field errors"
+          },
+          "429": {
+            "description": "JSON error with message and optional field errors"
+          }
+        }
+      }
+    },
+    "/documents/{document}/versions": {
+      "post": {
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["file", "revision"],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Pending version receipt: document_id, version_id, revision, scan_status"
+          },
+          "200": {
+            "description": "Original idempotent receipt"
+          },
+          "401": {
+            "description": "JSON error with message and optional field errors"
+          },
+          "404": {
+            "description": "JSON error with message and optional field errors"
+          },
+          "409": {
+            "description": "JSON error with message and optional field errors"
+          },
+          "422": {
+            "description": "JSON error with message and optional field errors"
+          },
+          "429": {
+            "description": "JSON error with message and optional field errors"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "document",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/documents/{document}": {
+      "parameters": [
+        {
+          "name": "document",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Scoped metadata and versions, without private paths"
+          },
+          "401": {
+            "description": "JSON error with message and optional field errors"
+          },
+          "404": {
+            "description": "JSON error with message and optional field errors"
+          },
+          "409": {
+            "description": "JSON error with message and optional field errors"
+          },
+          "423": {
+            "description": "JSON error with message and optional field errors"
+          }
+        }
+      }
+    },
+    "/files/{version}": {
+      "parameters": [
+        {
+          "name": "version",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Clean file attachment; 423 until clean, 409 on integrity failure"
+          },
+          "401": {
+            "description": "JSON error with message and optional field errors"
+          },
+          "404": {
+            "description": "JSON error with message and optional field errors"
+          },
+          "409": {
+            "description": "JSON error with message and optional field errors"
+          },
+          "423": {
+            "description": "JSON error with message and optional field errors"
+          }
+        }
+      }
+    },
+    "/snapshots/{type}/{record}": {
+      "parameters": [
+        {
+          "name": "type",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "record",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Latest source record including tombstone"
+          },
+          "401": {
+            "description": "JSON error with message and optional field errors"
+          },
+          "404": {
+            "description": "JSON error with message and optional field errors"
+          },
+          "409": {
+            "description": "JSON error with message and optional field errors"
+          },
+          "423": {
+            "description": "JSON error with message and optional field errors"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,13 +1,11 @@
 {
   "$schema": "https://getcomposer.org/schema.json",
-  "name": "school/document-management",
+  "name": "laravel/laravel",
   "type": "project",
-  "description": "School document management baseline with Laravel, Bootstrap and jQuery UI.",
+  "description": "The skeleton application for the Laravel framework.",
   "keywords": [
-    "school",
-    "documents",
     "laravel",
-    "jquery-ui"
+    "framework"
   ],
   "license": "MIT",
   "require": {
@@ -48,13 +46,13 @@
       "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
     ],
     "post-create-project-cmd": [
-      "@php artisan key:generate --ansi"
+      "@php artisan key:generate --ansi",
+      "@php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
+      "@php artisan migrate --graceful --ansi"
     ],
     "dev": [
-      "@php artisan serve --host=127.0.0.1 --port=8765"
-    ],
-    "test": [
-      "@php artisan test --compact"
+      "Composer\\Config::disableProcessTimeout",
+      "@php -d upload_max_filesize=10M -d post_max_size=512M -d max_file_uploads=50 artisan serve --host=127.0.0.1 --port=8011"
     ]
   },
   "extra": {

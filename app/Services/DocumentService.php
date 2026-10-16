@@ -2,280 +2,129 @@
 
 namespace App\Services;
 
-use Illuminate\Http\Request;
+use App\Jobs\ScanDocumentVersion;
+use App\Models\User;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Illuminate\Database\UniqueConstraintViolationException;
 
 class DocumentService
 {
-    public function actor(Request $r): object
+    public function upload(object $actor, array $input, UploadedFile $file, ?string $id = null, ?string $requestKey = null): array
     {
-        $a = $r->attributes->get('integration') ?? $r->user();
-        abort_unless($a && $a->active, 403, 'Account is inactive.');
-        abort_if(($a->role ?? null) === 'student', 403, 'Student access is outside the DMS staff workspace.');
-
-        return $a;
-    }
-
-    public function sources(object $a): array
-    {
-        if (isset($a->source)) {
-            return [$a->source];
-        }
-
-        return match ($a->role) {
-            'student' => [],
-            'teacher', 'employee' => ['Employee Management'],
-            'admin' => config('dms.systems'), 'registrar' => ['Online Admission', 'Enrollment'],
-            'hr' => ['Employee Management'], 'payroll' => ['Payroll Management'], default => [],
-        };
-    }
-
-    public function scope($q, object $a)
-    {
-        if (in_array($a->role ?? null, ['student', 'teacher', 'employee'])) {
-            if (! in_array($q->from, ['documents', 'folders'])) {
-                abort(403, 'This role cannot access institutional history or integration feeds.');
-            }
-            $q->where('owner_user_id', $a->id);
-        }
-        return $q->where('school_id', $a->school_id)->where('campus', $a->campus)->whereIn('source', $this->sources($a));
-    }
-
-    public function document(string $id, object $a): object
-    {
-        $d = $this->scope(DB::table('documents'), $a)->whereNull('trashed_at')->where('id', $id)->first();
-        abort_unless($d, 404, 'Document not found.');
-
-        return $d;
-    }
-
-    /** Active folder grants held by the actor, keyed by folder id and expanded to nested folders. */
-    public function sharedFolders(object $a): array
-    {
-        $grants = DB::table('folder_shares')->where('recipient_id', $a->id)
-            ->whereNull('revoked_at')->where('expires_at', '>', now())->get(['folder_id', 'permission']);
-        if ($grants->isEmpty()) {
-            return [];
-        }
-        $rank = ['viewer' => 1, 'commenter' => 2, 'editor' => 3];
-        $permissions = [];
-        $frontier = [];
-        foreach ($grants as $grant) {
-            $folder = DB::table('folders')->where('id', $grant->folder_id)->first();
-            abort_unless($folder && $folder->school_id === $a->school_id && $folder->campus === $a->campus, 403);
-            $current = $permissions[$grant->folder_id] ?? null;
-            if ($current === null || ($rank[$grant->permission] ?? 0) > ($rank[$current] ?? 0)) {
-                $permissions[$grant->folder_id] = $grant->permission;
-            }
-            $frontier[] = $grant->folder_id;
-        }
-        $guard = 0;
-        while ($frontier && $guard++ < 64) {
-            $children = DB::table('folders')->whereIn('parent_id', $frontier)->get(['id', 'parent_id']);
-            $frontier = [];
-            foreach ($children as $child) {
-                if (isset($permissions[$child->id])) {
-                    continue;
-                }
-                $permissions[$child->id] = $permissions[$child->parent_id] ?? 'viewer';
-                $frontier[] = $child->id;
-            }
-        }
-
-        return $permissions;
-    }
-
-    /** Ids of a folder and every folder nested inside it. */
-    public function folderSubtree(string $id): array
-    {
-        $ids = [$id];
-        $frontier = [$id];
-        $guard = 0;
-        while ($frontier && $guard++ < 64) {
-            $children = DB::table('folders')->whereIn('parent_id', $frontier)->pluck('id')->all();
-            $frontier = array_values(array_diff($children, $ids));
-            $ids = array_merge($ids, $frontier);
-        }
-
-        return $ids;
-    }
-
-    public function folderPermission(object $a, string $folderId): ?string
-    {
-        return $this->sharedFolders($a)[$folderId] ?? null;
-    }
-
-    /** Folders directly granted to the actor, so a recipient can navigate to them from their own root. */
-    public function sharedFolderRoots(object $a)
-    {
-        $ids = DB::table('folder_shares')->where('recipient_id', $a->id)->whereNull('revoked_at')
-            ->where('expires_at', '>', now())->pluck('folder_id')->unique()->values()->all();
-
-        return $ids ? DB::table('folders')->whereIn('id', $ids)->orderBy('name')->get() : collect();
-    }
-
-    /** Grants the actor created for one folder, with recipient identity for the share sheet. */
-    public function folderShareList(object $a, object $folder)
-    {
-        return DB::table('folder_shares')->join('users', 'users.id', '=', 'folder_shares.recipient_id')
-            ->where('folder_shares.folder_id', $folder->id)->where('folder_shares.created_by', $a->id)
-            ->orderBy('folder_shares.created_at')->get([
-                'folder_shares.id', 'folder_shares.permission', 'folder_shares.expires_at',
-                'folder_shares.created_at', 'folder_shares.revoked_at', 'users.name', 'users.email',
-            ]);
-    }
-
-    /** Highest folder-grant permission that reaches a document, or null when the actor has no folder access. */
-    public function documentPermission(object $a, string $documentId): ?string
-    {
-        $folderId = DB::table('documents')->where('id', $documentId)->value('folder_id');
-
-        return $folderId ? $this->folderPermission($a, $folderId) : null;
-    }
-
-    public function documentAccess(string $id, object $a): array
-    {
-        $d = $this->scope(DB::table('documents'), $a)->whereNull('trashed_at')->where('id', $id)->first();
-        if ($d) {
-            return [$d, null];
-        }
-        $permission = $this->documentPermission($a, $id);
-        $d = DB::table('documents')->where('id', $id)->whereNull('trashed_at')->first();
-        abort_unless($d && $permission, 404, 'Document not found.');
-
-        return [$d, $permission];
-    }
-
-    public function log(object $a, string $action, ?string $doc = null, ?string $detail = null): void
-    {
-        DB::table('audit_entries')->insert(['school_id' => $a->school_id, 'campus' => $a->campus, 'actor' => $a->name, 'action' => $action, 'document_id' => $doc, 'detail' => $detail, 'created_at' => now()]);
-    }
-
-    public function event(object $d, string $type, string $v): void
-    {
-        DB::table('integration_events')->insert(['event_id' => (string) Str::uuid(), 'school_id' => $d->school_id, 'campus' => $d->campus, 'source' => $d->source, 'type' => $type, 'document_id' => $d->id, 'version_id' => $v, 'revision' => $d->revision, 'created_at' => now()]);
-    }
-
-    public function latest(string $id): object
-    {
-        return DB::table('document_versions')->where('document_id', $id)->orderByDesc('number')->first();
-    }
-
-    public static function nameKeys(object $owner, string $filename, string $title): array
-    {
-        $scope = json_encode([$owner->school_id, $owner->campus, $owner->owner_user_id ?? ('source:'.$owner->source)]);
-        $normalize = fn ($name) => mb_strtolower(trim($name), 'UTF-8');
-        return ['filename_key' => hash('sha256', $scope.':'.$normalize($filename)), 'display_name_key' => hash('sha256', $scope.':'.$normalize($title))];
-    }
-
-    public function assertUniqueNames(array $keys, ?string $except = null): void
-    {
-        $q = DB::table('documents')->where(fn ($q) => $q->where('filename_key', $keys['filename_key'])->orWhere('display_name_key', $keys['display_name_key']));
-        if ($except) $q->where('id', '!=', $except);
-        abort_if($q->exists(), 409, 'A file with this name already exists in your workspace, including Trash. Choose a different name.');
-    }
-
-    public function renameKeys(object $d, string $title): array
-    {
-        $keys = self::nameKeys($d, $this->latest($d->id)->filename, $title);
-        $this->assertUniqueNames($keys, $d->id);
-        return $keys;
-    }
-
-    public function upload(Request $r, object $a, bool $sharedEditor = false): array
-    {
-        abort_unless(isset($a->source) || in_array($a->role, ['admin', 'registrar', 'hr', 'payroll', 'student', 'teacher', 'employee']), 403);
-        $p = $r->validate([
-            'title' => 'required|string|max:200', 'subject' => 'required|string|max:200', 'reference' => 'required|string|max:200',
-            'source' => 'required|in:'.implode(',', config('dms.systems')), 'category' => 'required|in:'.implode(',', config('dms.categories')),
-            'classification' => 'required|in:Internal,Confidential,Restricted', 'expires_at' => 'nullable|date_format:Y-m-d',
-            'document_id' => 'nullable|uuid', 'revision' => 'nullable|integer|min:1', 'file' => 'required|file|max:10240|mimes:pdf,png,jpg,jpeg,txt',
-        ]);
-        abort_unless($sharedEditor || in_array($p['source'], $this->sources($a)), 403, 'Source system outside your permissions.');
-        abort_if($p['category'] === 'Payslip' && ($p['source'] !== 'Payroll Management' || $p['classification'] !== 'Restricted'), 422, 'Payslips require payroll source and Restricted classification.');
-        $file = $r->file('file');
-        $name = $file->getClientOriginalName();
-        abort_if(preg_match('/[\x00-\x1f\\\\\/:]/', $name) || strlen($name) > 200, 422, 'Invalid filename.');
-        $bytes = file_get_contents($file->getRealPath());
-        abort_if(strlen($bytes) === 0, 422, 'Choose a nonempty file.');
-        $ext = strtolower($file->getClientOriginalExtension());
-        $types = ['pdf' => 'application/pdf', 'png' => 'image/png', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'txt' => 'text/plain'];
-        $detected = (new \finfo(FILEINFO_MIME_TYPE))->buffer($bytes);
-        abort_unless(isset($types[$ext]) && $detected === $types[$ext], 422, 'File content must match its extension.');
-        $signature = match ($ext) {
-            'pdf' => str_starts_with($bytes, '%PDF-'),'png' => str_starts_with($bytes, "\x89PNG\r\n\x1a\n"),'jpg','jpeg' => str_starts_with($bytes, "\xff\xd8\xff"),'txt' => mb_check_encoding($bytes, 'UTF-8') && ! str_contains($bytes, "\0"),default => false
-        };
-        abort_unless($signature, 422, 'Invalid file signature or text encoding.');
-        $hash = hash('sha256', $bytes);
-        $key = $r->header('Idempotency-Key');
-        abort_unless(is_string($key) && strlen($key) >= 8 && strlen($key) <= 200, 422, 'Provide an Idempotency-Key of 8–200 characters.');
-        unset($p['file']);
-        $requestHash = hash('sha256', json_encode([$p, $name, $hash]));
-        $key = hash('sha256', ($a->role ?? 'integration').':'.$a->id.':'.$key);
+        $checksum = hash_file('sha256', $file->getRealPath());
+        $scope = HistoryService::hash([$actor->school_id, $actor->campus, $actor->source, $actor instanceof User ? 'user:'.$actor->id : 'connector']);
+        $hash = HistoryService::hash([$input, $checksum, $file->getClientOriginalName(), $id]);
         $stored = null;
         try {
-            return DB::transaction(function () use ($r, $p, $a, $name, $bytes, $ext, $types, $hash, $key, $requestHash, $sharedEditor, &$stored) {
-                $prior = DB::table('idempotency_requests')->where('key', $key)->first();
-                if ($prior) {
-                    abort_unless(hash_equals($prior->hash, $requestHash), 409, 'Key already used for a different submission.');
-                    $r->attributes->set('dms_replayed', true);
-
-                    return json_decode($prior->response, true);
-                }
-                $id = $p['document_id'] ?? (string) Str::uuid();
-                $number = 1;
-                if (isset($p['document_id'])) {
-                    $d = $sharedEditor ? DB::table('documents')->where('school_id', $a->school_id)->where('campus', $a->campus)->whereNull('trashed_at')->where('id', $id)->first() : $this->document($id, $a);
-                    abort_unless($d, 404);
-                    abort_unless(($p['revision'] ?? null) == $d->revision, 409, 'Document changed. Refresh and retry.');
-                    foreach (['subject', 'reference', 'source', 'category', 'classification'] as $f) {
-                        abort_unless($p[$f] === $d->$f, 422, 'Replacement must preserve ownership and classification.');
-                    }
-                    $keys = $this->nameKeys($d, $name, $d->title);
-                    $this->assertUniqueNames($keys, $id);
-                    $number = $this->latest($id)->number + 1;
-                    $changed = DB::table('documents')->where('id', $id)->where('revision', $d->revision)->update($keys + ['revision' => $d->revision + 1, 'updated_at' => now()]);
-                    abort_unless($changed, 409, 'Document changed. Refresh and retry.');
+            return DB::transaction(function () use ($actor, $input, $file, $id, $requestKey, $scope, $hash, $checksum, &$stored) {
+                if ($actor instanceof User) {
+                    DB::table('users')->where('id', $actor->id)->lockForUpdate()->first();
                 } else {
-                    $owner = (object) ['school_id'=>$a->school_id, 'campus'=>$a->campus, 'owner_user_id'=>isset($a->source)?null:$a->id, 'source'=>$p['source']];
-                    $keys = $this->nameKeys($owner, $name, $p['title']);
-                    $this->assertUniqueNames($keys);
-                    DB::table('documents')->insert($keys + ['id' => $id, 'owner_user_id' => isset($a->source) ? null : $a->id, 'title' => $p['title'], 'subject' => $p['subject'], 'reference' => $p['reference'], 'source' => $p['source'], 'category' => $p['category'], 'classification' => $p['classification'], 'school_id' => $a->school_id, 'campus' => $a->campus, 'revision' => 1, 'created_at' => now(), 'updated_at' => now()]);
+                    DB::table('connectors')->where('school_id', $actor->school_id)->where('campus', $actor->campus)->where('source', $actor->source)->orderBy('id')->lockForUpdate()->get();
+                }
+                if (! ($actor instanceof User)) {
+                    abort_unless(DB::table('connectors')->where('id', $actor->id)->where('active', true)->exists(), 401);
+                }
+                if ($requestKey) {
+                    $prior = DB::table('request_receipts')->where('scope_key', $scope)->where('request_key', $requestKey)->lockForUpdate()->first();
+                    if ($prior) {
+                        abort_unless(hash_equals($prior->request_hash, $hash), 409, 'Submission key content mismatch.');
+
+                        return [json_decode($prior->response, true), 200];
+                    }
+                }
+                $source = $actor instanceof User ? $input['source'] : $actor->source;
+                if ($id) {
+                    $doc = DB::table('documents')->where('id', $id)->lockForUpdate()->first() ?? abort(404);
+                    $this->authorize($actor, $doc, true);
+                    abort_if($doc->trashed_at, 409, 'Restore this document before adding a version.');
+                    abort_unless($doc->revision === (int) $input['revision'], 409, 'Document changed. Reload and retry.');
+                    DB::table('documents')->where('id', $id)->update(['revision' => $doc->revision + 1, 'updated_at' => now()]);
+                } else {
+                    if ($actor instanceof User) {
+                        abort_unless($actor->role === 'super_admin' ? $source === 'DMS' : in_array($source, $actor->sources()), 403);
+                    }
+                    if (! empty($input['folder_id'])) {
+                        $folder = Access::scope(DB::table('folders'), $actor)->where('id', $input['folder_id'])->where('source', $source)->first();
+                        abort_unless($folder && $actor instanceof User && ($folder->owner_id === $actor->id || Access::manages($actor, $folder)), 403);
+                    }
+                    $id = (string) Str::uuid();
+                    DB::table('documents')->insert(['id' => $id, 'owner_id' => $actor instanceof User ? $actor->id : null,
+                        'folder_id' => $input['folder_id'] ?? null, 'source' => $source, 'school_id' => $actor->school_id, 'campus' => $actor->campus,
+                        'title' => $input['title'], 'subject' => $input['subject'] ?? null, 'reference' => $input['reference'] ?? null,
+                        'category' => $input['category'] ?? null, 'classification' => $input['classification'], 'revision' => 1, 'created_at' => now(), 'updated_at' => now()]);
                 }
                 $version = (string) Str::uuid();
                 $stored = 'documents/'.$version;
-                abort_unless(Storage::disk('local')->put($stored, $bytes), 503, 'Private file storage is unavailable.');
-                $scan = app(FileScanner::class)->scan(Storage::disk('local')->path($stored));
-                $status = $scan === 'Clean' ? 'Available' : 'Awaiting scan';
-                DB::table('document_versions')->insert(['id' => $version, 'document_id' => $id, 'number' => $number, 'filename' => $name, 'media_type' => $types[$ext], 'size' => strlen($bytes), 'checksum' => $hash, 'storage_key' => $stored, 'scan' => $scan, 'status' => $status, 'actor' => $a->name, 'actor_key' => (isset($a->source) ? 'connector:' : 'user:').$a->id, 'expires_at' => $p['expires_at'] ?? null, 'created_at' => now()]);
-                $d = $sharedEditor ? DB::table('documents')->where('school_id', $a->school_id)->where('campus', $a->campus)->whereNull('trashed_at')->where('id', $id)->first() : $this->document($id, $a);
-                    abort_unless($d, 404);
-                $this->log($a, $number === 1 ? 'Document uploaded' : 'Version added', $id, 'Version '.$number);
-                $this->event($d, $number === 1 ? 'document.received' : 'document.version_added', $version);
-                $result = ['document_id' => $id, 'version_id' => $version, 'version' => $number, 'scan' => $scan, 'status' => $status];
-                DB::table('idempotency_requests')->insert(['key' => $key, 'hash' => $requestHash, 'response' => json_encode($result), 'created_at' => now()]);
+                abort_unless(Storage::disk('local')->putFileAs('documents', $file, $version), 500, 'Could not store the file.');
+                $status = 'Pending';
+                $number = (int) DB::table('document_versions')->where('document_id', $id)->max('number') + 1;
+                DB::table('document_versions')->insert(['id' => $version, 'document_id' => $id, 'number' => $number,
+                    'filename' => basename(str_replace('\\', '/', $file->getClientOriginalName())), 'mime' => $file->getMimeType(),
+                    'size' => $file->getSize(), 'checksum' => $checksum, 'storage_key' => $stored, 'scan_status' => $status, 'created_at' => now()]);
+                $doc = DB::table('documents')->where('id', $id)->first();
+                Access::audit($actor, 'document.uploaded', $doc, ['version_id' => $version, 'scan_status' => $status]);
+                Access::event($doc, 'document.version.created');
+                $response = ['document_id' => $id, 'version_id' => $version, 'revision' => $doc->revision, 'scan_status' => $status];
+                if ($requestKey) {
+                    DB::table('request_receipts')->insert(['scope_key' => $scope, 'request_key' => $requestKey, 'request_hash' => $hash, 'response' => json_encode($response), 'created_at' => now()]);
+                }
+                ScanDocumentVersion::dispatch($version)->onConnection('database')->onQueue('scans')->afterCommit();
 
-                return $result;
+                return [$response, 201];
             });
         } catch (\Throwable $e) {
-            if ($stored) {
-                try {
-                    $cleaned = Storage::disk('local')->delete($stored);
-                } catch (\Throwable $cleanupError) {
-                    $cleaned = false;
-                }
-                if (! $cleaned) {
-                    Log::warning('Failed upload file cleanup requires reconciliation.', ['storage_key' => $stored]);
-                }
-            }
-            if ($e instanceof UniqueConstraintViolationException && str_contains($e->getMessage(), 'name_key')) {
-                abort(409, 'A file with this name already exists in your workspace. Choose a different name.');
+            if ($stored && ! DB::table('document_versions')->where('storage_key', $stored)->exists()) {
+                Storage::disk('local')->delete($stored);
             }
             throw $e;
         }
+    }
+
+    public function authorize(object $actor, object $doc, bool $edit = false): void
+    {
+        abort_unless($actor->school_id === $doc->school_id && $actor->campus === $doc->campus, 404);
+        if ($actor instanceof User) {
+            Access::document($actor, $doc->id);
+            if ($edit) {
+                Access::edit($actor, $doc);
+            }
+        } else {
+            abort_unless($actor->source === $doc->source, 404);
+        }
+    }
+
+    public function download(object $actor, string $versionId, bool $preview = false)
+    {
+        $version = DB::table('document_versions')->where('id', $versionId)->first() ?? abort(404);
+        $doc = DB::table('documents')->where('id', $version->document_id)->first() ?? abort(404);
+        $this->authorize($actor, $doc);
+        abort_if($doc->trashed_at, 404);
+        if ($actor instanceof User && $doc->owner_id !== $actor->id && ! ($actor->role === 'super_admin' || ($actor->role !== 'staff' && in_array($doc->source, $actor->sources())))) {
+            $grant = Access::grant($actor, $doc);
+            abort_if($grant?->version_id && $grant->version_id !== $versionId, 403);
+        }
+        abort_unless($version->scan_status === 'Clean', 423, 'File is blocked until malware scanning succeeds.');
+        abort_unless(Storage::disk('local')->exists($version->storage_key), 409, 'Stored file is unavailable.');
+        $path = Storage::disk('local')->path($version->storage_key);
+        abort_unless(hash_equals($version->checksum, hash_file('sha256', $path)), 409, 'Checksum mismatch. File blocked.');
+        Access::audit($actor, $preview ? 'document.previewed' : 'document.downloaded', $doc, ['version_id' => $versionId]);
+        $headers = ['Content-Type' => $version->mime, 'X-Content-Type-Options' => 'nosniff', 'Cache-Control' => 'private, no-store', 'Content-Security-Policy' => "sandbox; default-src 'none'"];
+        if ($preview) {
+            abort_unless(in_array($version->mime, config('dms.preview_mimes')) && in_array($version->mime, ['application/pdf', 'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'text/plain', 'text/csv', 'application/json']), 415, 'This file format has no in-app preview. Use download.');
+
+            if (in_array($version->mime, ['text/plain','text/csv','application/json'])) {
+                $headers['Content-Type'] = 'text/html; charset=UTF-8';
+                $headers['Content-Security-Policy'] = "sandbox; default-src 'none'; style-src 'unsafe-inline'";
+                return response()->view('partials.file-text-preview', ['filename'=>$version->filename,'content'=>file_get_contents($path)], 200, $headers);
+            }
+            // Native PDF viewers require a document response without the sandbox directive.
+            if ($version->mime === 'application/pdf') $headers['Content-Security-Policy'] = "default-src 'none'; frame-ancestors 'self'";
+            return response()->file($path, $headers);
+        }
+
+        return response()->download($path, $version->filename, $headers);
     }
 }

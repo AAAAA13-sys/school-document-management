@@ -1,16 +1,14 @@
 <?php
 
-use App\Http\Controllers\DocumentController;
-use App\Http\Controllers\HistoryController;
-use App\Http\Middleware\IntegrationAuth;
+use App\Http\Controllers\ApiController;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('v1')->middleware([IntegrationAuth::class, 'throttle:integration'])->group(function () {
-    Route::get('/documents', [DocumentController::class, 'index']);
-    Route::post('/documents', [DocumentController::class, 'store']);
-    Route::get('/documents/{id}', [DocumentController::class, 'show']);
-    Route::get('/files/{id}', [DocumentController::class, 'download']);
-    Route::get('/events', [DocumentController::class, 'events']);
-    Route::post('/history', [HistoryController::class, 'store']);
-    Route::get('/history', [HistoryController::class, 'index']);
+Route::prefix('v1')->middleware(['connector', 'throttle:connector'])->group(function () {
+    Route::post('/history', [ApiController::class, 'history']);
+    Route::post('/documents', [ApiController::class, 'upload']);
+    Route::post('/documents/{document}/versions', [ApiController::class, 'upload']);
+    Route::get('/documents/{document}', [ApiController::class, 'document']);
+    Route::get('/files/{version}', [ApiController::class, 'download']);
+    Route::get('/snapshots/{type}/{record}', [ApiController::class, 'snapshot']);
+    Route::get('/{resource}', [ApiController::class, 'read'])->whereIn('resource', ['history', 'events', 'documents', 'files']);
 });

@@ -3,8 +3,13 @@
 /public/build
 /public/hot
 /public/storage
+/public/vendor/pdfjs
 /storage/*.key
 /storage/pail
+/storage/tools
+/storage/app/private
+/storage/logs/*
+!/storage/logs/.gitignore
 /vendor
 .env
 .env.backup
@@ -21,6 +26,3 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
-/database/*.sqlite*
-/storage/app/private/documents/
-/database/*.student-backup

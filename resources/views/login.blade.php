@@ -1,11 +1,77 @@
-@extends('layout')
-@section('title', 'Sign in')
-@section('content')
-<main class="login-page" id="main-content" tabindex="-1"><section class="login-box" aria-labelledby="login-title">
-<a class="login-identity" href="/login"><span aria-hidden="true">▤</span> School Documents</a><h1 id="login-title">Sign in</h1><p class="login-description">Access your school document workspace.</p>
-@if($errors->any())<div class="alert alert-danger" role="alert">{{ $errors->first() }}</div>@endif
-<form method="post" action="/login">@csrf<label for="email" class="form-label">Email</label><input id="email" name="email" class="form-control" type="email" value="{{ old('email') }}" autocomplete="username" required>
-<label for="password" class="form-label">Password</label><div class="password-field"><input id="password" name="password" class="form-control" type="password" autocomplete="current-password" required><button type="button" id="password-toggle" aria-controls="password" aria-pressed="false">Show</button></div>
-<button class="btn btn-green w-100 login-submit" type="submit">Sign in</button></form><p class="login-footnote">For authorized school staff. Students do not have DMS access. Contact your administrator.</p></section></main>
-@endsection
-@section('scripts')<script src="/assets/staff-workspace.js?v={{ filemtime(public_path('assets/staff-workspace.js')) }}"></script>@endsection
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content="{{ csrf_token() }}" />
+    <title>Sign in · PLP Documents</title>
+    <link rel="stylesheet" href="/vendor/bootstrap.min.css" />
+    <link rel="stylesheet" href="/css/dms.css" />
+    <script defer src="/vendor/jquery.min.js"></script>
+    <script defer src="/vendor/jquery-ui.min.js"></script>
+    <script defer src="/vendor/bootstrap.bundle.min.js"></script>
+    <script defer src="/js/dms.js"></script>
+</head>
+<body class="login-page" data-preview="{{ !empty($frontendPreview)?'true':'false' }}">
+    <div class="login-story">
+        <a class="brand" href="/login"
+            ><span class="brand-mark">d.</span><span>PLP Documents<small>DOCUMENT MANAGEMENT SYSTEM</small></span></a
+        >
+        <div class="login-message">
+            <span class="eyebrow">Pamantasan ng Lungsod ng Pasig</span>
+            <h1>A home for every<br />official university record.</h1>
+            <p>Store department files securely, track every version, and keep a permanent record of university documents.</p>
+            <div class="login-features">
+                <div class="login-feature-item">
+                    <span class="login-feature-dot"></span>
+                    <span><strong>Private and secure</strong> · Every upload is scanned before it's available</span>
+                </div>
+                <div class="login-feature-item">
+                    <span class="login-feature-dot"></span>
+                    <span><strong>Permanent version history</strong> · Each file is verified with a checksum</span>
+                </div>
+                <div class="login-feature-item">
+                    <span class="login-feature-dot"></span>
+                    <span><strong>Role-based access</strong> · Every view and change is logged</span>
+                </div>
+            </div>
+        </div>
+        <span class="login-school">PAMANTASAN NG LUNGSOD NG PASIG · CENTRAL DOCUMENT REPOSITORY</span>
+    </div>
+    <main class="login-form">
+        <div class="login-form-inner">
+            <span class="eyebrow">Staff access</span>
+            <h2>Sign in to your account</h2>
+            <p class="section-description mb-4">Sign in with your PLP staff email and password.</p>
+            @if ($errors->any())
+                <div class="alert alert-danger" role="alert">{{ $errors->first() }}</div>
+            @endif
+            <form method="post" action="/login" data-demo-action="login">
+                @csrf
+                <div class="mb-4">
+                    <label for="email" class="form-label">Email address</label
+                    ><input
+                        class="form-control"
+                        id="email"
+                        type="email"
+                        name="email"
+                        value="{{ old('email') }}"
+                        autocomplete="username"
+                        required
+                        placeholder="you@plp.edu.ph" />
+                </div>
+                <div class="mb-4">
+                    <label for="password" class="form-label">Password</label
+                    ><input class="form-control" id="password" type="password" name="password" autocomplete="current-password" required />
+                </div>
+                <button class="btn btn-primary w-100" type="submit">Sign in</button>
+            </form>
+            <p class="login-help">Need an account or forgot your password?<br />Contact your DMS administrator or IT support.</p>
+            <p class="login-policy">For authorized PLP personnel only. Activity is logged.</p>
+            @if (!empty($frontendPreview))
+                <a href="/admin" class="preview-login-link">Frontend preview · Open sample workspace →</a>
+            @endif
+        </div>
+    </main>
+</body>
+</html>

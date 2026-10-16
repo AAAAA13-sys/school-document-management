@@ -6,12 +6,15 @@ use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
 {
-    protected function setUp(): void
+    public function createApplication()
     {
-        parent::setUp();
-        config(['dms.scanner' => 'test-clamscan']);
-        \Illuminate\Support\Facades\Process::fake([
-            '*' => \Illuminate\Support\Facades\Process::result(exitCode: 0),
-        ]);
+        $app = parent::createApplication();
+        $driver = $app['config']['database.default'];
+        $database = $app['config']['database.connections.'.$driver.'.database'];
+        if (! $app->environment('testing') || ! (($driver === 'sqlite' && $database === ':memory:') || ($driver === 'mysql' && $database === 'dms_test'))) {
+            throw new \RuntimeException('Refusing database tests outside SQLite :memory: or MySQL dms_test. Clear cached configuration.');
+        }
+
+        return $app;
     }
 }

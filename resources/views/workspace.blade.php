@@ -1,90 +1,332 @@
-@extends('layout')
-@section('title', 'Document workspace')
-@section('content')
-@php($personal = in_array(auth()->user()->role, ['teacher','employee']))
-<div class="app-shell" data-role="{{ auth()->user()->role }}" data-actor="{{ auth()->user()->name }}" data-actor-key="user:{{ auth()->id() }}">
-<button type="button" id="sidebar-dismiss" class="sidebar-backdrop" aria-label="Close navigation" hidden></button><aside id="workspace-sidebar" class="sidebar">
-<details id="new-menu" class="new-menu"><summary>+ New</summary><div class="new-menu-options"><button type="button" id="drive-new-folder"><span aria-hidden="true">▰</span>New folder</button><button type="button" id="upload-open"><span aria-hidden="true">↥</span>File upload</button><button type="button" id="folder-upload-open"><span aria-hidden="true">▰</span>Folder upload</button></div></details>
-<input id="folder-upload-picker" type="file" webkitdirectory multiple hidden>
-<nav aria-label="File navigation">
-<button type="button" class="nav-item active" data-view="overview">Home</button>
-<div class="files-navigation"><button type="button" class="nav-item" data-view="files">My files</button><button type="button" id="folders-toggle" class="folders-toggle" aria-label="Expand My files folders" aria-expanded="false" aria-controls="sidebar-folders" hidden></button></div>
-<div id="sidebar-folders" class="sidebar-folders" hidden></div>
-<button type="button" class="nav-item" data-view="recent">Recent</button>
-<button type="button" class="nav-item" data-view="starred">Starred</button>
-<button type="button" class="nav-item" data-view="shared">Shared with me</button>
-<button type="button" class="nav-item" data-view="trash">Trash</button>
-</nav>
-@if(!$personal)
-<div class="nav-caption source-caption">SOURCE FOLDERS</div>
-<div id="source-folders">@foreach(app(\App\Services\DocumentService::class)->sources(auth()->user()) as $source)<details class="source-tree"><summary>{{ $source }}</summary><div class="source-folder-list" data-source="{{ $source }}"><span class="source-empty">No folders yet</span></div></details>@endforeach</div>
-<nav aria-label="Office navigation"><button type="button" class="nav-item" data-view="history">Central history</button>
-@if(auth()->user()->role==='admin')<button type="button" class="nav-item" data-view="documents">School repository</button>@endif
-<button type="button" class="nav-item" data-view="integrations">Integrations</button>
-@if(auth()->user()->role==='admin')<div class="nav-caption">ADMINISTRATION</div><button type="button" class="nav-item" data-view="audit">Audit trail</button><a class="nav-item" href="/accounts">Accounts &amp; roles</a>@endif</nav>
-@endif
-</aside>
-<div class="main-shell"><header class="topbar"><button id="menu-toggle" class="btn mobile-menu" aria-label="Toggle navigation" aria-expanded="false" aria-controls="workspace-sidebar">☰</button><a class="school-brand" href="/"><span aria-hidden="true">▤</span><span>School Documents</span></a><form id="workspace-search" class="workspace-search" role="search"><span aria-hidden="true">⌕</span><input type="search" aria-label="Search documents" placeholder="Search documents" maxlength="200"></form><div class="user-box"><div><strong>{{ auth()->user()->name }}</strong><span>{{ config('dms.role_labels')[auth()->user()->role === 'teacher' ? 'employee' : auth()->user()->role] ?? 'Workspace user' }}</span></div><form id="signout-form" action="/logout" method="post">@csrf<button type="submit" class="logout signout-trigger" title="Sign out" aria-label="Sign out" aria-haspopup="dialog" aria-controls="signout-dialog">Sign out</button></form></div></header>
-<main id="main" tabindex="-1"><span id="main-content" tabindex="-1"></span><div class="page-heading"><div><p class="eyebrow green">{{ $personal ? 'YOUR PERSONAL SPACE' : 'RECORDS MANAGEMENT' }}</p><div class="page-title-row"><h1 id="page-title">Welcome to your workspace</h1><span class="workspace-help"><button type="button" class="help-trigger" aria-label="Help for this page" aria-describedby="page-help">?</button><span class="help-tooltip" id="page-help" role="tooltip">Organize your documents in one place.</span></span></div><p id="page-description">A clear view of your school's documents and file activity.</p></div></div>
-<section id="workspace-welcome" class="workspace-statistics" aria-label="Workspace summary"><article><span>Total documents</span><strong id="stat-total">—</strong></article><article><span>Available</span><strong id="stat-available">—</strong></article><article><span>Shared with me</span><strong id="stat-shared">—</strong></article></section>
-<div id="notice" class="alert" role="status" hidden></div>
-@if(auth()->user()->role==='admin')
-<section id="repository-panel" class="panel"><div class="panel-heading"><div><h2 id="list-title">Recent documents</h2><span id="list-subtitle" class="muted-label">Only records you are permitted to access</span></div><button id="show-all" class="btn btn-quiet">View all documents</button></div><div class="filter-bar"><div class="search-wrap"><span aria-hidden="true">⌕</span><input class="form-control" id="search" placeholder="Search title, person or reference…" aria-label="Search documents"></div><select id="source-filter" class="form-select" aria-label="Filter source"><option value="">All systems</option>@foreach(config('dms.systems') as $s)<option>{{ $s }}</option>@endforeach</select><button id="reset-filters" class="btn btn-quiet">Reset</button></div>
-<div class="table-responsive"><table class="table document-table"><thead><tr><th>Document</th><th>Linked record</th><th>Source system</th><th>Updated</th><th><span class="visually-hidden">Actions</span></th></tr></thead><tbody id="documents-body"><tr><td colspan="5" class="empty-state">Loading documents…</td></tr></tbody></table></div><div class="table-footer"><span id="result-count">—</span><div><button id="prev-page" class="btn btn-quiet" disabled>Previous</button><span id="page-number">1</span><button id="next-page" class="btn btn-quiet" disabled>Next</button></div></div></section>
-@endif
-<section id="integrations-panel" hidden><div class="integration-intro panel"><h2>Optional school system connections</h2><p>Your document workspace works independently. Connect admission, enrollment, employee or payroll systems when your school is ready.</p></div><div class="integration-grid">@foreach(app(\App\Services\DocumentService::class)->sources(auth()->user()) as $i=>$s)<article class="panel connector-card"><span class="connector-number">0{{ $i+1 }}</span><h2>{{ $s }}</h2><p>{{ ['Employee Management'=>'Employee contracts and qualifications.','Online Admission'=>'Application evidence and source record history.','Enrollment'=>'Enrollment records and supporting documents.','Payroll Management'=>'Restricted payslips and payroll evidence.'][$s] }}</p><div class="connector-footer">Setup required</div></article>@endforeach</div><section class="panel mt-4"><div class="panel-heading"><h2>Integration event feed</h2><button class="btn btn-quiet" id="refresh-events">Refresh</button></div><p class="panel-copy">Document changes are recorded here for connected systems. Integration setup is managed by your school administrator.</p><div id="event-list" class="event-list"></div></section></section>
-<section id="audit-panel" class="panel" hidden><div class="panel-heading"><h2>Recent record activity</h2><button class="btn btn-quiet" id="refresh-audit">Refresh</button></div><div class="table-responsive"><table class="table"><thead><tr><th>Action</th><th>Actor</th><th>Details</th><th>Time</th></tr></thead><tbody id="audit-body"></tbody></table></div><p class="panel-copy">Latest 250 entries in your school and campus. History cannot be edited through this application.</p></section>
-<section id="history-panel" class="panel" hidden>
-<div class="panel-heading"><h2>Received business history</h2><button id="history-refresh" class="btn btn-quiet">Refresh</button></div>
-<p class="panel-copy">Source records are preserved in receipt order. Older revisions remain in history without replacing a newer snapshot.</p>
-<form id="history-filters" class="filter-bar"><select id="history-source" class="form-select" aria-label="History source"><option value="">All permitted systems</option>@foreach(app(\App\Services\DocumentService::class)->sources(auth()->user()) as $s)<option>{{ $s }}</option>@endforeach</select><input id="history-record" class="form-control" placeholder="Exact record ID" aria-label="Exact history record ID" maxlength="200"><button class="btn btn-green" type="submit">Apply filters</button><button class="btn btn-quiet" type="reset">Reset</button></form>
-<div class="table-responsive"><table class="table"><thead><tr><th>Record</th><th>Source</th><th>Revision</th><th>Result</th><th>Received</th><th>Details</th></tr></thead><tbody id="history-body"></tbody></table></div>
-<div class="table-footer"><span id="history-count" role="status">No history loaded</span><button id="history-more" class="btn btn-quiet" disabled>Load more</button></div>
-</section>
-<section id="drive-panel" class="panel" data-folder-colors='@json(config('dms.folder_colors'))' hidden>
-<div class="panel-heading"><div class="drive-heading"><button type="button" id="drive-back" class="btn btn-quiet" aria-label="Back to My files" hidden>←&nbsp;Back</button><nav id="drive-crumbs" aria-label="Folder path"></nav></div><div><button id="details-toggle" class="btn btn-quiet" aria-label="Show item details" aria-expanded="false" aria-controls="item-details">ⓘ</button> <button id="drive-layout" class="btn btn-quiet" aria-pressed="false">List view</button></div></div>
-<div id="selection-toolbar" class="selection-toolbar" hidden><button id="selection-clear" class="btn btn-quiet" aria-label="Clear selection">×</button><strong id="selection-label">1 selected</strong><div id="selection-actions"></div></div><form id="drive-filter" class="filter-bar"><input id="drive-search" class="form-control" maxlength="200" placeholder="Search files by name" aria-label="Search files by name"><select id="drive-sort" class="form-select" aria-label="Sort files"><option value="updated">Last modified</option><option value="name">Name</option></select><button class="btn btn-quiet">Search</button></form>
-<div id="drive-drop" tabindex="0" aria-label="Drop files here or use Upload document"><p>Drop files here to upload · Files stay private; access requires a clean security scan</p><div id="drive-items" class="drive-grid"></div></div>
-<div class="table-footer"><span id="drive-count" role="status"></span><div><button id="drive-prev" class="btn btn-quiet">Previous</button><button id="drive-next" class="btn btn-quiet">Next</button></div></div>
-</section>
-<aside id="item-details" class="item-details panel" aria-label="Item details" hidden><header><h2 id="inspector-title">Details</h2><button id="details-close" class="btn btn-quiet" aria-label="Close details">×</button></header><div id="inspector-tabs"><ul><li><a href="#inspector-details">Details</a></li><li><a href="#inspector-activity">Activity</a></li></ul><div id="inspector-details"><div class="inspector-empty"><span aria-hidden="true">▤</span><p>Select an item to see its details</p></div></div><div id="inspector-activity"><p>Select an item to see its activity.</p></div></div></aside><footer class="workspace-footer"><span>School Documents</span><span>Private files · Preserved history</span></footer></main></div></div>
-<div id="upload-dialog" title="Upload document" hidden>
-<form id="upload-form">
-<div id="upload-file">
-<label for="file" id="upload-dropzone" class="file-drop-zone"><span aria-hidden="true">↑</span><strong>Drop a file here or browse</strong><small>PDF, PNG, JPG or TXT · Maximum 10 MB</small></label>
-<input type="file" id="file" name="file" class="form-control" accept=".pdf,.png,.jpg,.jpeg,.txt" aria-label="Choose the document file" required>
-<p id="selected-file-label" class="selected-file-label" role="status">No file selected</p>
-</div>
-<div id="upload-record">
-<p class="form-instruction">Use a clear title and reference. Earlier versions remain preserved when a document is replaced.</p>
-<div class="row g-3">
-<div class="col-12"><label for="title" class="form-label">Title</label><input id="title" name="title" class="form-control" required maxlength="200"></div>
-<div class="col-12" id="upload-destination-row"><label for="upload-folder" class="form-label">Save into folder</label><select id="upload-folder" name="folder_id" class="form-select"></select><p id="upload-destination-note" class="form-instruction"></p></div>
-<div class="col-md-6"><label for="subject" class="form-label">Subject / record owner</label><input id="subject" name="subject" value="{{ $personal ? auth()->user()->name : '' }}" class="form-control" required maxlength="200"></div>
-<div class="col-md-6"><label for="reference" class="form-label">Reference</label><input id="reference" name="reference" class="form-control" placeholder="e.g. EMP-2026-0142" required maxlength="200"></div>
-<div class="col-md-6"><label for="source" class="form-label">Source</label><select id="source" name="source" class="form-select">@foreach(app(\App\Services\DocumentService::class)->sources(auth()->user()) as $source)<option>{{ $source }}</option>@endforeach</select></div>
-<div class="col-md-6"><label for="category" class="form-label">Category</label><select id="category" name="category" class="form-select">@foreach(($personal ? array_diff(config('dms.categories'), ['Payslip']) : config('dms.categories')) as $category)<option>{{ $category }}</option>@endforeach</select></div>
-<div class="col-md-6"><label for="classification" class="form-label">Classification</label><select id="classification" name="classification" class="form-select"><option>Confidential</option><option>Restricted</option><option>Internal</option></select></div>
-<div class="col-md-6"><label for="expires_at" class="form-label">Expires at (optional)</label><input id="expires_at" name="expires_at" class="form-control" placeholder="YYYY-MM-DD" autocomplete="off"></div>
-</div></div>
-<p class="upload-availability">Every version is security-scanned. Download, preview and sharing unlock only after a clean result. The detected file type must match its extension, and a filename or title cannot be reused in another document, including in Trash.</p>
-<p class="form-instruction">School workspace · {{ auth()->user()->campus }} · locked</p>
-<div id="upload-error" class="alert alert-danger mt-3" role="alert" hidden></div>
-<div class="dialog-actions"><button type="button" id="upload-cancel" class="btn btn-quiet">Cancel</button><button type="submit" id="upload-submit" class="btn btn-green">Upload document</button></div>
-</form></div>
-<div id="detail-dialog" title="Document details" hidden><div id="detail-content"></div></div>
-<div id="history-dialog" title="Business record history" hidden><div id="history-detail"></div></div>
-<div id="drive-dialog" title="File action" hidden><form id="drive-action-form"><div id="drive-action-fields"></div><div class="dialog-actions"><button class="btn btn-green">Save</button></div><p id="drive-action-error" class="text-danger" role="alert"></p></form></div>
-<div id="folder-color-dialog" title="Folder color" hidden><p id="folder-color-target" class="folder-color-target"></p><div id="folder-color-swatches" class="folder-swatches" role="group" aria-labelledby="folder-color-target"></div><p id="folder-color-error" class="text-danger mt-3" role="alert"></p><div class="dialog-actions"><button type="button" id="folder-color-cancel" class="btn btn-quiet">Cancel</button><button type="button" id="folder-color-save" class="btn btn-green">Save color</button></div></div>
-<div id="folder-share-dialog" title="Share folder" hidden>
-<form id="folder-share-form">
-<p id="folder-share-intro" class="folder-share-intro"></p>
-<section class="share-section" aria-labelledby="folder-share-access-label"><h3 id="folder-share-access-label">People with access</h3><div id="folder-share-list" class="share-people"></div></section>
-<section class="share-section" aria-labelledby="folder-share-invite-label"><h3 id="folder-share-invite-label">Invite people</h3><div class="share-invite-row"><label class="visually-hidden" for="folder-share-email">Email address</label><input id="folder-share-email" type="email" class="form-control" placeholder="name@school.edu" maxlength="200" required><label class="visually-hidden" for="folder-share-permission">Access level</label><select id="folder-share-permission" class="form-select"><option value="viewer">Viewer</option><option value="commenter">Commenter</option></select><button type="submit" id="folder-share-add" class="btn btn-green">Send</button></div><p class="share-hint">Viewer can open, preview and download clean files. Commenter can also add comments. Access expires within 30 days and can be removed at any time.</p><p id="folder-share-error" class="text-danger mt-2" role="alert"></p></section>
-<section class="share-section" aria-labelledby="folder-share-general-label"><h3 id="folder-share-general-label">General access</h3><div class="share-general"><span class="share-general-title">Restricted</span><span class="share-hint">Only people you add can open this folder and its files.</span><button type="button" id="folder-share-link" class="btn btn-quiet">Copy link</button></div><div class="share-general is-unavailable"><span class="share-general-title">Anyone with the link</span><span class="share-hint">Not available. Anonymous and public links are not supported in this workspace.</span></div></section>
-<p id="folder-share-status" class="share-hint mt-3" role="status"></p>
-</form></div>
-<div id="preview-dialog" title="File preview" hidden><pre id="preview-text" class="history-payload" hidden></pre><img id="preview-image" alt="Private document preview" style="max-width:100%;max-height:55vh" hidden><iframe id="file-preview" title="Private file preview" sandbox style="width:100%;height:55vh;border:0" hidden></iframe><p id="preview-note" role="status"></p></div>
-<div id="shared-detail-dialog" title="Shared document" hidden><h2 id="shared-title"></h2><p id="shared-access"></p><a id="shared-download" class="btn btn-green">Download shared version</a><h3 class="mt-4">Comments</h3><div id="shared-comments"></div><form id="shared-comment-form"><label for="shared-comment" class="form-label">Add a comment</label><textarea id="shared-comment" name="body" class="form-control" required maxlength="2000"></textarea><button class="btn btn-green mt-2">Post comment</button></form><form id="shared-rename-form" class="mt-4"><label for="shared-name" class="form-label">Rename document</label><input id="shared-name" class="form-control" required maxlength="200"><button class="btn btn-quiet mt-2">Save name</button></form><form id="shared-version-form" class="mt-4"><label for="shared-file" class="form-label">Upload a new version</label><input id="shared-file" type="file" class="form-control" accept=".pdf,.png,.jpg,.jpeg,.txt" required><button class="btn btn-quiet mt-2">Upload version</button><p class="small mt-2">New versions need a clean security scan. This share keeps its original version.</p></form><p id="shared-error" class="text-danger mt-3" role="alert"></p></div>
+@extends ('layout')
+@php $viewer=$viewer??auth()->user(); @endphp
+@section ('title',($source==='DMS'?'My workspace':config('dms.sources.'.$source)).' · '.ucfirst($section))
+@section ('content')
+    @php
+    $root=$source==='DMS'?'/my-workspace':'/workspaces/'.strtolower($source);
+    $personalWorkspace=$source==='DMS';
+    $readOnly=$viewer->role==='super_admin' && $source!=='DMS';
+    $view=$view??'all';
+    $titles=['all'=>'Documents','mine'=>'My documents','shared'=>'Shared with me','starred'=>'Starred documents','trash'=>'Trash'];
+    $title=match($section){'overview'=>$source==='DMS'?'My workspace':'Your workspace, organized.','history'=>'Received history','snapshots'=>'Current records',default=>$titles[$view]};
+    $subtitle=match($section){'overview'=>$source==='DMS'?'Your personal documents, folders and shared files.':'Keep every document connected, protected, and easy to find.','history'=>'Every source event is preserved, including events that arrive out of order.','snapshots'=>'The latest received state of each source record.',default=>'Your files, organized and securely stored.'};
+@endphp
+    <div class="page-heading">
+        <div>
+            <span class="eyebrow">{{ $source }}{{ $section==='overview'?' WORKSPACE':' / '.strtoupper($title) }}</span>
+            <h1>{{ $title }}</h1>
+            <p>{{ $subtitle }}</p>
+        </div>
+        @if (!$readOnly && in_array($section,['overview','documents']))
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#upload-modal">Upload document</button>
+        @endif
+    </div>
+    @if ($readOnly)
+        <div class="alert alert-light border">
+            <strong>Super admin · Read-only oversight</strong>
+            <p>Inspect this repository, document versions and received history. Repository changes remain with its staff.</p>
+        </div>
+    @endif
+    @if ($section==='overview')
+        <section class="welcome-banner">
+            <div>
+                <span class="eyebrow">A LITTLE MORE ORDER. A LOT MORE PEACE OF MIND.</span>
+                <h2>A secure home for your school documents.</h2>
+                <p>{{ $readOnly?'Review documents and follow repository activity across this workspace.':'Store files, share with staff, and preserve every version.' }}</p>
+            </div>
+            <span class="banner-emblem"><x-figma-icon name="folder-hero" :size="44" /></span>
+        </section>
+        @include ('partials.stats')
+    @endif
+    @if (in_array($section,['overview','documents']))
+        @if ($section==='documents')
+            <nav class="library-tabs" aria-label="Library views">
+                @foreach (($readOnly?['all'=>'All documents','trash'=>'Trash']:['all'=>'All documents','mine'=>'My documents','shared'=>'Shared with me','starred'=>'Starred','trash'=>'Trash']) as $key=>$label)
+                    <a
+                        href="{{ $root }}/documents?view={{ $key }}"
+                        class="{{ $view===$key?'active':'' }}"
+                        data-library-view="{{ $key }}"
+                        @if ($view===$key) aria-current="page" @endif
+                        ><span class="tab-full">{{ $label }}</span
+                        ><span
+                            class="tab-short"
+                            >{{ ['all'=>'All files','mine'=>'My files','shared'=>'Shared','starred'=>'Starred','trash'=>'Trash'][$key] }}</span
+                        ></a
+                    >
+                @endforeach
+            </nav>
+        @endif
+        @if ($view==='shared')
+            <div class="info-strip">
+                <x-figma-icon name="link-notice" :size="24" />
+                <div>
+                    <strong>Access follows the owner’s grant</strong>
+                    <p>Viewers can download. Commenters can also comment. Editors can rename and upload new versions.</p>
+                </div>
+            </div>
+        @elseif ($view==='trash')
+            <div class="info-strip">
+                <x-figma-icon name="link-notice" :size="24" />
+                <div>
+                    <strong>Your history is preserved</strong>
+                    <p>Trashing blocks downloads and editing. All earlier versions remain safely stored.</p>
+                </div>
+            </div>
+        @endif
+        <form class="document-toolbar" method="get" data-search-form>
+            <div class="search-field">
+                <x-figma-icon name="search" /><label class="visually-hidden" for="document-search">Search documents or reference</label
+                ><input
+                    type="search"
+                    id="document-search"
+                    name="q"
+                    value="{{ request('q') }}"
+                    maxlength="200"
+                    placeholder="Search documents or reference…"
+                    autocomplete="off" />
+                @if (!$readOnly && $viewer->role!=='staff')
+                    <button
+                        type="button"
+                        class="icon-button mobile-folder-button"
+                        data-bs-toggle="modal"
+                        data-bs-target="#folder-modal"
+                        aria-label="New folder">
+                        <x-figma-icon name="more" />
+                    </button>
+                @endif
+            </div>
+            <input type="hidden" name="view" value="{{ $view }}" />
+            @if ($folder)
+                <input type="hidden" name="folder" value="{{ $folder->id }}" />
+            @endif
+            <div class="toolbar-actions">
+                @if (!$readOnly && $viewer->role!=='staff')
+                    <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#folder-upload-modal">Upload folder</button>
+                @endif
+                @if (!$readOnly && $viewer->role!=='staff')
+                    <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#folder-modal">New folder</button>
+                @endif
+                <div class="view-toggle" role="group" aria-label="Document layout">
+                    <button
+                        type="button"
+                        data-layout="list"
+                        class="{{ request('layout','list')==='list'?'selected':'' }}"
+                        aria-label="List view"
+                        aria-pressed="{{ request('layout','list')==='list'?'true':'false' }}">
+                        <x-figma-icon name="list" /></button
+                    ><button
+                        type="button"
+                        data-layout="grid"
+                        class="{{ request('layout')==='grid'?'selected':'' }}"
+                        aria-label="Grid view"
+                        aria-pressed="{{ request('layout')==='grid'?'true':'false' }}">
+                        <x-figma-icon name="grid" />
+                    </button>
+                </div>
+            </div>
+        </form>
+        @if ($folder)
+            <div class="folder-breadcrumb">
+                <a href="{{ $root }}/documents">My drive</a><span>/</span>
+                @if ($folder->parent_id)
+                    <a href="{{ $root }}/documents?folder={{ $folder->parent_id }}">Parent folder</a
+                    ><span>/</span>
+                @endif
+                <strong>{{ $folder->name }}</strong>
+                @if (!$readOnly && $viewer->role!=='staff')
+                    <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" data-bs-toggle="modal" data-bs-target="#folder-edit-modal">
+                        Edit folder
+                    </button>
+                @endif
+            </div>
+        @endif
+        @unless (in_array($view,['shared','starred','trash']))
+            <div class="folder-grid">
+                @foreach ($folders->where('parent_id',$folder?->id) as $f)
+                    <a
+                        class="folder-card"
+                        data-folder-id="{{ $f->id }}"
+                        data-folder-name="{{ $f->name }}"
+                        data-document-count="{{ $f->document_count??0 }}"
+                        data-source="{{ $f->source }}"
+                        href="{{ $root }}/documents?folder={{ $f->id }}"
+                        ><x-figma-icon name="folder-card" :size="28" /><span
+                            ><strong>{{ $f->name }}</strong><small>{{ $f->document_count??0 }} documents</small></span
+                        ></a
+                    >
+                @endforeach
+            </div>
+        @endunless
+        @include ('partials.documents')
+    @else
+        <div class="info-strip">
+            <x-figma-icon name="link-notice" :size="24" />
+            <div>
+                <strong>{{ $section==='history'?'Received history is evidence':'Your ERP remains the system of record' }}</strong>
+                <p>{{ $section==='history'?'Applied events update the current record. Older revisions remain stored without changing the latest snapshot.':'These snapshots are read-only. Make business-record changes in the originating ERP.' }}</p>
+            </div>
+        </div>
+        <form method="get" class="document-toolbar" data-search-form>
+            <div class="search-field">
+                <x-figma-icon name="search" /><label class="visually-hidden" for="record-search">Search record ID</label
+                ><input type="search" id="record-search" name="q" value="{{ request('q') }}" placeholder="Search by record ID or event ID…" maxlength="200" />
+            </div>
+        </form>
+        <section class="panel">
+            <div class="panel-header">
+                <h2>{{ $section==='history'?'Received events':'Latest source snapshots' }}</h2>
+            </div>
+            <div class="table-responsive">
+                <table class="table records-table" data-filter-table>
+                    <thead>
+                        <tr>
+                            <th scope="col">Record</th>
+                            @if ($section==='history')
+                                <th scope="col">Event ID</th>
+                            @endif
+                            <th scope="col">Revision</th>
+                            <th scope="col">{{ $section==='history'?'Operation':'State' }}</th>
+                            <th scope="col">{{ $section==='history'?'Result':'Last received' }}</th>
+                            <th scope="col">Evidence</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($history as $entry)
+                            <tr>
+                                <td><strong>{{ $entry->record_id }}</strong><small>{{ $entry->record_type }}</small></td>
+                                @if ($section==='history')
+                                    <td>{{ $entry->event_id }}</td>
+                                @endif
+                                <td>r{{ $entry->revision }}</td>
+                                <td>{{ $section==='history'?ucfirst($entry->operation):($entry->deleted?'Tombstone':'Current') }}</td>
+                                <td>
+                                    {{ $section==='history'?($entry->applied?'Applied':'Stored only'):Illuminate\Support\Carbon::parse($entry->updated_at)->format('M d, Y · H:i') }}
+                                </td>
+                                <td>
+                                    <button
+                                        type="button"
+                                        class="text-button"
+                                        data-payload="{{ $entry->payload }}"
+                                        data-record="{{ $entry->record_id }}"
+                                        data-revision="{{ $entry->revision }}"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#payload-modal">
+                                        View payload
+                                    </button>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6">
+                                    <div class="empty-state">
+                                        <h3>No records received yet</h3>
+                                        <p>Your source system’s events will appear here once connected.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+            @if ($history->hasPages())
+                <div class="panel-pagination">{{ $history->links('pagination::bootstrap-5') }}</div>
+            @endif
+        </section>
+        @if ($history->isNotEmpty())
+            <section class="panel evidence-panel">
+                <h2>Received versus current state</h2>
+                <div class="evidence-grid">
+                    <div>
+                        <span class="eyebrow">RECEIVED EVIDENCE</span>
+                        <p>Every accepted event retains its original payload and revision.</p>
+                    </div>
+                    <div>
+                        <span class="eyebrow">CURRENT SNAPSHOT</span>
+                        <p>Only a newer revision changes the current record. Earlier history stays intact.</p>
+                    </div>
+                </div>
+            </section>
+        @endif
+    @endif
 @endsection
-@section('scripts')<script src="/assets/app.js?v={{ filemtime(public_path('assets/app.js')) }}"></script><script src="/assets/drive.js?v={{ filemtime(public_path('assets/drive.js')) }}"></script><script src="/assets/folder-upload.js?v={{ filemtime(public_path('assets/folder-upload.js')) }}"></script><script src="/assets/item-details.js?v={{ filemtime(public_path('assets/item-details.js')) }}"></script><script src="/assets/staff-workspace.js?v={{ filemtime(public_path('assets/staff-workspace.js')) }}"></script>@endsection
+@push ('dialogs')
+    @if (!$readOnly && in_array($section,['overview','documents']))
+        @include ('partials.upload')
+        @if ($viewer->role!=='staff')
+            @include ('partials.folder-upload')
+            <div class="modal fade" id="folder-modal" tabindex="-1" aria-labelledby="folder-title" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <form action="/folders" method="post" data-demo-action="folder">
+                            @csrf
+                            <div class="modal-header">
+                                <h2 class="modal-title" id="folder-title">New folder</h2>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="modal-subtitle">Organize documents inside your workspace.</p>
+                                <input type="hidden" name="source" value="{{ $source }}" /><label for="folder-name" class="form-label">Folder name</label
+                                ><input
+                                    id="folder-name"
+                                    class="form-control mb-4"
+                                    name="name"
+                                    maxlength="150"
+                                    required
+                                    placeholder="e.g. 2026 appointments" /><label class="form-label" for="folder-parent">Parent folder</label
+                                ><select id="folder-parent" name="parent_id" class="form-select">
+                                    <option value="">My drive (root)</option>
+                                    @foreach ($folders as $f)
+                                        <option value="{{ $f->id }}" @selected ($folder?->id===$f->id)>{{ $f->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button
+                                ><button type="submit" class="btn btn-primary">Create folder</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            @if ($folder)
+                <div class="modal fade" id="folder-edit-modal" tabindex="-1" aria-labelledby="folder-edit-title" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <form action="/folders/{{ $folder->id }}" method="post" data-demo-action="folder-edit">
+                                @csrf
+                                @method ('PATCH')
+                                <input type="hidden" name="revision" value="{{ $folder->revision }}" />
+                                <div class="modal-header">
+                                    <h2 class="modal-title" id="folder-edit-title">Edit folder</h2>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <label for="folder-edit-name" class="form-label">Name</label
+                                    ><input
+                                        id="folder-edit-name"
+                                        name="name"
+                                        class="form-control mb-4"
+                                        value="{{ $folder->name }}"
+                                        maxlength="150"
+                                        required /><label for="folder-edit-parent" class="form-label">Move to</label
+                                    ><select id="folder-edit-parent" name="parent_id" class="form-select">
+                                        <option value="">My drive (root)</option>
+                                        @foreach ($folders->where('id','!=',$folder->id) as $f)
+                                            <option value="{{ $f->id }}" @selected ($folder->parent_id===$f->id)>{{ $f->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button
+                                    ><button type="submit" class="btn btn-primary">Save folder</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            @endif
+        @endif
+    @else
+        @include ('partials.payload-modal')
+    @endif
+@endpush

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta
+            http-equiv="Content-Security-Policy"
+            content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self' data:" />
+        <title>Document PDF preview</title>
+        <link rel="stylesheet" href="/css/pdf-viewer.css" />
+        <script type="module" src="/js/pdf-viewer.mjs"></script>
+    </head>
+    <body>
+        <nav aria-label="PDF controls">
+            <button id="previous" type="button" disabled aria-label="Previous page">←</button><span id="page-count" aria-live="polite">Loading PDF…</span
+            ><button id="next" type="button" disabled aria-label="Next page">→</button
+            ><button id="zoom-out" type="button" disabled aria-label="Zoom out">−</button
+            ><button id="zoom-in" type="button" disabled aria-label="Zoom in">+</button>
+        </nav>
+        <p id="pdf-error" role="alert" hidden></p>
+        <main id="pdf-page">
+            <canvas id="pdf-canvas" role="img" aria-label="PDF document page" hidden></canvas>
+        </main>
+    </body>
+</html>

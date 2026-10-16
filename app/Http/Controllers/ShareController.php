@@ -1,151 +1,63 @@
 <?php
+
 namespace App\Http\Controllers;
 
-use App\Models\User;
-use App\Services\DocumentService;
-use Illuminate\Http\Request;
+use App\Http\Requests\ActionRequest;
+use App\Services\Access;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 class ShareController extends Controller
 {
-    public function __construct(private DocumentService $dms) {}
-
-    private function grant(Request $r, string $id): array
+    public function create(ActionRequest $request, string $document)
     {
-        $a = $this->dms->actor($r);
-        abort_unless(in_array($a->role, ['teacher','employee','admin','registrar','hr','payroll']), 403);
-        $g = DB::table('document_shares')->where('id', $id)->where('recipient_id', $a->id)->whereNull('revoked_at')->where('expires_at', '>', now())->lockForUpdate()->first();
-        abort_unless($g, 404);
-        $d = DB::table('documents')->where('id', $g->document_id)->where('school_id', $a->school_id)->where('campus', $a->campus)->whereNull('trashed_at')->lockForUpdate()->first();
-        $sender = User::find($g->created_by);
-        abort_unless($d && $sender && $sender->active && $this->dms->scope(DB::table('documents'), $sender)->where('id', $d->id)->exists(), 404);
-
-        return [$a, $g, $d];
-    }
-
-    public function index(Request $r)
-    {
-        $a = $this->dms->actor($r);
-        $p = $r->validate(['page' => 'nullable|integer|min:1', 'search' => 'nullable|string|max:200']);
-        $rows = DB::table('document_shares')->join('documents', 'documents.id', '=', 'document_shares.document_id')
-            ->join('users', 'users.id', '=', 'document_shares.created_by')->where('recipient_id', $a->id)
-            ->where('documents.school_id', $a->school_id)->where('documents.campus', $a->campus)
-            ->where('users.active', true)->whereNull('documents.trashed_at')->whereNull('revoked_at')->where('expires_at', '>', now())
-            ->when($p['search'] ?? null, fn ($q, $s) => $q->where('documents.title', 'like', '%'.$s.'%'))
-            ->orderByDesc('document_shares.created_at')->paginate(24, ['documents.*', 'document_shares.id as grant_id', 'version_id', 'permission', 'users.name as shared_by']);
-        $rows->getCollection()->transform(function ($d) use ($r) {
-            try { $this->grant($r, $d->grant_id); } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) { if ($e->getStatusCode() !== 404) throw $e; return null; }
-            $d->current = DB::table('document_versions')->where('id', $d->version_id)->first();
-            unset($d->current->storage_key);
-            return $d;
+        DB::transaction(function () use ($request, $document) {
+            $user = $request->user();
+            Access::document($user, $document);
+            $doc = DB::table('documents')->where('id', $document)->lockForUpdate()->first();
+            Access::owner($user, $doc);
+            abort_if($doc->trashed_at, 409);
+            $data = $request->validated();
+            abort_if((int) $data['recipient_id'] === $user->id, 422, 'Choose another recipient.');
+            abort_unless(Access::scope(DB::table('users'), $user)->where('id', $data['recipient_id'])->where('active', true)->exists(), 422, 'Recipient is outside your scope or inactive.');
+            if (! empty($data['version_id'])) {
+                abort_unless(DB::table('document_versions')->where('id', $data['version_id'])->where('document_id', $document)->exists(), 422, 'Version does not belong to this document.');
+                abort_if($data['permission'] === 'Editor', 422, 'Pinned versions are immutable. Choose Viewer or Commenter.');
+            }
+            DB::table('shares')->updateOrInsert(['document_id' => $document, 'recipient_id' => $data['recipient_id']], $data + ['version_id' => null, 'expires_at' => null, 'revoked_at' => null, 'created_at' => now(), 'updated_at' => now()]);
+            Access::audit($user, 'share.granted', $doc, ['recipient_id' => $data['recipient_id'], 'permission' => $data['permission']]);
         });
-        $rows->setCollection($rows->getCollection()->filter()->values());
-        return response()->json(['files' => $rows, 'folders' => [], 'breadcrumbs' => []]);
+
+        return back()->with('status', 'Access grant saved.');
     }
 
-    public function download(Request $r, string $id)
+    public function revoke(ActionRequest $request, string $document, string $share)
     {
-        [$a, $g, $d] = $this->grant($r, $id);
-        $v = DB::table('document_versions')->where('id', $g->version_id)->where('document_id', $d->id)->first();
-        abort_unless($v, 404, 'Shared version not found.');
-        app(\App\Services\FileScanner::class)->requireClean($v);
-        abort_unless(Storage::disk('local')->exists($v->storage_key), 503);
-        abort_unless(hash_equals($v->checksum, hash_file('sha256', Storage::disk('local')->path($v->storage_key))), 409, 'File integrity check failed.');
-        $this->dms->log($a, 'Shared document downloaded', $d->id, $id);
-        return Storage::disk('local')->download($v->storage_key, $v->filename, ['X-Content-Type-Options' => 'nosniff', 'Cache-Control' => 'private, no-store']);
-    }
-
-    public function comments(Request $r, string $id)
-    {
-        [$a, $g, $d] = $this->grant($r, $id);
-        return response()->json(DB::table('document_comments')->join('users', 'users.id', '=', 'document_comments.user_id')->where('document_id', $d->id)->orderByDesc('document_comments.id')->limit(100)->get(['body', 'users.name', 'document_comments.created_at']));
-    }
-
-    /** Resolves a folder grant plus one document inside the granted folder tree. */
-    private function folderGrant(Request $r, string $id, string $document): array
-    {
-        $a = $this->dms->actor($r);
-        abort_unless(in_array($a->role, ['teacher', 'employee', 'admin', 'registrar', 'hr', 'payroll']), 403);
-        $g = DB::table('folder_shares')->where('id', $id)->where('recipient_id', $a->id)->whereNull('revoked_at')->where('expires_at', '>', now())->first();
-        abort_unless($g, 404);
-        $folder = DB::table('folders')->where('id', $g->folder_id)->first();
-        $sender = User::find($g->created_by);
-        abort_unless($folder && $sender && $sender->active && $this->dms->scope(DB::table('folders'), $sender)->where('id', $folder->id)->exists(), 404);
-        $d = DB::table('documents')->where('id', $document)->whereIn('folder_id', $this->dms->folderSubtree($folder->id))
-            ->where('school_id', $a->school_id)->where('campus', $a->campus)->whereNull('trashed_at')->first();
-        abort_unless($d, 404, 'Document not found.');
-
-        return [$a, $g, $d];
-    }
-
-    public function folderComments(Request $r, string $id, string $document)
-    {
-        [$a, $g, $d] = $this->folderGrant($r, $id, $document);
-
-        return response()->json(DB::table('document_comments')->join('users', 'users.id', '=', 'document_comments.user_id')->where('document_id', $d->id)->orderByDesc('document_comments.id')->limit(100)->get(['body', 'users.name', 'document_comments.created_at']));
-    }
-
-    public function folderComment(Request $r, string $id, string $document)
-    {
-        return DB::transaction(function () use ($r, $id, $document) {
-            [$a, $g, $d] = $this->folderGrant($r, $id, $document);
-            abort_unless(in_array($g->permission, ['commenter', 'editor']), 403);
-            $p = $r->validate(['body' => 'required|string|max:2000']);
-            DB::table('document_comments')->insert(['document_id' => $d->id, 'user_id' => $a->id, 'body' => $p['body'], 'created_at' => now()]);
-            $this->dms->log($a, 'Folder shared document commented', $d->id);
-
-            return response()->json(['ok' => true], 201);
+        DB::transaction(function () use ($request, $document, $share) {
+            $user = $request->user();
+            Access::document($user, $document);
+            $doc = DB::table('documents')->where('id', $document)->lockForUpdate()->first();
+            Access::owner($user, $doc);
+            abort_unless(DB::table('shares')->where('id', $share)->where('document_id', $document)->exists(), 404);
+            DB::table('shares')->where('id', $share)->update(['revoked_at' => now(), 'updated_at' => now()]);
+            Access::audit($user, 'share.revoked', $doc, ['share_id' => $share]);
         });
+
+        return back()->with('status', 'Access revoked.');
     }
 
-    public function comment(Request $r, string $id)
+    public function comment(ActionRequest $request, string $document)
     {
-        return DB::transaction(fn () => $this->commentLocked($r, $id));
-    }
-
-    private function commentLocked(Request $r, string $id)
-    {
-        [$a, $g, $d] = $this->grant($r, $id);
-        abort_unless(in_array($g->permission, ['commenter', 'editor']), 403);
-        $p = $r->validate(['body' => 'required|string|max:2000']);
-        DB::transaction(function () use ($a, $d, $p) {
-            DB::table('document_comments')->insert(['document_id' => $d->id, 'user_id' => $a->id, 'body' => $p['body'], 'created_at' => now()]);
-            $this->dms->log($a, 'Document comment added', $d->id);
+        DB::transaction(function () use ($request, $document) {
+            $user = $request->user();
+            Access::document($user, $document);
+            $doc = DB::table('documents')->where('id', $document)->lockForUpdate()->first();
+            abort_if($doc->trashed_at, 409);
+            $grant = Access::grant($user, $doc);
+            abort_unless($doc->owner_id === $user->id || Access::manages($user, $doc) || in_array($grant?->permission, ['Commenter', 'Editor']), 403);
+            DB::table('comments')->insert(['document_id' => $document, 'user_id' => $user->id, 'body' => $request->validated('body'), 'created_at' => now()]);
+            Access::audit($user, 'comment.created', $doc);
         });
-        return response()->json(['ok' => true], 201);
-    }
 
-    public function edit(Request $r, string $id)
-    {
-        return DB::transaction(fn () => $this->editLocked($r, $id));
-    }
-
-    private function editLocked(Request $r, string $id)
-    {
-        [$a, $g, $d] = $this->grant($r, $id);
-        abort_unless($g->permission === 'editor', 403);
-        $p = $r->validate(['title' => 'required|string|max:200', 'revision' => 'required|integer|min:1']);
-        DB::transaction(function () use ($a, $d, $p) {
-            abort_unless(DB::table('documents')->where('id', $d->id)->whereNull('trashed_at')->where('revision', $p['revision'])->update($this->dms->renameKeys($d, $p['title']) + ['title' => $p['title'], 'revision' => $d->revision + 1, 'updated_at' => now()]), 409, 'Document changed. Refresh and retry.');
-            $d->revision++;
-            $this->dms->event($d, 'document.rename', $this->dms->latest($d->id)->id);
-            $this->dms->log($a, 'Shared document renamed', $d->id);
-        });
-        return response()->json(['ok' => true]);
-    }
-
-    public function replace(Request $r, string $id)
-    {
-        return DB::transaction(fn () => $this->replaceLocked($r, $id));
-    }
-
-    private function replaceLocked(Request $r, string $id)
-    {
-        [$a, $g, $d] = $this->grant($r, $id);
-        abort_unless($g->permission === 'editor', 403);
-        $r->merge(array_intersect_key((array) $d, array_flip(['title', 'subject', 'reference', 'source', 'category', 'classification'])) + ['document_id' => $d->id]);
-        $receipt = $this->dms->upload($r, $a, true);
-        return response()->json($receipt, $r->attributes->get('dms_replayed') ? 200 : 201);
+        return back()->with('status', 'Comment added.');
     }
 }

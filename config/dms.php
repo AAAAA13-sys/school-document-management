@@ -1,19 +1,14 @@
 <?php
 
 return [
-    'scanner' => env('DMS_CLAMSCAN'),
-    'role_labels' => ['employee'=>'Employee', 'admin'=>'Administrator', 'registrar'=>'Registrar', 'hr'=>'HR officer', 'payroll'=>'Payroll officer'],
-    'systems' => ['Employee Management', 'Online Admission', 'Enrollment', 'Payroll Management'],
-    'categories' => ['Identity evidence', 'Academic record', 'Enrollment form', 'Consent form', 'Employment contract', 'Qualification', 'Payslip', 'School policy'],
-    'folder_colors' => [
-        'green' => 'Green',
-        'yellow' => 'Yellow',
-        'teal' => 'Teal',
-        'blue' => 'Blue',
-        'purple' => 'Purple',
-        'amber' => 'Amber',
-        'rose' => 'Rose',
-        'slate' => 'Slate',
-    ],
-    'demo_password' => env('DMS_DEMO_PASSWORD'),
+    'sources' => ['EMS' => 'Employee Management', 'PMS' => 'Payroll Management', 'ES' => 'Enrollment System', 'OAS' => 'Online Admission'],
+    'roles' => ['super_admin', 'admin', 'staff'],
+    'role_labels' => ['super_admin'=>'Super Admin', 'admin'=>'Admin', 'staff'=>'Staff'],
+    'clamav_binary' => env('CLAMAV_BINARY', 'clamscan'),
+    'scan_timeout' => 60,
+    'clamav_database' => env('CLAMAV_DATABASE'),
+    'freshclam_binary' => env('FRESHCLAM_BINARY', 'freshclam'),
+    'freshclam_config' => env('FRESHCLAM_CONFIG'),
+    // Only browser-safe MIME types are previewed; arbitrary upload formats remain download-only.
+    'preview_mimes' => array_filter(explode(',', env('DMS_PREVIEW_MIMES', 'application/pdf,image/png,image/jpeg,image/gif,image/webp,text/plain,text/csv,application/json'))),
 ];

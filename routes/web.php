@@ -1,71 +1,43 @@
 <?php
 
+use App\Http\Controllers\AccountController;
+use App\Http\Controllers\AdminController;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BatchUploadController;
 use App\Http\Controllers\DocumentController;
-use App\Http\Controllers\DriveController;
-use App\Http\Controllers\HistoryController;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\FolderController;
+use App\Http\Controllers\ShareController;
+use App\Http\Controllers\WorkspaceController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/login', fn () => view('login'))->name('login');
-Route::post('/login', function (Request $r) {
-    $p = $r->validate(['email' => 'required|email', 'password' => 'required|string']);
-    if (! Auth::attempt([...$p, 'active' => true], false)) {
-        return back()->withErrors(['email' => 'The account or password is incorrect.'])->onlyInput('email');
-    }
-    if (! in_array(Auth::user()->role, ['teacher','employee','admin','registrar','hr','payroll'])) {
-        Auth::logout();
-        return back()->withErrors(['email' => 'This workspace is for authorized school staff.'])->onlyInput('email');
-    }
-    $r->session()->regenerate();
-
-    return redirect('/');
-})->middleware('throttle:6,1');
-Route::middleware('auth')->group(function () {
-    Route::get('/', function (Request $r) {
-        app(\App\Services\DocumentService::class)->actor($r);
-        return view('workspace');
-    });
-    Route::get('/accounts', [\App\Http\Controllers\AccountController::class, 'index']);
-    Route::post('/accounts', [\App\Http\Controllers\AccountController::class, 'store'])->middleware('throttle:20,1');
-    Route::patch('/accounts/{id}', [\App\Http\Controllers\AccountController::class, 'update'])->whereNumber('id');
-    Route::post('/logout', function (Request $r) {
-        Auth::logout();
-        $r->session()->invalidate();
-        $r->session()->regenerateToken();
-
-        return redirect('/login');
-    });
-    Route::prefix('workspace')->group(function () {
-        Route::get('/shared-with-me', [\App\Http\Controllers\ShareController::class, 'index']);
-        Route::get('/shared/{id}/comments', [\App\Http\Controllers\ShareController::class, 'comments']);
-        Route::post('/shared/{id}/comments', [\App\Http\Controllers\ShareController::class, 'comment'])->middleware('throttle:30,1');
-        Route::patch('/shared/{id}/document', [\App\Http\Controllers\ShareController::class, 'edit']);
-        Route::post('/shared/{id}/versions', [\App\Http\Controllers\ShareController::class, 'replace']);
-        Route::get('/folder-shares/{id}/documents/{document}/comments', [\App\Http\Controllers\ShareController::class, 'folderComments']);
-        Route::post('/folder-shares/{id}/documents/{document}/comments', [\App\Http\Controllers\ShareController::class, 'folderComment'])->middleware('throttle:30,1');
-        Route::get('/drive', [DriveController::class, 'index']);
-        Route::get('/folders', [DriveController::class, 'folders']);
-        Route::get('/folders/{id}', [DriveController::class, 'folderDetails']);
-        Route::post('/folders', [DriveController::class, 'createFolder']);
-        Route::patch('/folders/{id}', [DriveController::class, 'updateFolder']);
-        Route::post('/drive/{id}/action', [DriveController::class, 'action']);
-        Route::get('/preview/{id}', [DriveController::class, 'preview']);
-        Route::get('/drive/{id}/shares', [DriveController::class, 'shares']);
-        Route::post('/drive/{id}/shares', [DriveController::class, 'share']);
-        Route::delete('/shares/{id}', [DriveController::class, 'revoke']);
-        Route::get('/folders/{id}/shares', [DriveController::class, 'folderShares']);
-        Route::post('/folders/{id}/shares', [DriveController::class, 'shareFolder']);
-        Route::delete('/folder-shares/{id}', [DriveController::class, 'revokeFolderShare']);
-        Route::get('/shared/{id}', [DriveController::class, 'shared']);
-        Route::get('/stats', [DocumentController::class, 'stats']);
-        Route::get('/documents', [DocumentController::class, 'index']);
-        Route::post('/documents', [DocumentController::class, 'store']);
-        Route::get('/documents/{id}', [DocumentController::class, 'show']);
-        Route::get('/files/{id}', [DocumentController::class, 'download']);
-        Route::get('/audit', [DocumentController::class, 'audit']);
-        Route::get('/events', [DocumentController::class, 'events']);
-        Route::get('/history', [HistoryController::class, 'index']);
-        Route::get('/history/{id}', [HistoryController::class, 'show'])->whereNumber('id');
-    });
+Route::get('/login', fn () => view('login'))->middleware('guest')->name('login');
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:signin');
+Route::middleware(['auth', 'active', \App\Http\Middleware\RepositoryReadOnly::class])->group(function () {
+    Route::get('/', fn () => redirect(in_array(auth()->user()->role, ['super_admin', 'admin']) ? '/admin' : '/workspaces/'.strtolower(auth()->user()->source)));
+    Route::get('/my-workspace/{section?}', [WorkspaceController::class, 'personal']);
+    Route::get('/account', [AccountController::class, 'show']);
+    Route::put('/account/password', [AccountController::class, 'password'])->middleware('throttle:6,1');
+    Route::get('/documents/{document}/scan-status', [WorkspaceController::class, 'scanStatus']);
+    Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get('/workspaces/{source}/{section?}', [WorkspaceController::class, 'index'])->whereIn('source', ['ems', 'pms', 'es', 'oas']);
+    Route::get('/documents/{document}', [WorkspaceController::class, 'show']);
+    Route::post('/documents/batch', BatchUploadController::class)->middleware('throttle:6,1');
+    Route::post('/documents', [DocumentController::class, 'upload'])->name('documents.create');
+    Route::post('/documents/{document}/versions', [DocumentController::class, 'upload'])->name('versions.create');
+    Route::patch('/documents/{document}', [DocumentController::class, 'update'])->name('documents.update');
+    Route::post('/documents/{document}/trash', [DocumentController::class, 'trash'])->name('documents.trash');
+    Route::post('/documents/{document}/restore', [DocumentController::class, 'trash'])->name('documents.restore');
+    Route::post('/documents/{document}/star', [DocumentController::class, 'star'])->name('documents.star');
+    Route::get('/files/{version}', [DocumentController::class, 'download'])->name('files.download');
+    Route::get('/files/{version}/preview', [DocumentController::class, 'download'])->name('files.preview');
+    Route::post('/folders', [FolderController::class, 'create'])->name('folders.create');
+    Route::patch('/folders/{folder}', [FolderController::class, 'update'])->name('folders.update');
+    Route::post('/documents/{document}/shares', [ShareController::class, 'create'])->name('shares.create');
+    Route::delete('/documents/{document}/shares/{share}', [ShareController::class, 'revoke'])->name('shares.revoke');
+    Route::post('/documents/{document}/comments', [ShareController::class, 'comment'])->name('comments.create');
+    Route::get('/admin/{section?}', [AdminController::class, 'index']);
+    Route::post('/admin/accounts', [AdminController::class, 'account'])->name('accounts.create');
+    Route::patch('/admin/accounts/{account}', [AdminController::class, 'account'])->name('accounts.update');
+    Route::post('/admin/connectors', [AdminController::class, 'connector'])->name('connectors.create');
+    Route::delete('/admin/connectors/{connector}', [AdminController::class, 'revoke'])->name('connectors.revoke');
 });
