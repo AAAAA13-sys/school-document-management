@@ -94,8 +94,14 @@
             </button>
             <a class="mobile-brand" href="/">PLP Documents</a>
             <div class="breadcrumb-line">
-                <a href="/">School ERP</a><span>/</span><span class="breadcrumb-source">{{ $source }}</span><span>/</span
-                ><strong>{{ $sections[$section][1] ?? ($section==='account'?'My account':'Documents') }}</strong>
+                @if ($personalWorkspace)
+                    <a href="/my-workspace">My workspace</a>
+                @else
+                    <a href="/">School ERP</a
+                    ><span>/</span
+                    ><span class="breadcrumb-source">{{ $source }}</span>
+                @endif
+                <span>/</span><strong>{{ $sections[$section][1] ?? ($section==='account'?'My account':'Documents') }}</strong>
             </div>
             <div class="topbar-right">
                 <span class="privacy-label"><x-figma-icon name="shield-small" :size="16" />Private workspace</span
@@ -112,6 +118,10 @@
         </header>
         <main id="main" tabindex="-1">
             @php
+            // The Back button is kept only for the document preview, where a
+            // deep link needs an explicit way out. Everywhere else navigation is
+            // carried by the sidebar plus the "Up to ..." folder tile.
+            $showBack=isset($doc);
             $backFallback=$isAdmin?($viewer->role==='super_admin'?'/my-workspace':'/workspaces/'.strtolower($viewer->source)):$root.'/overview';
             if(isset($doc)) $backFallback=$root.'/documents'.($doc->folder_id?'?folder='.$doc->folder_id:'');
             elseif(isset($folder) && $folder) $backFallback=$root.'/documents'.($folder->parent_id?'?folder='.$folder->parent_id:'');
@@ -119,7 +129,9 @@
             if(isset($doc) && $doc->owner_id!==$viewer->id && ($viewer->role==='staff' || $source==='DMS' || !in_array($source,$viewer->sources()))) $backFallback=$root.'/documents?view=shared';
             if($section==='account') $backFallback='/';
         @endphp
-            <a class="global-back" href="{{ $backFallback }}" data-global-back aria-label="Go back">← Back</a>
+            @if ($showBack)
+                <a class="global-back" href="{{ $backFallback }}" data-global-back aria-label="Go back">← Back</a>
+            @endif
 
             @if ($errors->any())
                 <div class="alert alert-danger" role="alert">

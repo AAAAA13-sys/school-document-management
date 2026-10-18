@@ -54,10 +54,24 @@
                         </li>
                         @if (!$repositoryReadOnly)
                             <li>
-                                <form method="post" action="/documents/{{ $item->id }}/star" data-demo-action="star" data-document-id="{{ $item->id }}">
+                                <form
+                                    method="post"
+                                    action="/documents/{{ $item->id }}/star"
+                                    data-demo-action="star"
+                                    data-document-id="{{ $item->id }}"
+                                    data-document-title="{{ $item->title }}">
                                     @csrf
-                                    <button type="submit" class="dropdown-item">
-                                        <x-figma-icon name="star" />{{ in_array($item->id,$starred)?'Remove star':'Star document' }}
+                                    @php
+    $isStarred = in_array($item->id, $starred);
+    $starVerb = $isStarred ? 'Remove star from' : 'Star';
+@endphp
+                                    {{-- D-9: aria-pressed reflects the real starred state so the toggle is announced as on/off. --}}
+                                    <button
+                                        type="submit"
+                                        class="dropdown-item"
+                                        aria-pressed="{{ $isStarred ? 'true' : 'false' }}"
+                                        aria-label="{{ $starVerb }} {{ $item->title }}">
+                                        <x-figma-icon name="star" />{{ $isStarred ? 'Remove star' : 'Star document' }}
                                     </button>
                                 </form>
                             </li>

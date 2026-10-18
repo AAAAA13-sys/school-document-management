@@ -52,9 +52,13 @@ class WorkspaceController extends Controller
             $base->where(fn ($q) => $q->where('title', 'like', '%'.$request->input('q').'%')->orWhere('reference', 'like', '%'.$request->input('q').'%'));
         }
         $folder = null;
+        $parentFolder = null;
         if ($request->filled('folder')) {
             $folder = Access::scope(DB::table('folders'), $user)->where('id', $request->input('folder'))->when(!in_array($user->role, ['super_admin','admin']) || $source === 'DMS', fn ($q) => $q->where('owner_id', $user->id))->where('source', $source)->first() ?? abort(404);
             $base->where('folder_id', $folder->id);
+            if ($folder->parent_id) {
+                $parentFolder = Access::scope(DB::table('folders'), $user)->where('id', $folder->parent_id)->where('source', $source)->first();
+            }
         }
         if ($section === 'documents' && !$folder && !$request->filled('q') && in_array($view, ['all','mine'])) {
             $base->whereNull('folder_id');
@@ -84,7 +88,7 @@ class WorkspaceController extends Controller
             $history = $query->orderByDesc('id')->paginate(20)->withQueryString();
         }
 
-        return view('workspace', compact('source', 'section', 'stats', 'documents', 'versions', 'folders', 'folder', 'starred', 'view', 'history'));
+        return view('workspace', compact('source', 'section', 'stats', 'documents', 'versions', 'folders', 'folder', 'parentFolder', 'starred', 'view', 'history'));
     }
 
     public function show(ReadRequest $request, string $document)

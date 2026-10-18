@@ -790,6 +790,35 @@ main#main {
   border-color: #8daa93;
 }
 
+/* "Up to <parent>" tile. Sits first in the folder grid as the way out of a
+   nested folder. Dashed and green-tinted so it reads as navigation rather
+   than as a real sibling folder that could be dragged into. */
+.folder-card.folder-parent {
+  border-style: dashed;
+  background: var(--green-100);
+  border-color: #b9d3c2;
+}
+
+.folder-card.folder-parent:hover,
+.folder-card.folder-parent:focus-visible {
+  border-color: var(--green-800);
+  background: #dcebe1;
+}
+
+.folder-parent-icon {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+
+.folder-parent-arrow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -52%);
+  stroke: var(--green-800);
+}
+
 .panel {
   background: #fff;
   border: 1px solid var(--line);
@@ -2961,7 +2990,7 @@ body.login-page {
 
 .document-row:hover,
 .document-row:focus-within {
-  background: #f0f6ef;
+  background: var(--table-hover, #d8e3d1);
 }
 
 .document-row .status-badge {
@@ -3086,6 +3115,148 @@ body.login-page {
 
 .table thead th {
   font-size: 12px;
+}
+
+/* ==========================================================================
+   Phase 1 — Zebra tables. Single source of truth for data-table striping.
+
+   Colours come from :root tokens rather than literals, and the stripe is fed
+   through Bootstrap's own table custom properties so a future Bootstrap
+   upgrade cannot silently override it.
+
+   Every tbody rule is scoped `.table.table-zebra` (two classes) on purpose:
+   the pre-existing `.table tbody tr:hover > td` above sits at specificity
+   (0,2,3), so a single-class hover rule would lose to it. Two classes wins
+   at (0,3,2) without resorting to !important.
+   ========================================================================== */
+
+.table-zebra {
+  /* Green-tinted light gray. The plan's reference value #f2f2f2 is a cold
+     neutral and reads as foreign next to --canvas / --line.
+
+     Tuned on CIE L*, not on the WCAG ratio — a ratio between two large
+     backgrounds badly understates how different they look. The previous stripe
+     (#f2f5f1) sat at dL* 1.12 from the page background --canvas, so stripes
+     visually merged with the page. These values clear the page by dL* 5.28.
+
+     Steps are held >= 2 dL* so each state reads at a glance:
+       canvas -> stripe  5.28     stripe -> hover  3.07
+       white  -> stripe  7.94     hover  -> active is 0.78, which is too small
+     to survive, so .table-active is signalled with a left accent bar (see
+     below) rather than a further-darker fill.
+
+     All four clear WCAG AA against --muted (#53665a): 5.75 / 6.15 / 5.03 /
+     4.63. #dbdddb is the darkest green that still clears 4.5:1, which caps
+     how dark any row background may go. */
+  --table-stripe: #e4eae2; /* L* 92.1 */
+  --table-hover: #d8e3d1; /* L* 89.0 */
+  --table-active: #d8e3d1; /* L* 89.0 — see accent bar note */
+
+  --bs-table-bg: var(--surface);
+  --bs-table-striped-bg: var(--table-stripe);
+  --bs-table-hover-bg: var(--table-hover);
+  --bs-table-active-bg: var(--table-active);
+}
+
+/* Base row. Bootstrap tints odd rows, so the first data row sits directly
+   under the canvas-coloured header. */
+.table.table-zebra > tbody > tr > * {
+  background-color: var(--bs-table-bg);
+}
+
+.table.table-zebra > tbody > tr:nth-of-type(odd) > * {
+  background-color: var(--bs-table-striped-bg);
+}
+
+/* Hover has to be a decisive luminance step from the stripe. The previous
+   #f0f6ef sits at L* 96.3 against the stripe's 96.2 — a difference of 0.06,
+   so a hovered striped row was indistinguishable from a resting one. */
+.table.table-zebra > tbody > tr:hover > * {
+  background-color: var(--bs-table-hover-bg);
+}
+
+/* Active shares hover's fill — there is no AA-safe step darker — and is
+   identified by a left accent bar instead. --green-800 on any row background
+   clears 5.44:1, comfortably above the 3:1 WCAG 1.4.11 floor for a non-text
+   indicator. */
+.table.table-zebra > tbody > tr.table-active > * {
+  background-color: var(--bs-table-active-bg);
+  box-shadow: inset 3px 0 0 var(--green-800);
+}
+
+/* Active outranks hover so a selected row stays identifiable under the
+   pointer. Declared last to win the (0,3,2) tie with the hover rule. */
+.table.table-zebra > tbody > tr.table-active:hover > * {
+  background-color: var(--bs-table-active-bg);
+}
+
+/* A merged empty-state cell is a message, not a record. Striping a
+   full-width cell reads as a rendering fault, so it stays plain. */
+.table.table-zebra > tbody > tr.is-empty > * {
+  background-color: var(--bs-table-bg);
+}
+
+/* D-4 — sticky header for long scrollable tables (audit trail, repository).
+   The rule targets `th`, not `thead`: position:sticky on a <thead> is unreliable
+   in older Safari, and on <th> it survives the overflow context. */
+.table-sticky thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--canvas);
+  box-shadow: inset 0 -1px 0 var(--line);
+}
+
+/* Long tables opt in by capping their height, which is what creates the
+   vertical scroll the sticky header reacts to. */
+.table-scroll-y {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+/* --------------------------------------------------------------------------
+   Document list striping.
+
+   The document list is a CSS grid of <article> elements, not a <table>, so it
+   cannot reuse .table-zebra. It borrows the same tokens instead so list and
+   table rows stay visually identical.
+
+   Scoped to :not(.is-grid) because grid layout turns each row into a bordered
+   card with its own padding and gap -- a full-bleed band would clip the card
+   corners and sit behind the 18px grid gutter.
+
+   nth-of-type counts .document-row among its siblings, so the column-heading
+   row is excluded automatically.
+   -------------------------------------------------------------------------- */
+/* The 1px row divider is dropped in list mode. A border between a striped and
+   an unstrriped row slices the stripe into separate slabs instead of reading as
+   one continuous band — the same reason the tables set
+   --bs-table-border-color: transparent. The heading row above already provides
+   the visual boundary the list needs. */
+.document-items:not(.is-grid) .document-row {
+  border-top-color: transparent;
+}
+
+/* Stripe is applied by .is-striped from restripeDocuments() in dms.js, not by
+   :nth-of-type. nth-of-type counts rows the search filter has hidden, so a
+   filtered list ends up with two identical bands adjacent. See the comment on
+   restripeDocuments(). */
+.document-items:not(.is-grid) .document-row.is-striped {
+  background: var(--table-stripe, #e4eae2);
+}
+
+/* Hover and focus sit above the stripe. Both are declared here at two classes
+   so they outrank the nth-of-type rule above; the .document-row:hover rule at
+   line 2991 sits earlier in the file and would otherwise win on the wrong
+   colour. */
+.document-items:not(.is-grid) .document-row:hover,
+.document-items:not(.is-grid) .document-row:focus-within {
+  background: var(--table-hover, #d8e3d1);
+}
+
+/* Grid cards keep their own surface; only their hover changes. */
+.document-items.is-grid .document-row.is-striped {
+  background: transparent;
 }
 
 .ui-autocomplete {
