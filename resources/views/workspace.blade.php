@@ -28,34 +28,11 @@
         </div>
     @endif
     @if ($section==='overview')
-        <section class="welcome-banner">
-            <div>
-                <span class="eyebrow">A LITTLE MORE ORDER. A LOT MORE PEACE OF MIND.</span>
-                <h2>A secure home for your school documents.</h2>
-                <p>{{ $readOnly?'Review documents and follow repository activity across this workspace.':'Store files, share with staff, and preserve every version.' }}</p>
-            </div>
-            <span class="banner-emblem"><x-figma-icon name="folder-hero" :size="44" /></span>
-        </section>
         @include ('partials.stats')
     @endif
+    {{-- Library views live in the sidebar under MY LIBRARY, so they are not repeated here.
+         Sidebar "Documents" is the all-views landing, which covers the missing "All documents" tab. --}}
     @if (in_array($section,['overview','documents']))
-        @if ($section==='documents')
-            <nav class="library-tabs" aria-label="Library views">
-                @foreach (($readOnly?['all'=>'All documents','trash'=>'Trash']:['all'=>'All documents','mine'=>'My documents','shared'=>'Shared with me','starred'=>'Starred','trash'=>'Trash']) as $key=>$label)
-                    <a
-                        href="{{ $root }}/documents?view={{ $key }}"
-                        class="{{ $view===$key?'active':'' }}"
-                        data-library-view="{{ $key }}"
-                        @if ($view===$key) aria-current="page" @endif
-                        ><span class="tab-full">{{ $label }}</span
-                        ><span
-                            class="tab-short"
-                            >{{ ['all'=>'All files','mine'=>'My files','shared'=>'Shared','starred'=>'Starred','trash'=>'Trash'][$key] }}</span
-                        ></a
-                    >
-                @endforeach
-            </nav>
-        @endif
         @if ($view==='shared')
             <div class="info-strip">
                 <x-figma-icon name="link-notice" :size="24" />
@@ -142,6 +119,30 @@
         @endif
         @unless (in_array($view,['shared','starred','trash']))
             <div class="folder-grid">
+                @if ($folder)
+                    @php
+                        // Every open folder offers a way out. A nested folder goes to its
+                        // parent; a top-level folder goes to the drive root, so no folder
+                        // view is ever a dead end.
+                        $upHref=$parentFolder?$root.'/documents?folder='.$parentFolder->id:$root.'/documents';
+                        $upName=$parentFolder?$parentFolder->name:'My drive';
+                        $upSubtitle=$parentFolder?'Parent folder':'Drive root';
+                    @endphp
+                    <a
+                        class="folder-card folder-parent"
+                        href="{{ $upHref }}"
+                        data-folder-id="{{ $parentFolder?->id }}"
+                        data-folder-name="{{ $upName }}"
+                        data-document-count="{{ $parentFolder->document_count??0 }}"
+                        data-source="{{ $parentFolder?->source ?? $source }}"
+                        aria-label="Go up to {{ $upName }}"
+                        ><span class="folder-parent-icon" aria-hidden="true"
+                            ><x-figma-icon
+                                name="folder-card"
+                                :size="28" /><svg class="folder-parent-arrow" viewBox="0 0 24 24" width="18" height="18" fill="none"><path d="M12 19V5M12 5l-6 6M12 5l6 6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg></span
+                        ><span><strong>Up to {{ $upName }}</strong><small>{{ $upSubtitle }}</small></span></a
+                    >
+                @endif
                 @foreach ($folders->where('parent_id',$folder?->id) as $f)
                     <a
                         class="folder-card"

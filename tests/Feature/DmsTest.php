@@ -690,7 +690,10 @@ class DmsTest extends TestCase
         $this->assertDatabaseHas('documents',['id'=>$id,'folder_id'=>$folder,'revision'=>2]);
         $this->assertDatabaseCount('document_versions',1);
         $this->get('/workspaces/ems/documents')->assertOk()->assertViewHas('documents',fn($rows)=>$rows->count()===0);
-        $this->get('/workspaces/ems/documents?folder='.$folder)->assertOk()->assertSee('Synthetic staff file')->assertSee('data-global-back',false);
+        // Inside a folder, navigation out is the "Up to ..." tile rather than the
+// global Back button, which is now reserved for the document preview.
+$this->get('/workspaces/ems/documents?folder='.$folder)->assertOk()->assertSee('Synthetic staff file')->assertDontSee('data-global-back',false)->assertViewHas('folder',fn($row)=>$row->id===$folder)->assertViewHas('parentFolder',fn($row)=>is_null($row));
+$this->get('/documents/'.$id)->assertOk()->assertSee('data-global-back',false);
         $this->patchJson('/documents/'.$id,array_replace($input,['folder_id'=>null]))->assertConflict();
         $other=$this->staff(['role'=>'staff']);
         DB::table('shares')->insert(['document_id'=>$id,'recipient_id'=>$other->id,'permission'=>'Editor','created_at'=>now(),'updated_at'=>now()]);
