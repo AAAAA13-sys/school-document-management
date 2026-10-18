@@ -84,7 +84,7 @@
         <section class="panel">
             <div class="panel-header"><h2>School staff</h2></div>
             <div class="table-responsive">
-                <table class="table" data-filter-table id="staff-table">
+                <table class="table table-zebra" data-filter-table id="staff-table">
                     <thead>
                         <tr>
                             <th>Staff member</th>
@@ -143,7 +143,7 @@
         <section class="panel">
             <div class="panel-header"><h2>Connector identities</h2></div>
             <div class="table-responsive">
-                <table class="table">
+                <table class="table table-zebra">
                     <thead>
                         <tr>
                             <th>Connection</th>
@@ -182,7 +182,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr>
+                            <tr class="is-empty">
                                 <td colspan="5">
                                     <div class="empty-state">
                                         <h3>No ERP connectors yet</h3>
@@ -224,7 +224,7 @@
         <section class="panel">
             <div class="panel-header"><h2>School documents</h2></div>
             <div class="table-responsive">
-                <table class="table" data-filter-table>
+                <table class="table table-zebra" data-filter-table>
                     <thead>
                         <tr>
                             <th>Document</th>
@@ -246,7 +246,7 @@
                                 <td>{{ Illuminate\Support\Carbon::parse($item->updated_at)->format('M d, Y') }}</td>
                             </tr>
                         @empty
-                            <tr>
+                            <tr class="is-empty">
                                 <td colspan="5" class="py-5 text-center">No documents found.</td>
                             </tr>
                         @endforelse
@@ -268,7 +268,7 @@
         <section class="panel">
             <div class="panel-header"><h2>Versions awaiting attention</h2></div>
             <div class="table-responsive">
-                <table class="table">
+                <table class="table table-zebra">
                     <thead>
                         <tr>
                             <th>Document</th>
@@ -296,7 +296,7 @@
                                 <td>{{ Illuminate\Support\Carbon::parse($scan->created_at)->format('M d · H:i') }}</td>
                             </tr>
                         @empty
-                            <tr>
+                            <tr class="is-empty">
                                 <td colspan="5">
                                     <div class="empty-state">
                                         <h3>No files awaiting attention</h3>
@@ -327,7 +327,7 @@
         <section class="panel">
             <div class="panel-header"><h2>Repository activity</h2></div>
             <div class="table-responsive">
-                <table class="table" data-filter-table>
+                <table class="table table-zebra" data-filter-table>
                     <thead>
                         <tr>
                             <th>Action</th>
@@ -360,7 +360,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr>
+                            <tr class="is-empty">
                                 <td colspan="5" class="py-5 text-center">No audit entries yet.</td>
                             </tr>
                         @endforelse

@@ -3088,6 +3088,70 @@ body.login-page {
   font-size: 12px;
 }
 
+/* ==========================================================================
+   Phase 1 — Zebra tables. Single source of truth for data-table striping.
+
+   Colours come from :root tokens rather than literals, and the stripe is fed
+   through Bootstrap's own table custom properties so a future Bootstrap
+   upgrade cannot silently override it.
+
+   Every tbody rule is scoped `.table.table-zebra` (two classes) on purpose:
+   the pre-existing `.table tbody tr:hover > td` above sits at specificity
+   (0,2,3), so a single-class hover rule would lose to it. Two classes wins
+   at (0,3,2) without resorting to !important.
+   ========================================================================== */
+
+.table-zebra {
+  /* A green-tinted light gray. The plan's reference value #f2f2f2 is a cold
+     neutral and reads as foreign next to --canvas / --line.
+
+     State steps are tuned on CIE L*, not on the WCAG ratio — a ratio between
+     two large backgrounds badly understates how different they look. Targets:
+     stripe->hover ~3, hover->active ~3, so every state is separable at a
+     glance while all of them still clear AA against --muted body text. */
+  --table-stripe: #f2f5f1; /* L* 96.2 */
+  --table-hover: #e5eee7; /* L* 93.3 */
+  --table-active: #d8e8de; /* L* 90.6 */
+
+  --bs-table-bg: var(--surface);
+  --bs-table-striped-bg: var(--table-stripe);
+  --bs-table-hover-bg: var(--table-hover);
+  --bs-table-active-bg: var(--table-active);
+}
+
+/* Base row. Bootstrap tints odd rows, so the first data row sits directly
+   under the canvas-coloured header. */
+.table.table-zebra > tbody > tr > * {
+  background-color: var(--bs-table-bg);
+}
+
+.table.table-zebra > tbody > tr:nth-of-type(odd) > * {
+  background-color: var(--bs-table-striped-bg);
+}
+
+/* Hover has to be a decisive luminance step from the stripe. The previous
+   #f0f6ef sits at L* 96.3 against the stripe's 96.2 — a difference of 0.06,
+   so a hovered striped row was indistinguishable from a resting one. */
+.table.table-zebra > tbody > tr:hover > * {
+  background-color: var(--bs-table-hover-bg);
+}
+
+.table.table-zebra > tbody > tr.table-active > * {
+  background-color: var(--bs-table-active-bg);
+}
+
+/* Active outranks hover so a selected row stays identifiable under the
+   pointer. Declared last to win the (0,3,2) tie with the hover rule. */
+.table.table-zebra > tbody > tr.table-active:hover > * {
+  background-color: var(--bs-table-active-bg);
+}
+
+/* A merged empty-state cell is a message, not a record. Striping a
+   full-width cell reads as a rendering fault, so it stays plain. */
+.table.table-zebra > tbody > tr.is-empty > * {
+  background-color: var(--bs-table-bg);
+}
+
 .ui-autocomplete {
   padding: 6px;
   font-size: 15px;

@@ -177,7 +177,7 @@
                 <h2>{{ $section==='history'?'Received events':'Latest source snapshots' }}</h2>
             </div>
             <div class="table-responsive">
-                <table class="table records-table" data-filter-table>
+                <table class="table table-zebra records-table" data-filter-table>
                     <thead>
                         <tr>
                             <th scope="col">Record</th>
@@ -216,7 +216,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr>
+                            <tr class="is-empty">
                                 <td colspan="6">
                                     <div class="empty-state">
                                         <h3>No records received yet</h3>
