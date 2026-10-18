@@ -1,5 +1,7 @@
 # PLP Document Management System
 
+> **Ongoing planning — 18 October 2026:** [Integration and implementation plan](docs/DMS-INTEGRATION-IMPLEMENTATION-PLAN.md), especially sections 14–15, records the latest role authority, sensitive-change approvals, invitation-only staff accounts, login/settings lifecycle, Figma handoff and team ownership. These requirements supersede earlier planning assumptions; they are **not implemented by this documentation update**. Tomas requested planning only. The current-behavior checklist below remains a separate record of the existing application.
+
 Centralized document storage, version history and controlled sharing for Pamantasan ng Lungsod ng Pasig. The application can operate on its own and receive documents and transaction history from four ERP systems.
 
 **Working checklist updated: October 17, 2026.** This README organizes the professor’s meeting feedback alongside the current implementation. Checked items describe existing functionality, not final evaluator acceptance. Unchecked items need decisions, implementation or presentation evidence. No overall completion percentage is claimed.

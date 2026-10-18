@@ -1,3 +1,5 @@
+> Historical SDD roadmap. For the latest client decisions, priorities and team handoff, use [the ongoing integration implementation plan](DMS-INTEGRATION-IMPLEMENTATION-PLAN.md), especially sections 14–15 (18 October 2026). Planning only: Super Admin authority, sensitive-change approvals and invitation-only account lifecycle are not implemented by this update.
+
 IMPLEMENTATION PLAN — DMS
 Basis: DMS-SDD v0.1. Dates/phases pending Enterprise Architect (Section 12.1).
 Delivery principle: Hosting-neutral; configuration-driven; one Laravel app; low cost.
