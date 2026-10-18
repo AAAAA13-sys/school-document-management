@@ -441,6 +441,19 @@
       $('#payload-content').text(pretty);
     });
     let staffFilter = 'all';
+    // Zebra striping for the document list. :nth-of-type cannot be used because
+    // it counts rows the filter has hidden, so parity is applied here over the
+    // visible rows only. Grid layout keeps its card surfaces and is skipped.
+    function restripeDocuments() {
+      const list = document.getElementById('document-items');
+      if (!list || list.classList.contains('is-grid')) return;
+      let stripe = false;
+      for (const row of list.querySelectorAll('.document-row')) {
+        if (row.hidden) continue;
+        row.classList.toggle('is-striped', stripe);
+        stripe = !stripe;
+      }
+    }
     function filter() {
       const q = String(
         $('[data-search-form] input[type="search"]').val() || ''
@@ -461,6 +474,10 @@
         row.prop('hidden', !show);
         if (show) visible++;
       });
+      // Re-stripe on the visible sequence. CSS :nth-of-type counts hidden rows
+      // too, so filtering to a result set leaves two identical bands adjacent
+      // wherever a hidden row sat between two survivors.
+      restripeDocuments();
       $('#document-empty').prop('hidden', visible > 0);
       $('[data-filter-table] tbody tr').each(function () {
         const row = $(this);
