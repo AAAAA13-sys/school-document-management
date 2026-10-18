@@ -790,6 +790,35 @@ main#main {
   border-color: #8daa93;
 }
 
+/* "Up to <parent>" tile. Sits first in the folder grid as the way out of a
+   nested folder. Dashed and green-tinted so it reads as navigation rather
+   than as a real sibling folder that could be dragged into. */
+.folder-card.folder-parent {
+  border-style: dashed;
+  background: var(--green-100);
+  border-color: #b9d3c2;
+}
+
+.folder-card.folder-parent:hover,
+.folder-card.folder-parent:focus-visible {
+  border-color: var(--green-800);
+  background: #dcebe1;
+}
+
+.folder-parent-icon {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+
+.folder-parent-arrow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -52%);
+  stroke: var(--green-800);
+}
+
 .panel {
   background: #fff;
   border: 1px solid var(--line);
@@ -3150,6 +3179,24 @@ body.login-page {
    full-width cell reads as a rendering fault, so it stays plain. */
 .table.table-zebra > tbody > tr.is-empty > * {
   background-color: var(--bs-table-bg);
+}
+
+/* D-4 — sticky header for long scrollable tables (audit trail, repository).
+   The rule targets `th`, not `thead`: position:sticky on a <thead> is unreliable
+   in older Safari, and on <th> it survives the overflow context. */
+.table-sticky thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--canvas);
+  box-shadow: inset 0 -1px 0 var(--line);
+}
+
+/* Long tables opt in by capping their height, which is what creates the
+   vertical scroll the sticky header reacts to. */
+.table-scroll-y {
+  max-height: 70vh;
+  overflow-y: auto;
 }
 
 .ui-autocomplete {

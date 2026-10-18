@@ -262,7 +262,12 @@
         button.prop('disabled', false);
       }
     });
+    // D-11: jQuery UI drag is pointer-only and fights native touch scrolling.
+    // On a coarse pointer the move menu is the primary path, so drag is disabled
+    // and scroll stays predictable. Desktop behaviour is untouched.
+    const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
     $('.document-row[data-can-move="true"]').draggable({
+      disabled: coarsePointer,
       handle: '.file-cell',
       cancel: 'button,input,select,textarea,.document-actions',
       distance: 8,
@@ -287,6 +292,17 @@
       drop: function (event, ui) {
         moveDocument(ui.draggable, this.dataset.folderId);
       },
+    });
+    // D-5: Bootstrap does not close a dropdown when another one opens, so two
+    // row menus can be open at once. Close any other open menu first.
+    $(document).on('show.bs.dropdown', function (event) {
+      const opening = event.target;
+      $('.dropdown-menu.show')
+        .filter((_, menu) => menu !== opening.parentElement.querySelector('.dropdown-menu'))
+        .each((__, menu) => {
+          const toggle = $(menu).closest('.dropdown').find('[data-bs-toggle="dropdown"]')[0];
+          if (toggle && toggle !== opening) bootstrap.Dropdown.getInstance(toggle)?.hide();
+        });
     });
     document.querySelectorAll('.document-menu-toggle').forEach(
       (toggle) =>
@@ -320,6 +336,21 @@
         .filter(':visible')
         .first()
         .trigger('focus');
+    });
+    // D-3: remember what opened the dialog so focus can be handed back on close.
+    // Bootstrap moves focus into the modal itself, which strands keyboard users
+    // on <body> after Esc or the backdrop.
+    $(document).on('show.bs.modal', '.modal', function () {
+      this._returnFocus =
+        document.activeElement && document.activeElement !== document.body
+          ? document.activeElement
+          : null;
+    });
+    $(document).on('hidden.bs.modal', '.modal', function () {
+      const target = this._returnFocus;
+      if (target && document.body.contains(target)) {
+        target.focus();
+      }
     });
     $('.datepicker').datepicker({
       dateFormat: 'yy-mm-dd',
@@ -449,7 +480,15 @@
         filter();
       }
     });
-    $('[data-search-form] input[type="search"]').on('input', filter);
+    // D-10: debounce the client-side filter. Filtering every keystroke re-scans
+    // every row and re-reads location.search inside the loop, which is visibly
+    // slow on long lists. Selects still fire immediately.
+    let filterTimer = null;
+    const filterSoon = () => {
+      clearTimeout(filterTimer);
+      filterTimer = setTimeout(filter, 180);
+    };
+    $('[data-search-form] input[type="search"]').on('input', filterSoon);
     $('#repository-source,#repository-class,#audit-source').on('change', filter);
     $('[data-staff-filter]').on('click', function () {
       staffFilter = this.dataset.staffFilter;
@@ -781,7 +820,16 @@
             return this.dataset.documentId === id;
           });
           state[id].starred = !(state[id].starred ?? row.attr('data-starred') === 'true');
-          form.find('button').text(state[id].starred ? 'Remove star' : 'Star document');
+          // D-9: keep the accessible state in step with the visible label.
+          const starButton = form.find('button');
+          starButton.text(state[id].starred ? 'Remove star' : 'Star document');
+          starButton
+            .attr('aria-pressed', String(state[id].starred))
+            .attr(
+              'aria-label',
+              (state[id].starred ? 'Remove star from ' : 'Star ') +
+                (form.attr('data-document-title') || 'document')
+            );
           toast(state[id].starred ? 'Starred in this preview.' : 'Star removed in this preview.');
         }
         if (action === 'trash' || action === 'restore') {

@@ -326,8 +326,8 @@
         </form>
         <section class="panel">
             <div class="panel-header"><h2>Repository activity</h2></div>
-            <div class="table-responsive">
-                <table class="table table-zebra" data-filter-table>
+            <div class="table-responsive table-scroll-y">
+                <table class="table table-zebra table-sticky" data-filter-table>
                     <thead>
                         <tr>
                             <th>Action</th>
