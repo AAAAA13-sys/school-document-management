@@ -2,7 +2,7 @@
 
 Prepared and updated: 18 October 2026. Status: planning only, not a completion report.
 
-**Resume here:** sections 14–15 record the latest client decisions about role authority, sensitive-change approvals, invitation-only accounts and the next team handoff. These decisions supersede the 17 October read-only Super Admin policy and earlier account-creation assumptions. No role, approval or invitation implementation is delivered by this document. The client explicitly stopped implementation and requested planning only.
+**Resume here:** section 16 records the latest invitation hierarchy and scope clarifications; it supersedes conflicting earlier medical-scope and email-domain assumptions. Sections 14–15 record the latest client decisions about role authority, sensitive-change approvals, invitation-only accounts and the next team handoff. These decisions supersede the 17 October read-only Super Admin policy and earlier account-creation assumptions. No role, approval or invitation implementation is delivered by this document. The client explicitly stopped implementation and requested planning only.
 
 ## 1. Purpose and outcome
 
@@ -416,7 +416,7 @@ Before implementation, confirm the fallback when no scoped Admin is available, c
 | Phase                                    | Planned behavior                                                                                                                                                                                         | Acceptance evidence                                                                                                                                                                          |
 | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Staff eligibility and invitation request | Verify the staff identity/roster, intended application role and workspace membership. Super Admin invites directly; Admin proposes only Staff within delegated scope for Super Admin approval.           | Students, anonymous registrants, arbitrary connector payloads and unauthorized inviters cannot provision accounts.                                                                           |
-| Invitation approval and delivery         | Only after required approval, send an invitation to the verified work email. Show Invited/Pending activation separately from Active and Suspended. Record who invited and approved.                      | No active login or welcome email is created merely by a pending request. Delivery failure is visible and retryable.                                                                          |
+| Invitation approval and delivery         | Only after required approval, send an invitation to the verified recipient email (personal or institutional). Show Invited/Pending activation separately from Active and Suspended. Record who invited and approved.                      | No active login or welcome email is created merely by a pending request. Delivery failure is visible and retryable.                                                                          |
 | First-time activation                    | An expiring, single-use link lets the recipient set and confirm their own strong DMS password. Store only token hashes; protect acceptance with validation, throttling and CSRF.                         | Invalid, expired, used, superseded or suspended-account invitations fail safely; accepted invitations cannot be replayed.                                                                    |
 | Normal sign-in                           | Individual DMS email/password; normalized email, generic failure message, throttling and session renewal. Check active/activated state on sign-in and subsequent requests.                               | Invited-but-unactivated and suspended accounts cannot sign in. Role/workspace determine the landing page and available controls.                                                             |
 | Staff landing page                       | Personal documents, Shared with me, permitted School documents and own request history. Staff do not receive Super Admin navigation.                                                                     | Faculty, librarian, secretary and ERP Staff can participate with one DMS identity and no configured ERP token.                                                                               |
@@ -460,3 +460,64 @@ Required integrated demonstrations before completion:
 - A memo correction stays private until its exact version is approved for release; OAS-to-ES retrieval uses explicit grants and the same preserved document/version IDs.
 
 Completion claims must separate planning decisions, implemented runtime behavior, automated tests, browser demonstrations and actual partner/SMTP/ClamAV verification. This commit preserves discussion context; it does not certify those features as delivered.
+
+
+## 16. Confirmed invitation hierarchy and scope clarification — 18 October 2026
+
+This section records the latest discussion and takes precedence over conflicting earlier assumptions. This is an implementation-plan update only, not authorization to implement application features.
+
+### 16.1 Current integration scope and medical references
+
+The confirmed integration scope is EMS, PMS, ES and OAS. The design remains open to future approved integrations; extensibility does not make additional systems current requirements.
+
+A separate Clinic integration and its Super Admin access policy are not confirmed. Earlier medical references in this plan were attributed to an OAS SDD; that underlying source has not been independently verified in the current review. Treat those passages, inventory rows and Clinic acceptance examples as conditional proposals, not confirmed scope or an established Clinic-only policy. First verify with the OAS owner whether medical files enter DMS at all. If confirmed, agree their inventory and access rules before intake; do not infer unrestricted access or a particular specialist exception from this clarification.
+
+The agreed general Super Admin authority within school/campus remains as stated in section 14. Medical-specific exceptions remain unresolved only if those records are confirmed for inclusion.
+
+### 16.2 Hierarchical invitations with an audit trail
+
+Confirmed invitation hierarchy: **Super Admin (SA) -> Admin (A) -> Staff / ERP Representative (S/ERP Rep)**.
+
+| Inviter / recipient | Planned authority |
+| ------------------ | ----------------- |
+| Super Admin -> Admin | Super Admin invites a named Admin and assigns its delegated workspace/scope. |
+| Admin -> Staff / ERP Representative | Admin proposes colleagues within its delegated workspace; Super Admin approval is required before sending under the existing account/access approval policy. |
+| Staff / ERP Representative | Accepts its own invitation; cannot invite others, assign roles or delegate invitation authority. |
+
+ERP Representative is an affiliation/responsibility under the Staff application role, not a fourth global role. An ERP high-privilege user can act as a DMS inviter only after Super Admin explicitly assigns that person the appropriate DMS Admin authority. ERP rank, connector ownership or a claimed role in an incoming payload does not confer that authority automatically.
+
+Use an individual, expiring, single-use invitation link bound to the intended recipient and approved role/membership. Do not use a reusable public or office-wide registration link. Recipients set their own DMS password. Preserve the no-self-approval rule and recheck inviter/approver authority before applying the approved assignment.
+
+Audit the invitation request, approval/rejection, authorized inviter and approver, intended recipient, role, school/campus and workspace assignment, delivery attempt/result and activation. Record lifecycle changes such as resend, revocation and expiry without storing raw invitation tokens or passwords in audit entries. Record actual state truthfully: queued or SMTP-accepted mail is not proof of recipient delivery or activation.
+
+### 16.3 Candidate sources and email addresses
+
+There is no school-wide managed email domain. Invitations must accommodate verified personal as well as institutional addresses. Address ownership verification does not by itself establish school staff eligibility; an authorized inviter must confirm the person's staff status.
+
+CSV/Excel bulk invitation preparation is under consideration, alongside individual invitations. It is not yet a selected import implementation. A proposed workflow is import -> validation/deduplication -> assignment review -> required approval -> queued invitations -> per-recipient results. Each recipient remains subject to the same hierarchy and activation controls. Final columns, accepted file formats and bulk approval behavior remain to be agreed.
+
+Existing accounts in the four ERPs are being considered as evidence of staff eligibility. This is not yet an automatic-access or shared-login decision. Confirm which ERP account types identify active staff, their stable identifiers and trustworthy status source. Applicant/student accounts do not qualify under the staff-only scope. ERP-assisted candidate submission must use an agreed authenticated interface, not arbitrary received-history payloads.
+
+Keep one named DMS identity per person across ERP affiliations; add approved memberships rather than duplicate accounts. Identity matching, conflicting email/identifier handling and transfer/departure updates need an explicit contract. Do not automatically merge accounts solely on a name match. Maintain standalone invitations for eligible staff without ERP accounts or while an ERP is disconnected.
+
+### 16.4 Remaining decisions and operational dependencies
+
+- No-scoped-Admin fallback, absence coverage and reassignment: TBD; do not enable timeout-based automatic approval.
+- Final document inventories, classification minimums and publication authority: TBD.
+- CSV/Excel import choice, verified roster source, ERP eligibility interface and identity matching: under consideration.
+- Invitation expiration/resend values and recovery rules: system policy/configuration decisions still to be defined.
+- Real mail delivery: requires configured SMTP/mail service and a functioning queue worker, with visible failures and retries; do not report log-mail output as sent email.
+- SSO and reuse of ERP sign-in: separate future decision; invitations do not require a common email domain or shared ERP passwords.
+
+### 16.5 Planning handoff and acceptance additions
+
+- Tomas: confirm the invitation hierarchy contract and ERP staff eligibility sources; verify any OAS medical-file requirement before treating Clinic rules as scope.
+- Samuel: specify scoped invitation authorization, approval transitions, recipient binding, identity deduplication and audit events.
+- David: design SA Admin-invite, Admin colleague-invite, pending approval, activation and delivery-result screens.
+- Yuri: include negative cases for Staff inviting, Admin granting Admin, out-of-workspace invitations, replayed links, duplicate identities and mail failures.
+- Demonstrate SA invites Admin -> Admin activates -> Admin proposes Staff/ERP Rep -> SA approves -> individual invitation -> recipient activation, with a traceable audit trail.
+- Demonstrate that personal email addresses are accepted, pending invitations do not grant access, and an ERP role claim cannot elevate DMS privileges.
+
+External research references discussed (Microsoft CSV invitations, OWASP authorization, OpenID Connect, SCIM, NIST federation and NPC privacy guidance) are background options, not adopted dependencies or approved project requirements. The ERP SDDs and architecture images remain project evidence to verify, not proof that provisioning or SSO already exists.
+
+This update changes documentation only. No role, invitation, SMTP, medical-access or ERP provisioning feature is delivered by this commit.
