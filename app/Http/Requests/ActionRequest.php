@@ -32,9 +32,10 @@ class ActionRequest extends FormRequest
         return match ($this->route()->getName()) {
             'folders.create' => ['name' => 'required|string|max:150', 'parent_id' => 'nullable|uuid', 'source' => 'required|in:EMS,PMS,ES,OAS,DMS'],
             'folders.update' => ['name' => 'required|string|max:150', 'parent_id' => 'nullable|uuid', 'revision' => 'required|integer|min:1'],
-            'documents.update' => ['classification' => 'sometimes|required|in:Internal,Confidential,Restricted', 'title' => 'required|string|max:200', 'folder_id' => 'nullable|uuid', 'revision' => 'required|integer|min:1'],
+            'documents.update' => ['classification' => 'sometimes|required|in:Internal,Confidential,Restricted', 'title' => 'required|string|max:200', 'folder_id' => 'nullable|uuid', 'revision' => 'required|integer|min:1', 'confirm_move' => 'sometimes|boolean'],
             'documents.trash', 'documents.restore' => ['revision' => 'required|integer|min:1'],
             'shares.create' => ['recipient_id' => 'required|integer', 'permission' => 'required|in:Viewer,Commenter,Editor', 'expires_at' => 'nullable|date|after:now', 'version_id' => 'nullable|uuid'],
+            'folder-shares.create' => ['recipient_id' => 'required|integer', 'permission' => 'required|in:Viewer,Commenter,Editor', 'expires_at' => 'nullable|date|after:now'],
             'comments.create' => ['body' => 'required|string|max:2000'],
             'accounts.create', 'accounts.update' => [
                 'name' => 'required|string|max:255', 'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore($this->route('account'))],

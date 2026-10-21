@@ -420,7 +420,7 @@ class DmsTest extends TestCase
     {
         $user = $this->staff();
         $data = ['source' => 'EMS', 'classification' => 'Internal', 'submission_key' => 'folder-batch', 'paths' => ['Office/one.txt', 'Office/2026/two.txt']];
-        $files = fn () => ['files' => [$this->file('one.txt'), $this->file('two.txt')]];
+        $files = fn () => ['files' => [$this->file('one.txt', 'Office one contents'), $this->file('two.txt', 'Office two contents')]];
         $this->actingAs($user)->postJson('/documents/batch', $data + $files())->assertCreated()->assertJsonPath('results.0.scan_status', 'Pending');
         $this->postJson('/documents/batch', $data + $files())->assertCreated()->assertJsonPath('results.0.status', 200);
         $this->assertDatabaseCount('documents', 2);
@@ -514,7 +514,7 @@ class DmsTest extends TestCase
         $admin=$this->staff(['role'=>'super_admin','source'=>'DMS']);
         DB::table('documents')->where('id',$doc->id)->update(['owner_id'=>$admin->id]);
         $this->actingAs($admin)->get('/documents/'.$doc->id)->assertOk()->assertSee('Read-only oversight')->assertDontSee('Upload new version')->assertDontSee('Manage access')->assertDontSee('Post comment')->assertDontSee('Move to trash');
-        foreach ([['POST','/documents'],['POST','/documents/batch'],['POST','/documents/'.$doc->id.'/versions'],['PATCH','/documents/'.$doc->id],['POST','/documents/'.$doc->id.'/trash'],['POST','/documents/'.$doc->id.'/restore'],['POST','/documents/'.$doc->id.'/star'],['POST','/documents/'.$doc->id.'/shares'],['DELETE','/documents/'.$doc->id.'/shares/1'],['POST','/documents/'.$doc->id.'/comments'],['POST','/folders'],['PATCH','/folders/fixture']] as [$method,$url]) {
+        foreach ([['POST','/documents'],['POST','/documents/batch'],['POST','/documents/'.$doc->id.'/versions'],['PATCH','/documents/'.$doc->id],['POST','/documents/'.$doc->id.'/trash'],['POST','/documents/'.$doc->id.'/restore'],['POST','/documents/'.$doc->id.'/star'],['POST','/documents/'.$doc->id.'/shares'],['DELETE','/documents/'.$doc->id.'/shares/1'],['POST','/documents/'.$doc->id.'/comments'],['POST','/folders'],['PATCH','/folders/fixture'],['POST','/folders/fixture/shares'],['DELETE','/folders/fixture/shares/1']] as [$method,$url]) {
             $this->json($method,$url,[])->assertForbidden();
         }
         $this->assertDatabaseHas('documents',['id'=>$doc->id,'revision'=>1,'trashed_at'=>null]);
@@ -607,7 +607,7 @@ class DmsTest extends TestCase
     {
         $user=$this->staff(['role'=>'admin','source'=>'EMS']);
         foreach (['README','archive.zip','audio.mp3','drawing.svg'] as $index=>$filename) {
-            $this->actingAs($user)->postJson('/documents',['source'=>'EMS','classification'=>'Internal','title'=>$filename,'submission_key'=>'format-'.$index,'file'=>$this->file($filename,"Synthetic binary fixture\x00\x01")])->assertCreated()->assertJsonPath('scan_status','Pending');
+            $this->actingAs($user)->postJson('/documents',['source'=>'EMS','classification'=>'Internal','title'=>$filename,'submission_key'=>'format-'.$index,'file'=>$this->file($filename,"Synthetic binary fixture {$index}\x00\x01")])->assertCreated()->assertJsonPath('scan_status','Pending');
         }
         $this->postJson('/documents/batch',['source'=>'EMS','classification'=>'Internal','submission_key'=>'any-format-folder','paths'=>['Archive/package.7z'],'files'=>[$this->file('package.7z','Synthetic archive fixture')]])->assertCreated()->assertJsonPath('results.0.scan_status','Pending');
         $this->withToken($this->token)->withHeader('Idempotency-Key','any-format-api')->postJson('/api/v1/documents',['title'=>'Binary evidence','classification'=>'Internal','file'=>$this->file('evidence.bin',"\x00\x01\x02")])->assertCreated()->assertJsonPath('scan_status','Pending');
@@ -704,5 +704,316 @@ $this->get('/documents/'.$id)->assertOk()->assertSee('data-global-back',false);
         $this->patchJson('/documents/'.$id,array_replace($input,['folder_id'=>$badFolder,'revision'=>3]))->assertForbidden();
         $this->assertDatabaseHas('documents',['id'=>$id,'folder_id'=>null,'revision'=>3]);
         $this->get('/workspaces/ems/documents')->assertOk()->assertSee('Move to folder')->assertSee('data-can-move="true"',false);
+    }
+
+    public function test_duplicate_upload_warns_without_leaking_and_accepts_an_intentional_copy(): void
+    {
+        $user = $this->staff(['role' => 'staff']);
+        $id = $this->upload($user);
+        $base = ['source' => 'EMS', 'classification' => 'Internal', 'submission_key' => 'duplicate-probe'];
+
+        // A renamed duplicate is still detected, and only a document this user may open is named.
+        $this->actingAs($user)->postJson('/documents', $base + ['title' => 'Renamed copy', 'file' => $this->file('renamed.txt')])
+            ->assertStatus(409)
+            ->assertJsonPath('code', 'duplicate_file')
+            ->assertJsonPath('duplicates.0.document_id', $id)
+            ->assertJsonPath('duplicates.0.can_add_version', true)
+            ->assertJsonMissingPath('duplicates.0.checksum')
+            ->assertJsonMissingPath('duplicates.0.filename')
+            ->assertJsonMissingPath('duplicates.0.storage_key');
+        $this->assertDatabaseCount('documents', 1);
+        // Rejected duplicates never leave bytes behind in private storage.
+        $this->assertCount(1, Storage::disk('local')->allFiles('documents'));
+
+        // Identical bytes as a new version of the same document are not a duplicate.
+        $this->post('/documents/'.$id.'/versions', ['source' => 'EMS', 'revision' => 1, 'submission_key' => 'same-bytes', 'file' => $this->file('same.txt')])->assertRedirect();
+        $this->assertDatabaseCount('document_versions', 2);
+
+        // The same submission key still succeeds once the caller confirms a separate record.
+        $this->actingAs($user)->postJson('/documents', $base + ['title' => 'Renamed copy', 'confirm_duplicate' => true, 'file' => $this->file('renamed.txt')])
+            ->assertCreated();
+        $this->assertDatabaseCount('documents', 2);
+        $confirmed = DB::table('audit_entries')->where('action', 'document.uploaded')->orderByDesc('id')->first();
+        $this->assertSame([$id], json_decode($confirmed->details, true)['duplicate_of']);
+    }
+
+    public function test_duplicate_checks_respect_hidden_documents_trash_and_pinned_grants(): void
+    {
+        $owner = $this->staff(['role' => 'staff']);
+        $id = $this->upload($owner);
+        $outsider = $this->staff(['role' => 'staff']);
+
+        // A user who cannot see the document learns nothing and is not blocked.
+        $this->actingAs($outsider)->postJson('/documents', ['source' => 'EMS', 'classification' => 'Internal', 'title' => 'My own copy', 'submission_key' => 'outsider-copy', 'file' => $this->file('mine.txt')])->assertCreated();
+
+        // Trashed documents are never offered as an existing copy.
+        $this->actingAs($owner)->post('/documents/'.$id.'/trash', ['revision' => 1])->assertRedirect();
+        $this->postJson('/documents', ['source' => 'EMS', 'classification' => 'Internal', 'title' => 'After trash', 'submission_key' => 'after-trash', 'file' => $this->file('after-trash.txt')])->assertCreated();
+
+        // Version-pinned grants hide versions the recipient may not open.
+        $pinner = $this->staff();
+        $this->upload($pinner, ['file' => $this->file('pinned-v1.txt', 'Pinned version one')]);
+        $docId = DB::table('documents')->where('owner_id', $pinner->id)->value('id');
+        $this->actingAs($pinner)->post('/documents/'.$docId.'/versions', ['source' => 'EMS', 'revision' => 1, 'submission_key' => 'pinned-v2', 'file' => $this->file('pinned-v2.txt', 'Pinned version two')])->assertRedirect();
+        $firstVersion = DB::table('document_versions')->where('document_id', $docId)->where('number', 1)->first();
+        $this->post('/documents/'.$docId.'/shares', ['recipient_id' => $outsider->id, 'permission' => 'Viewer', 'version_id' => $firstVersion->id])->assertRedirect();
+        $this->actingAs($outsider)->postJson('/documents', ['source' => 'EMS', 'classification' => 'Internal', 'title' => 'Hidden version bytes', 'submission_key' => 'pinned-probe-1', 'file' => $this->file('probe-a.txt', 'Pinned version two')])->assertCreated();
+        $this->actingAs($outsider)->postJson('/documents', ['source' => 'EMS', 'classification' => 'Internal', 'title' => 'Visible version bytes', 'submission_key' => 'pinned-probe-2', 'file' => $this->file('probe-b.txt', 'Pinned version one')])
+            ->assertStatus(409)->assertJsonPath('duplicates.0.document_id', $docId);
+    }
+
+    public function test_api_duplicate_warning_is_scoped_to_the_connector_source(): void
+    {
+        $this->withToken($this->token)->withHeader('Idempotency-Key', 'api-dup-1')
+            ->postJson('/api/v1/documents', ['title' => 'ERP copy', 'classification' => 'Internal', 'file' => $this->file('erp.txt', 'ERP payload')])->assertCreated();
+        $this->withHeader('Idempotency-Key', 'api-dup-2')
+            ->postJson('/api/v1/documents', ['title' => 'ERP copy two', 'classification' => 'Internal', 'file' => $this->file('erp2.txt', 'ERP payload')])
+            ->assertStatus(409)->assertJsonPath('code', 'duplicate_file');
+        $this->withHeader('Idempotency-Key', 'api-dup-3')
+            ->postJson('/api/v1/documents', ['title' => 'ERP copy three', 'classification' => 'Internal', 'confirm_duplicate' => true, 'file' => $this->file('erp3.txt', 'ERP payload')])->assertCreated();
+        DB::table('connectors')->insert(['name' => 'Test PMS', 'source' => 'PMS', 'school_id' => 'PLP', 'campus' => 'Main', 'token_hash' => hash('sha256', 'pms-token'), 'active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        $this->withToken('pms-token')->withHeader('Idempotency-Key', 'pms-dup-1')
+            ->postJson('/api/v1/documents', ['title' => 'PMS copy', 'classification' => 'Internal', 'file' => $this->file('pms.txt', 'ERP payload')])->assertCreated();
+        $this->assertDatabaseCount('documents', 3);
+    }
+
+    public function test_folder_batch_reports_a_duplicate_per_file_and_accepts_confirmation(): void
+    {
+        $user = $this->staff();
+        $first = ['source' => 'EMS', 'classification' => 'Internal', 'submission_key' => 'batch-dup-1', 'paths' => ['A/template.txt'], 'files' => [$this->file('template.txt', 'Template bytes')]];
+        $this->actingAs($user)->postJson('/documents/batch', $first)->assertCreated();
+        $second = array_replace($first, ['submission_key' => 'batch-dup-2', 'paths' => ['B/template.txt'], 'files' => [$this->file('template.txt', 'Template bytes')]]);
+        $this->postJson('/documents/batch', $second)->assertStatus(207)
+            ->assertJsonPath('results.0.status', 409)->assertJsonPath('results.0.code', 'duplicate_file');
+        $this->assertDatabaseCount('documents', 1);
+        $this->postJson('/documents/batch', array_replace($second, ['submission_key' => 'batch-dup-3', 'confirm_duplicate' => true]))->assertCreated();
+        $this->assertDatabaseCount('documents', 2);
+    }
+
+    public function test_folder_grants_inherit_to_descendants_and_nearest_permission_wins(): void
+    {
+        $owner = $this->staff();
+        $recipient = $this->staff(['role' => 'staff']);
+        $this->actingAs($owner)->post('/folders', ['source' => 'EMS', 'name' => 'Policies'])->assertRedirect();
+        $root = DB::table('folders')->where('name', 'Policies')->value('id');
+        $this->post('/folders', ['source' => 'EMS', 'name' => '2026', 'parent_id' => $root])->assertRedirect();
+        $child = DB::table('folders')->where('name', '2026')->value('id');
+        $this->upload($owner, ['folder_id' => $root, 'title' => 'Root policy', 'file' => $this->file('root.txt', 'Root bytes')]);
+        $rootDoc = DB::table('documents')->where('title', 'Root policy')->value('id');
+        $this->upload($owner, ['folder_id' => $child, 'title' => 'Child policy', 'file' => $this->file('child.txt', 'Child bytes')]);
+        $childDoc = DB::table('documents')->where('title', 'Child policy')->value('id');
+
+        $this->post('/folders/'.$root.'/shares', ['recipient_id' => $recipient->id, 'permission' => 'Editor'])->assertRedirect();
+        $this->actingAs($owner)->get('/workspaces/ems/documents?folder='.$root)->assertOk()->assertSee('Share folder')->assertSee('Grant folder access')->assertSee($recipient->name);
+        $this->actingAs($recipient)->get('/workspaces/ems/documents')->assertOk()->assertSee('Policies');
+        $this->get('/workspaces/ems/documents?folder='.$child)->assertOk()->assertSee('Child policy');
+        $this->get('/documents/'.$childDoc)->assertOk()->assertSee('Upload new version');
+        $this->post('/documents/'.$childDoc.'/versions', ['source' => 'EMS', 'revision' => 1, 'submission_key' => 'inherited-v2', 'file' => $this->file('child-v2.txt', 'Child second')])->assertRedirect();
+        // Inherited Editor may add versions, but moving, deleting and resharing stay owner actions.
+        $this->postJson('/documents/'.$childDoc.'/trash', ['revision' => 2])->assertForbidden();
+        $this->patchJson('/documents/'.$childDoc, ['title' => 'Moved', 'folder_id' => null, 'revision' => 2])->assertForbidden();
+        $this->postJson('/documents/'.$childDoc.'/shares', ['recipient_id' => $owner->id, 'permission' => 'Viewer'])->assertForbidden();
+
+        // An explicit document grant always wins over folder inheritance.
+        $this->actingAs($owner)->post('/documents/'.$childDoc.'/shares', ['recipient_id' => $recipient->id, 'permission' => 'Viewer'])->assertRedirect();
+        $this->actingAs($recipient)->post('/documents/'.$childDoc.'/comments', ['body' => 'Explicit viewer cannot comment'])->assertForbidden();
+
+        // Nearest folder grant wins: Editor on the parent, Viewer on the child.
+        $narrow = $this->staff(['role' => 'staff']);
+        $this->actingAs($owner)->post('/folders/'.$root.'/shares', ['recipient_id' => $narrow->id, 'permission' => 'Editor'])->assertRedirect();
+        $this->post('/folders/'.$child.'/shares', ['recipient_id' => $narrow->id, 'permission' => 'Viewer'])->assertRedirect();
+        $this->actingAs($narrow)->post('/documents/'.$rootDoc.'/comments', ['body' => 'Root discussion'])->assertRedirect();
+        $this->post('/documents/'.$childDoc.'/comments', ['body' => 'Child comment'])->assertForbidden();
+        $this->assertDatabaseCount('comments', 1);
+
+        // Revoking the folder path removes inherited access immediately, but an
+        // independent explicit document grant survives.
+        $share = DB::table('folder_shares')->where('folder_id', $root)->where('recipient_id', $recipient->id)->first();
+        $this->actingAs($owner)->delete('/folders/'.$root.'/shares/'.$share->id)->assertRedirect();
+        $this->actingAs($recipient)->get('/documents/'.$rootDoc)->assertNotFound();
+        $this->get('/documents/'.$childDoc)->assertOk();
+    }
+
+    public function test_folder_grant_management_is_restricted_and_cross_scope_is_rejected(): void
+    {
+        $owner = $this->staff();
+        $staff = $this->staff(['role' => 'staff']);
+        $foreignSource = $this->staff(['role' => 'admin', 'source' => 'PMS']);
+        $otherCampus = $this->staff(['role' => 'staff', 'campus' => 'Other']);
+        $this->actingAs($owner)->post('/folders', ['source' => 'EMS', 'name' => 'Restricted folder'])->assertRedirect();
+        $folder = DB::table('folders')->where('name', 'Restricted folder')->value('id');
+
+        $this->actingAs($staff)->post('/folders/'.$folder.'/shares', ['recipient_id' => $staff->id, 'permission' => 'Viewer'])->assertForbidden();
+        $this->actingAs($foreignSource)->post('/folders/'.$folder.'/shares', ['recipient_id' => $foreignSource->id, 'permission' => 'Viewer'])->assertForbidden();
+        $this->actingAs($owner)->post('/folders/'.$folder.'/shares', ['recipient_id' => $otherCampus->id, 'permission' => 'Viewer'])->assertStatus(422);
+        $this->post('/folders/'.$folder.'/shares', ['recipient_id' => $foreignSource->id, 'permission' => 'Viewer'])->assertStatus(422);
+        $this->post('/folders/'.$folder.'/shares', ['recipient_id' => $owner->id, 'permission' => 'Viewer'])->assertStatus(422);
+        $this->assertDatabaseCount('folder_shares', 0);
+    }
+
+    public function test_expired_folder_grant_grants_nothing(): void
+    {
+        $owner = $this->staff();
+        $recipient = $this->staff(['role' => 'staff']);
+        $this->actingAs($owner)->post('/folders', ['source' => 'EMS', 'name' => 'Expired access'])->assertRedirect();
+        $folder = DB::table('folders')->where('name', 'Expired access')->value('id');
+        $this->upload($owner, ['folder_id' => $folder, 'title' => 'Expired document', 'file' => $this->file('expired.txt', 'Expired bytes')]);
+        $doc = DB::table('documents')->where('title', 'Expired document')->value('id');
+        DB::table('folder_shares')->insert(['folder_id' => $folder, 'recipient_id' => $recipient->id, 'permission' => 'Viewer', 'expires_at' => now()->subMinute(), 'created_at' => now(), 'updated_at' => now()]);
+        $this->actingAs($recipient)->get('/documents/'.$doc)->assertNotFound();
+        $this->get('/workspaces/ems/documents?folder='.$folder)->assertNotFound();
+    }
+
+    public function test_folder_grant_does_not_expose_hidden_documents_or_other_sources(): void
+    {
+        $owner = $this->staff();
+        $recipient = $this->staff(['role' => 'staff']);
+        $this->actingAs($owner)->post('/folders', ['source' => 'EMS', 'name' => 'Visible folder'])->assertRedirect();
+        $visible = DB::table('folders')->where('name', 'Visible folder')->value('id');
+        $this->post('/folders', ['source' => 'EMS', 'name' => 'Hidden folder'])->assertRedirect();
+        $hidden = DB::table('folders')->where('name', 'Hidden folder')->value('id');
+        $this->upload($owner, ['folder_id' => $visible, 'title' => 'Inherited doc', 'file' => $this->file('inherited.txt', 'Inherited bytes')]);
+        $inherited = DB::table('documents')->where('title', 'Inherited doc')->value('id');
+        $this->upload($owner, ['folder_id' => $hidden, 'title' => 'Hidden doc', 'file' => $this->file('hidden.txt', 'Hidden bytes')]);
+        $hiddenDoc = DB::table('documents')->where('title', 'Hidden doc')->value('id');
+        $this->post('/folders/'.$visible.'/shares', ['recipient_id' => $recipient->id, 'permission' => 'Viewer'])->assertRedirect();
+
+        $this->actingAs($recipient)->get('/documents/'.$inherited)->assertOk();
+        $this->get('/documents/'.$hiddenDoc)->assertNotFound();
+        $this->get('/workspaces/ems/documents?folder='.$hidden)->assertNotFound();
+        $this->get('/workspaces/ems/documents?folder='.$visible)->assertOk()->assertSee('Inherited doc')->assertDontSee('Hidden doc');
+    }
+
+    public function test_moves_between_shared_folders_warn_before_broadening_access_and_update_inheritance(): void
+    {
+        $owner = $this->staff();
+        $sourceRecipient = $this->staff(['role' => 'staff']);
+        $destinationRecipient = $this->staff(['role' => 'staff']);
+        $this->actingAs($owner)->post('/folders', ['source' => 'EMS', 'name' => 'Source folder'])->assertRedirect();
+        $source = DB::table('folders')->where('name', 'Source folder')->value('id');
+        $this->post('/folders', ['source' => 'EMS', 'name' => 'Destination folder'])->assertRedirect();
+        $destination = DB::table('folders')->where('name', 'Destination folder')->value('id');
+        $this->upload($owner, ['folder_id' => $source, 'title' => 'Moved policy', 'file' => $this->file('move.txt', 'Move bytes')]);
+        $doc = DB::table('documents')->where('title', 'Moved policy')->value('id');
+        $this->post('/folders/'.$source.'/shares', ['recipient_id' => $sourceRecipient->id, 'permission' => 'Viewer'])->assertRedirect();
+        $this->post('/folders/'.$destination.'/shares', ['recipient_id' => $destinationRecipient->id, 'permission' => 'Commenter'])->assertRedirect();
+
+        // The move is refused before any write until the owner confirms the broader access.
+        $this->actingAs($owner)->patchJson('/documents/'.$doc, ['title' => 'Moved policy', 'folder_id' => $destination, 'revision' => 1])
+            ->assertStatus(409)->assertJsonPath('code', 'access_change')->assertJsonPath('access.gained', 1)
+            ->assertJsonPath('access.folder', 'Destination folder');
+        $this->assertDatabaseHas('documents', ['id' => $doc, 'folder_id' => $source, 'revision' => 1]);
+        $this->assertDatabaseCount('document_versions', 1);
+
+        // Confirmed move re-scopes inherited access without new grants.
+        $this->patchJson('/documents/'.$doc, ['title' => 'Moved policy', 'folder_id' => $destination, 'revision' => 1, 'confirm_move' => true])
+            ->assertOk()->assertJsonPath('folder_id', $destination)->assertJsonPath('access_gained', 1);
+        $this->actingAs($sourceRecipient)->get('/documents/'.$doc)->assertNotFound();
+        $this->actingAs($destinationRecipient)->get('/documents/'.$doc)->assertOk();
+        $this->post('/documents/'.$doc.'/comments', ['body' => 'Destination comment'])->assertRedirect();
+
+        $audit = DB::table('audit_entries')->where('document_id', $doc)->where('action', 'document.updated')->first();
+        $details = json_decode($audit->details, true);
+        $this->assertSame($source, $details['folder_before']);
+        $this->assertSame($destination, $details['folder_after']);
+        $this->assertEquals([$destinationRecipient->id], $details['access_gained']);
+        $this->assertDatabaseHas('integration_events', ['document_id' => $doc, 'type' => 'document.moved']);
+
+        // Moving back out removes the inherited path again; versions stay untouched.
+        $this->actingAs($owner)->patchJson('/documents/'.$doc, ['title' => 'Moved policy', 'folder_id' => null, 'revision' => 2])
+            ->assertOk()->assertJsonPath('folder_id', null);
+        $this->actingAs($destinationRecipient)->get('/documents/'.$doc)->assertNotFound();
+        $this->assertDatabaseCount('document_versions', 1);
+    }
+
+    public function test_deactivation_and_grant_revocation_remove_session_and_inherited_access(): void
+    {
+        $owner = $this->staff();
+        $recipient = $this->staff(['role' => 'staff']);
+        $this->actingAs($owner)->post('/folders', ['source' => 'EMS', 'name' => 'Revocable folder'])->assertRedirect();
+        $folder = DB::table('folders')->where('name', 'Revocable folder')->value('id');
+        $this->upload($owner, ['folder_id' => $folder, 'title' => 'Revocable document', 'file' => $this->file('revoke.txt', 'Revoke bytes')]);
+        $doc = DB::table('documents')->where('title', 'Revocable document')->value('id');
+        $this->post('/folders/'.$folder.'/shares', ['recipient_id' => $recipient->id, 'permission' => 'Editor'])->assertRedirect();
+        $this->actingAs($recipient)->get('/documents/'.$doc)->assertOk();
+
+        $payload = ['name' => $recipient->name, 'email' => $recipient->email, 'role' => 'staff', 'source' => 'EMS', 'active' => 0];
+        $this->actingAs($owner)->patch('/admin/accounts/'.$recipient->id, $payload)->assertRedirect();
+        $this->actingAs($recipient->refresh())->get('/documents/'.$doc)->assertRedirect('/login');
+
+        // Reactivation restores the retained, still-audited grant.
+        $this->actingAs($owner)->patch('/admin/accounts/'.$recipient->id, array_replace($payload, ['active' => 1]))->assertRedirect();
+        $this->actingAs($recipient->refresh())->get('/documents/'.$doc)->assertOk();
+
+        // Revoking the folder grant ends inherited access on the next request.
+        $share = DB::table('folder_shares')->where('folder_id', $folder)->where('recipient_id', $recipient->id)->first();
+        $this->actingAs($owner)->delete('/folders/'.$folder.'/shares/'.$share->id)->assertRedirect();
+        $this->actingAs($recipient->refresh())->get('/documents/'.$doc)->assertNotFound();
+        $this->assertDatabaseHas('audit_entries', ['action' => 'folder.revoked']);
+    }
+
+    public function test_revoking_an_explicit_grant_falls_back_to_inherited_folder_access(): void
+    {
+        $owner = $this->staff();
+        $recipient = $this->staff(['role' => 'staff']);
+        $this->actingAs($owner)->post('/folders', ['source' => 'EMS', 'name' => 'Inherited folder'])->assertRedirect();
+        $folder = DB::table('folders')->where('name', 'Inherited folder')->value('id');
+        $this->upload($owner, ['folder_id' => $folder, 'title' => 'Fallback document', 'file' => $this->file('fallback.txt', 'Fallback bytes')]);
+        $doc = DB::table('documents')->where('title', 'Fallback document')->value('id');
+        $this->post('/folders/'.$folder.'/shares', ['recipient_id' => $recipient->id, 'permission' => 'Viewer'])->assertRedirect();
+        $this->post('/documents/'.$doc.'/shares', ['recipient_id' => $recipient->id, 'permission' => 'Editor'])->assertRedirect();
+        $this->actingAs($recipient)->post('/documents/'.$doc.'/comments', ['body' => 'Explicit editor'])->assertRedirect();
+        $this->assertDatabaseCount('comments', 1);
+
+        $explicit = DB::table('shares')->where('document_id', $doc)->where('recipient_id', $recipient->id)->first();
+        $this->actingAs($owner)->delete('/documents/'.$doc.'/shares/'.$explicit->id)->assertRedirect();
+        $this->actingAs($recipient)->get('/documents/'.$doc)->assertOk();
+        $this->actingAs($recipient)->post('/documents/'.$doc.'/comments', ['body' => 'Viewer cannot comment'])->assertForbidden();
+        $this->assertDatabaseCount('comments', 1);
+    }
+
+    public function test_moves_and_revocations_preserve_versions_audit_and_private_files(): void
+    {
+        $owner = $this->staff();
+        $recipient = $this->staff(['role' => 'staff']);
+        $this->actingAs($owner)->post('/folders', ['source' => 'EMS', 'name' => 'Preserve source'])->assertRedirect();
+        $source = DB::table('folders')->where('name', 'Preserve source')->value('id');
+        $this->post('/folders', ['source' => 'EMS', 'name' => 'Preserve target'])->assertRedirect();
+        $target = DB::table('folders')->where('name', 'Preserve target')->value('id');
+        $this->upload($owner, ['folder_id' => $source, 'title' => 'Preserved document', 'file' => $this->file('v1.txt', 'Preserved bytes')]);
+        $doc = DB::table('documents')->where('title', 'Preserved document')->value('id');
+        $this->actingAs($owner)->post('/documents/'.$doc.'/versions', ['source' => 'EMS', 'revision' => 1, 'submission_key' => 'preserve-v2', 'file' => $this->file('v2.txt', 'Preserved second')])->assertRedirect();
+        $versions = DB::table('document_versions')->where('document_id', $doc)->orderBy('number')->get(['id', 'number', 'checksum', 'storage_key']);
+        $this->assertCount(2, $versions);
+        foreach ($versions as $version) {
+            $this->assertTrue(Storage::disk('local')->exists($version->storage_key));
+            $this->assertSame($version->checksum, hash_file('sha256', Storage::disk('local')->path($version->storage_key)));
+        }
+        $auditBefore = DB::table('audit_entries')->where('document_id', $doc)->pluck('id');
+
+        $this->post('/folders/'.$target.'/shares', ['recipient_id' => $recipient->id, 'permission' => 'Viewer'])->assertRedirect();
+        $this->actingAs($owner)->patchJson('/documents/'.$doc, ['title' => 'Preserved document', 'folder_id' => $target, 'revision' => 2, 'confirm_move' => true])->assertOk();
+        $this->actingAs($recipient)->get('/files/'.$versions[0]->id)->assertOk();
+        $this->actingAs($recipient)->get('/files/'.$versions[1]->id)->assertStatus(423);
+
+        $share = DB::table('folder_shares')->where('folder_id', $target)->where('recipient_id', $recipient->id)->first();
+        $this->actingAs($owner)->delete('/folders/'.$target.'/shares/'.$share->id)->assertRedirect();
+        $this->actingAs($recipient)->get('/files/'.$versions[0]->id)->assertNotFound();
+
+        // Immutable versions, private bytes and earlier audit rows survive every operation.
+        $this->assertSame($versions->map(fn ($v) => (array) $v)->all(),
+            DB::table('document_versions')->where('document_id', $doc)->orderBy('number')->get(['id', 'number', 'checksum', 'storage_key'])->map(fn ($v) => (array) $v)->all());
+        foreach ($versions as $version) {
+            $this->assertTrue(Storage::disk('local')->exists($version->storage_key));
+        }
+        foreach ($auditBefore as $id) {
+            $this->assertDatabaseHas('audit_entries', ['id' => $id]);
+        }
+        $this->assertGreaterThan($auditBefore->count(), DB::table('audit_entries')->where('document_id', $doc)->count());
+        foreach (['document.uploaded', 'document.updated'] as $action) {
+            $this->assertDatabaseHas('audit_entries', ['document_id' => $doc, 'action' => $action]);
+        }
+        $this->assertDatabaseHas('audit_entries', ['action' => 'folder.shared']);
+        $this->assertDatabaseHas('audit_entries', ['action' => 'folder.revoked']);
     }
 }

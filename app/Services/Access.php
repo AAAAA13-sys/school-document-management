@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\DB;
 
 class Access
 {
+    public const PERMISSION_RANK = ['Viewer' => 1, 'Commenter' => 2, 'Editor' => 3];
+
     public static function scope(Builder $query, object $actor, string $prefix = ''): Builder
     {
         return $query->where($prefix.'school_id', $actor->school_id)->where($prefix.'campus', $actor->campus);
@@ -24,6 +26,11 @@ class Access
             && $user->campus === $document->campus && $user->source === $document->source;
     }
 
+    public static function managesFolder(User $user, object $folder): bool
+    {
+        return self::manages($user, $folder);
+    }
+
     public static function documents(User $user): Builder
     {
         return self::scope(DB::table('documents'), $user)->where(function (Builder $q) use ($user) {
@@ -33,6 +40,31 @@ class Access
             }
             $q->orWhereIn('id', DB::table('shares')->select('document_id')->where('recipient_id', $user->id)
                 ->whereNull('revoked_at')->where(fn ($s) => $s->whereNull('expires_at')->orWhere('expires_at', '>', now())));
+            // Folder grants are inherited by the granted folder and every descendant.
+            $folders = self::inheritedFolderIds($user);
+            if ($folders) {
+                $q->orWhereIn('folder_id', $folders);
+            }
+        });
+    }
+
+    public static function folders(User $user): Builder
+    {
+        $query = self::scope(DB::table('folders'), $user);
+        if ($user->role === 'super_admin') {
+            // Oversight of every repository, still read-only outside the personal DMS space.
+            return $query;
+        }
+        $folders = self::inheritedFolderIds($user);
+
+        return $query->where(function (Builder $q) use ($user, $folders) {
+            $q->where('owner_id', $user->id);
+            if ($user->role === 'admin') {
+                $q->orWhere('source', $user->source);
+            }
+            if ($folders) {
+                $q->orWhereIn('id', $folders);
+            }
         });
     }
 
@@ -41,10 +73,107 @@ class Access
         return self::documents($user)->where('id', $id)->first() ?? abort(404);
     }
 
+    /**
+     * Explicit per-document grant only. Version pinning is an explicit concept, so
+     * inherited folder access is never returned here.
+     */
     public static function grant(User $user, object $document): ?object
     {
         return DB::table('shares')->where('document_id', $document->id)->where('recipient_id', $user->id)->whereNull('revoked_at')
             ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))->first();
+    }
+
+    /**
+     * The grant that actually decides the user's permission: an explicit document
+     * grant always wins, otherwise the nearest active ancestor folder grant.
+     */
+    public static function effectiveGrant(User $user, object $document): ?object
+    {
+        return self::grant($user, $document) ?? self::folderGrant($user, $document->folder_id);
+    }
+
+    public static function folderGrant(User $user, ?string $folderId): ?object
+    {
+        $chain = self::folderChain($folderId);
+        if (! $chain) {
+            return null;
+        }
+        $grants = DB::table('folder_shares')->where('recipient_id', $user->id)->whereIn('folder_id', $chain)
+            ->whereNull('revoked_at')->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+            ->get()->keyBy('folder_id');
+        foreach ($chain as $id) {
+            if ($grants->has($id)) {
+                $grant = $grants->get($id);
+                // Folder grants are never version-pinned; callers share the explicit-grant contract.
+                $grant->version_id = null;
+
+                return $grant;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Folder IDs from the given folder up to the root. Bounded so a corrupted
+     * parent chain cannot loop forever.
+     *
+     * @return array<int, string>
+     */
+    public static function folderChain(?string $folderId): array
+    {
+        $chain = [];
+        $limit = (int) config('dms.folder_inheritance_max_depth', 50);
+        while ($folderId && ! in_array($folderId, $chain, true) && count($chain) < $limit) {
+            $chain[] = $folderId;
+            $folderId = DB::table('folders')->where('id', $folderId)->value('parent_id');
+        }
+
+        return $chain;
+    }
+
+    /**
+     * Every folder a grant can reach: granted folders plus all descendants. Used to
+     * make inherited visibility a single indexed IN clause for listings.
+     *
+     * Group grants are intentionally not resolved here: organizational membership is
+     * owned by the membership module, which can union its group folders into this list.
+     *
+     * @return array<int, string>
+     */
+    public static function inheritedFolderIds(User $user): array
+    {
+        // Memoise within a real HTTP request only: console and queue workers keep the
+        // same request instance across jobs, so caching there could serve stale grants.
+        $memo = app()->runningInConsole() ? null : request()->attributes;
+        $key = 'dms.inherited_folders.'.$user->id;
+        if ($memo?->has($key)) {
+            return $memo->get($key);
+        }
+        $granted = DB::table('folder_shares')->where('recipient_id', $user->id)->whereNull('revoked_at')
+            ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+            ->pluck('folder_id')->all();
+        if (! $granted) {
+            $memo?->set($key, []);
+
+            return [];
+        }
+        $seen = array_fill_keys($granted, true);
+        $frontier = $granted;
+        $limit = (int) config('dms.folder_inheritance_max_depth', 50);
+        for ($depth = 0; $frontier && $depth < $limit; $depth++) {
+            $frontier = DB::table('folders')->whereIn('parent_id', $frontier)
+                ->where('school_id', $user->school_id)->where('campus', $user->campus)
+                ->whereNotIn('id', array_keys($seen))->pluck('id')->all();
+            foreach ($frontier as $id) {
+                $seen[$id] = true;
+            }
+        }
+
+        $result = array_keys($seen);
+        $memo?->set($key, $result);
+
+        return $result;
     }
 
     public static function owner(User $user, object $document): void
@@ -52,19 +181,54 @@ class Access
         abort_unless($document->owner_id === $user->id || self::manages($user, $document), 403);
     }
 
+    /**
+     * Effective folder audience using the same nearest-grant-wins rule as
+     * folderGrant(), resolved for every recipient in one pass.
+     *
+     * If the membership module adds group grants, resolve group members here with the
+     * same nearest-wins rule so move warnings keep matching real access.
+     *
+     * @return array<int, string> recipient id => permission
+     */
+    public static function folderAudience(?string $folderId): array
+    {
+        $chain = self::folderChain($folderId);
+        if (! $chain) {
+            return [];
+        }
+        $grants = DB::table('folder_shares')->whereIn('folder_id', $chain)->whereNull('revoked_at')
+            ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+            ->get(['folder_id', 'recipient_id', 'permission'])->groupBy('folder_id');
+        $audience = [];
+        foreach ($chain as $id) {
+            foreach ($grants->get($id, []) as $grant) {
+                if (! array_key_exists($grant->recipient_id, $audience)) {
+                    $audience[$grant->recipient_id] = $grant->permission;
+                }
+            }
+        }
+
+        return $audience;
+    }
+
+    public static function permissionRank(?string $permission): int
+    {
+        return self::PERMISSION_RANK[$permission] ?? 0;
+    }
+
     public static function edit(User $user, object $document): void
     {
         if ($document->owner_id === $user->id || self::manages($user, $document)) {
             return;
         }
-        $grant = self::grant($user, $document);
+        $grant = self::effectiveGrant($user, $document);
         abort_unless($grant && $grant->permission === 'Editor' && ! $grant->version_id, 403);
     }
 
-    public static function audit(object $actor, string $action, ?object $document = null, array $details = []): void
+    public static function audit(object $actor, string $action, ?object $document = null, array $details = [], ?string $source = null): void
     {
         DB::table('audit_entries')->insert(['school_id' => $actor->school_id, 'campus' => $actor->campus,
-            'source' => $document?->source ?? $actor->source ?? null, 'actor_id' => $actor instanceof User ? $actor->id : null,
+            'source' => $source ?? $document?->source ?? $actor->source, 'actor_id' => $actor instanceof User ? $actor->id : null,
             'connector_id' => $actor instanceof User ? null : ($actor->id ?? null), 'action' => $action,
             'document_id' => $document?->id, 'details' => json_encode($details), 'created_at' => now()]);
     }

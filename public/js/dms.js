@@ -534,16 +534,34 @@
         failed: 'Failed',
         invalid: 'Not uploaded',
       };
-      uploads.forEach((item) =>
-        $('<li>')
+      uploads.forEach((item) => {
+        const row = $('<li>')
           .append(
             $('<span>').text(item.file.name),
             $('<small>')
               .text(item.error || labels[item.status])
               .toggleClass('text-danger', ['failed', 'invalid'].includes(item.status))
           )
-          .appendTo(list)
-      );
+          .appendTo(list);
+        if (!item.duplicates?.length || item.status === 'saved') return;
+        const existing = item.duplicates[0];
+        row.append(
+          $('<a class="ms-2">')
+            .attr('href', '/documents/' + encodeURIComponent(existing.document_id))
+            .attr('target', '_blank')
+            .attr('rel', 'noopener')
+            .text('Open existing')
+        );
+        $('<button type="button" class="btn btn-link btn-sm p-0 ms-2">Upload anyway</button>')
+          .on('click', () => {
+            item.confirm = true;
+            item.status = 'pending';
+            item.error = '';
+            renderUploads();
+            startUploads();
+          })
+          .appendTo(row);
+      });
       const saved = uploads.filter((item) => item.status === 'saved').length;
       const failed = uploads.filter((item) => ['failed', 'invalid'].includes(item.status)).length;
       $('#upload-summary').text(
@@ -556,7 +574,8 @@
       );
       $('#retry-uploads').prop(
         'hidden',
-        uploading || !uploads.some((item) => item.status === 'failed')
+        uploading ||
+          !uploads.some((item) => item.status === 'failed' && !item.duplicates?.length)
       );
     }
     async function startUploads() {
@@ -577,6 +596,7 @@
             data.set('title', item.file.name.slice(0, 200));
             data.set('submission_key', item.key);
             data.set('classification', item.classification);
+            if (item.confirm) data.set('confirm_duplicate', '1');
             try {
               await $.ajax({
                 url: form.action,
@@ -587,6 +607,9 @@
                 headers: { Accept: 'application/json' },
               });
             } catch (xhr) {
+              if (xhr.status === 409 && xhr.responseJSON?.code === 'duplicate_file') {
+                item.duplicates = xhr.responseJSON.duplicates || [];
+              }
               throw new Error(
                 xhr.responseJSON?.errors
                   ? Object.values(xhr.responseJSON.errors).flat().join(' ')
@@ -622,7 +645,7 @@
     }
     $('#retry-uploads').on('click', () => {
       uploads
-        .filter((item) => item.status === 'failed')
+        .filter((item) => item.status === 'failed' && !item.duplicates?.length)
         .forEach((item) => {
           item.status = 'pending';
           item.error = '';
@@ -758,6 +781,32 @@
         )
         .always(() => button.prop('disabled', false));
     });
+    // Duplicate uploads: list only documents this user may already open.
+    function showUploadDuplicates(matches) {
+      const list = $('#upload-duplicate-list').empty();
+      matches.forEach((row) => {
+        list.append(
+          $('<li>').append(
+            $('<a>')
+              .attr('href', '/documents/' + encodeURIComponent(row.document_id))
+              .attr('target', '_blank')
+              .attr('rel', 'noopener')
+              .text(row.title),
+            $('<small>').text(
+              ' · version ' +
+                row.version_number +
+                (row.can_add_version ? ' · you can add a new version there' : '')
+            )
+          )
+        );
+      });
+      $('#upload-confirm-duplicate').val('0');
+      $('#upload-duplicates').prop('hidden', false);
+    }
+    $('#upload-duplicate-confirm').on('click', () => {
+      $('#upload-confirm-duplicate').val('1');
+      $('#upload-form').trigger('submit');
+    });
     $('form').on('submit', function (event) {
       if (this.id === 'upload-form' && multiUpload) {
         event.preventDefault();
@@ -766,6 +815,31 @@
       if (event.isDefaultPrevented() || !this.checkValidity()) return;
       if (this.dataset.confirm && !window.confirm(this.dataset.confirm)) {
         event.preventDefault();
+        return;
+      }
+      if (this.dataset.ajaxMove === 'true' && !preview) {
+        event.preventDefault();
+        const send = (confirmed) => {
+          const data = new FormData(this);
+          if (confirmed) data.set('confirm_move', '1');
+          $.ajax({
+            url: this.action,
+            method: 'POST',
+            data,
+            processData: false,
+            contentType: false,
+            headers: { Accept: 'application/json' },
+          })
+            .done(() => location.reload())
+            .fail((xhr) => {
+              if (xhr.status === 409 && xhr.responseJSON?.code === 'access_change') {
+                if (window.confirm(xhr.responseJSON.message + '\n\nMove anyway?')) send(true);
+                return;
+              }
+              toast(xhr.responseJSON?.message || 'Could not save document details.');
+            });
+        };
+        send(false);
         return;
       }
       if (!preview) {
@@ -803,6 +877,12 @@
         })
           .done((result) => location.assign('/documents/' + encodeURIComponent(result.document_id)))
           .fail((xhr) => {
+            if (xhr.status === 409 && xhr.responseJSON?.code === 'duplicate_file') {
+              showUploadDuplicates(xhr.responseJSON.duplicates || []);
+              progress.prop('hidden', true);
+              form.find('button[type="submit"]').prop('disabled', false);
+              return;
+            }
             const errors = xhr.responseJSON?.errors;
             const message = errors
               ? Object.values(errors).flat().join(' ')

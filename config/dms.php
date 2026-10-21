@@ -4,6 +4,10 @@ return [
     'sources' => ['EMS' => 'Employee Management', 'PMS' => 'Payroll Management', 'ES' => 'Enrollment System', 'OAS' => 'Online Admission'],
     'roles' => ['super_admin', 'admin', 'staff'],
     'role_labels' => ['super_admin'=>'Super Admin', 'admin'=>'Admin', 'staff'=>'Staff'],
+    // Advisory duplicate warning; intentional copies may confirm and continue.
+    'duplicate_detection' => env('DMS_DUPLICATE_DETECTION', true),
+    // Folder grants are inherited down the tree; depth guard for corrupted parent chains.
+    'folder_inheritance_max_depth' => env('DMS_FOLDER_INHERITANCE_MAX_DEPTH', 50),
     'clamav_binary' => env('CLAMAV_BINARY', 'clamscan'),
     'scan_timeout' => 60,
     'clamav_database' => env('CLAMAV_DATABASE'),

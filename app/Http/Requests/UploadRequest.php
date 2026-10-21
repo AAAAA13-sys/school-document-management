@@ -24,6 +24,7 @@ class UploadRequest extends FormRequest
             'title' => [$new ? 'required' : 'sometimes', 'string', 'max:200'], 'source' => [$this->is('api/*') ? 'prohibited' : 'required', 'in:EMS,PMS,ES,OAS,DMS'],
             'classification' => [$new ? 'required' : 'sometimes', 'in:Internal,Confidential,Restricted'], 'folder_id' => 'nullable|uuid',
             'subject' => 'nullable|string|max:200', 'reference' => 'nullable|string|max:100', 'category' => 'nullable|string|max:100',
-            'revision' => [$new ? 'sometimes' : 'required', 'integer', 'min:1'], 'submission_key' => 'required|string|max:100'];
+            'revision' => [$new ? 'sometimes' : 'required', 'integer', 'min:1'], 'submission_key' => 'required|string|max:100',
+            'confirm_duplicate' => 'sometimes|boolean'];
     }
 }

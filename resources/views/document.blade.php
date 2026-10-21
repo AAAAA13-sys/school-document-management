@@ -197,7 +197,7 @@
         <div class="modal fade" id="rename-modal" tabindex="-1" aria-labelledby="rename-title" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
-                    <form method="post" action="/documents/{{ $doc->id }}" data-demo-action="rename" data-document-id="{{ $doc->id }}">
+                    <form method="post" action="/documents/{{ $doc->id }}" data-demo-action="rename" data-ajax-move="true" data-document-id="{{ $doc->id }}">
                         @csrf
                         @method ('PATCH')
                         <input type="hidden" name="revision" value="{{ $doc->revision }}" />

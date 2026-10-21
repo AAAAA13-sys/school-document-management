@@ -111,6 +111,14 @@
                             </div>
                             <p class="security-note mt-3 mb-0">Scanning starts automatically in the background after upload. Your file stays private and downloads remain blocked until it is clean.</p>
                         </div>
+                        <div id="upload-duplicates" class="alert alert-warning mt-3" role="alert" hidden>
+                            <p class="mb-2">
+                                <strong>This file looks like one you already have.</strong> Only documents you can already open are listed. Open the existing document, or keep a separate copy.
+                            </p>
+                            <ul id="upload-duplicate-list" class="mb-2"></ul>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="upload-duplicate-confirm">Upload as a separate copy</button>
+                        </div>
+                        <input type="hidden" name="confirm_duplicate" value="0" id="upload-confirm-duplicate" />
                         <div class="upload-progress mt-3" hidden>
                             <div class="progress" role="progressbar" aria-label="File upload" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
                                 <div class="progress-bar"></div>

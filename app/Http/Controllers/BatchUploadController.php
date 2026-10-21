@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\DuplicateFileException;
 use App\Http\Requests\BatchUploadRequest;
 use App\Services\Access;
 use App\Services\DocumentService;
@@ -46,10 +47,11 @@ class BatchUploadController extends Controller
                 return $current;
             });
             try {
-                [$body,$status] = $service->upload($actor, ['source' => $source, 'title' => pathinfo($filename, PATHINFO_FILENAME) ?: $filename, 'folder_id' => $folder, 'classification' => $input['classification']], $file, null, HistoryService::hash([$input['submission_key'], $input['paths'][$i]]));
+                [$body,$status] = $service->upload($actor, ['source' => $source, 'title' => pathinfo($filename, PATHINFO_FILENAME) ?: $filename, 'folder_id' => $folder, 'classification' => $input['classification'], 'confirm_duplicate' => $input['confirm_duplicate'] ?? false], $file, null, HistoryService::hash([$input['submission_key'], $input['paths'][$i]]));
                 $results[] = ['path' => $input['paths'][$i], 'status' => $status] + $body;
             } catch (HttpException $e) {
-                $results[] = ['path' => $input['paths'][$i], 'status' => $e->getStatusCode(), 'message' => $e->getMessage()];
+                $results[] = ['path' => $input['paths'][$i], 'status' => $e->getStatusCode(), 'message' => $e->getMessage()]
+                    + ($e instanceof DuplicateFileException ? ['code' => 'duplicate_file', 'duplicates' => $e->matches] : []);
             }
         }
         $failed = collect($results)->contains(fn ($row) => $row['status'] >= 400);

@@ -259,6 +259,11 @@
                   "category": {
                     "type": "string",
                     "maxLength": 100
+                  },
+                  "confirm_duplicate": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Set true to keep an intentional separate copy after a 409 duplicate_file warning."
                   }
                 }
               }
@@ -279,7 +284,7 @@
             "description": "JSON error with message and optional field errors"
           },
           "409": {
-            "description": "JSON error with message and optional field errors"
+            "description": "Revision/idempotency conflict, or code=duplicate_file with a duplicates list of documents this connector may already read"
           },
           "422": {
             "description": "JSON error with message and optional field errors"
@@ -357,6 +362,11 @@
                   "revision": {
                     "type": "integer",
                     "minimum": 1
+                  },
+                  "confirm_duplicate": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Set true to keep an intentional separate copy after a 409 duplicate_file warning."
                   }
                 }
               }
@@ -377,7 +387,7 @@
             "description": "JSON error with message and optional field errors"
           },
           "409": {
-            "description": "JSON error with message and optional field errors"
+            "description": "Stale revision/idempotency conflict, or code=duplicate_file when the bytes match another document this connector may already read (the versioned document itself is excluded)"
           },
           "422": {
             "description": "JSON error with message and optional field errors"

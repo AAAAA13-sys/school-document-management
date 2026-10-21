@@ -23,6 +23,12 @@
                         <option>Restricted</option>
                         <option>Internal</option>
                     </select>
+                    <div class="form-check mt-3">
+                        <input id="folder-confirm-duplicates" class="form-check-input" type="checkbox" name="confirm_duplicate" value="1" />
+                        <label class="form-check-label" for="folder-confirm-duplicates"
+                            >Keep intentional copies of files that already exist. The warning only names documents you can already open.</label
+                        >
+                    </div>
                     <p id="folder-upload-feedback" class="mt-3 mb-0" role="status"></p>
                 </div>
                 <div class="modal-footer">

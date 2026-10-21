@@ -6,6 +6,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BatchUploadController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\FolderController;
+use App\Http\Controllers\FolderShareController;
 use App\Http\Controllers\ShareController;
 use App\Http\Controllers\WorkspaceController;
 use Illuminate\Support\Facades\Route;
@@ -32,6 +33,8 @@ Route::middleware(['auth', 'active', \App\Http\Middleware\RepositoryReadOnly::cl
     Route::get('/files/{version}/preview', [DocumentController::class, 'download'])->name('files.preview');
     Route::post('/folders', [FolderController::class, 'create'])->name('folders.create');
     Route::patch('/folders/{folder}', [FolderController::class, 'update'])->name('folders.update');
+    Route::post('/folders/{folder}/shares', [FolderShareController::class, 'create'])->name('folder-shares.create');
+    Route::delete('/folders/{folder}/shares/{share}', [FolderShareController::class, 'revoke'])->name('folder-shares.revoke');
     Route::post('/documents/{document}/shares', [ShareController::class, 'create'])->name('shares.create');
     Route::delete('/documents/{document}/shares/{share}', [ShareController::class, 'revoke'])->name('shares.revoke');
     Route::post('/documents/{document}/comments', [ShareController::class, 'comment'])->name('comments.create');

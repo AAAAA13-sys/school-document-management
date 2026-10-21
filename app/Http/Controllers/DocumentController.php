@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\AccessChangeException;
 use App\Http\Requests\ActionRequest;
 use App\Http\Requests\UploadRequest;
 use App\Services\Access;
+use App\Services\DocumentMoves;
 use App\Services\DocumentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -33,18 +35,43 @@ class DocumentController extends Controller
             $classification = $request->validated('classification', $doc->classification);
             if ($classification !== $doc->classification) Access::owner($user, $doc);
             $previousClassification = $doc->classification;
+            $previousFolder = $doc->folder_id;
             $folder = $request->validated('folder_id');
-            if ($folder !== $doc->folder_id) {
+            $moved = $folder !== $previousFolder;
+            $accessChange = ['gained' => [], 'reduced' => [], 'broadened' => false];
+            $destination = null;
+            if ($moved) {
                 Access::owner($user, $doc);
                 if ($folder) {
-                    abort_unless(Access::scope(DB::table('folders'), $user)->where('id', $folder)->when($user->role !== 'admin', fn ($q) => $q->where('owner_id', $user->id))->where('source', $doc->source)->exists(), 403);
+                    $destination = Access::scope(DB::table('folders'), $user)->where('id', $folder)
+                        ->when($user->role !== 'admin', fn ($q) => $q->where('owner_id', $user->id))
+                        ->where('source', $doc->source)->first();
+                    abort_unless($destination, 403);
+                }
+                // A move silently re-scopes inherited access; warn before broadening it.
+                $accessChange = DocumentMoves::audienceDelta($doc, $folder);
+                if ($accessChange['broadened'] && ! $request->boolean('confirm_move')) {
+                    throw new AccessChangeException(['gained' => count($accessChange['gained']),
+                        'folder' => $destination?->name, 'permissions' => array_count_values($accessChange['gained'])]);
                 }
             }
             DB::table('documents')->where('id', $document)->update(['title' => $request->validated('title'), 'classification' => $classification, 'folder_id' => $folder, 'revision' => $doc->revision + 1, 'updated_at' => now()]);
             $doc->revision++;
-            Access::audit($user, 'document.updated', $doc, ['classification_before'=>$previousClassification,'classification_after'=>$classification,'folder_before'=>$doc->folder_id,'folder_after'=>$folder]);
-            Access::event($doc, 'document.updated');
-            return ['message'=>$folder !== $doc->folder_id ? 'Document moved to the selected folder.' : 'Document updated.','revision'=>$doc->revision,'folder_id'=>$folder];
+            $details = ['classification_before' => $previousClassification, 'classification_after' => $classification,
+                'folder_before' => $previousFolder, 'folder_after' => $folder];
+            if ($moved) {
+                $details += ['access_gained' => array_keys($accessChange['gained']), 'access_reduced' => array_keys($accessChange['reduced'])];
+            }
+            Access::audit($user, 'document.updated', $doc, $details);
+            Access::event($doc, $moved ? 'document.moved' : 'document.updated');
+            $message = $moved ? 'Document moved to the selected folder.' : 'Document updated.';
+            if ($moved && $accessChange['gained']) {
+                $message .= ' '.count($accessChange['gained']).' more '
+                    .(count($accessChange['gained']) === 1 ? 'person' : 'people').' now have access through it.';
+            }
+
+            return ['message' => $message, 'revision' => $doc->revision, 'folder_id' => $folder,
+                'access_gained' => count($accessChange['gained'])];
         });
 
         if ($request->expectsJson()) return response()->json($result);
