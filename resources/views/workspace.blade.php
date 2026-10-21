@@ -110,9 +110,12 @@
                     ><span>/</span>
                 @endif
                 <strong>{{ $folder->name }}</strong>
-                @if (!$readOnly && $viewer->role!=='staff')
+                @if (!$readOnly && $canManageFolder && $viewer->role!=='staff')
                     <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" data-bs-toggle="modal" data-bs-target="#folder-edit-modal">
                         Edit folder
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary ms-2" data-bs-toggle="modal" data-bs-target="#folder-share-modal">
+                        Share folder
                     </button>
                 @endif
             </div>
@@ -290,6 +293,7 @@
                 </div>
             </div>
             @if ($folder)
+                @include ('partials.folder-share')
                 <div class="modal fade" id="folder-edit-modal" tabindex="-1" aria-labelledby="folder-edit-title" aria-hidden="true">
                     <div class="modal-dialog modal-dialog-centered">
                         <div class="modal-content">

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\DuplicateFileException;
 use App\Jobs\ScanDocumentVersion;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
@@ -13,12 +14,19 @@ class DocumentService
 {
     public function upload(object $actor, array $input, UploadedFile $file, ?string $id = null, ?string $requestKey = null): array
     {
+        // The duplicate confirmation is a client decision, not document content: keep it
+        // out of the idempotency hash so the same submission key stays replayable.
+        $confirmDuplicate = (bool) ($input['confirm_duplicate'] ?? false);
+        unset($input['confirm_duplicate']);
         $checksum = hash_file('sha256', $file->getRealPath());
         $scope = HistoryService::hash([$actor->school_id, $actor->campus, $actor->source, $actor instanceof User ? 'user:'.$actor->id : 'connector']);
         $hash = HistoryService::hash([$input, $checksum, $file->getClientOriginalName(), $id]);
+        // Serialise identical bytes before the transaction opens, so the winner's commit is
+        // visible to the waiter. A gap lock on an empty checksum index deadlocks two inserts.
+        $checksumLock = $this->lockChecksum($checksum);
         $stored = null;
         try {
-            return DB::transaction(function () use ($actor, $input, $file, $id, $requestKey, $scope, $hash, $checksum, &$stored) {
+            return DB::transaction(function () use ($actor, $input, $file, $id, $requestKey, $scope, $hash, $checksum, $confirmDuplicate, &$stored) {
                 if ($actor instanceof User) {
                     DB::table('users')->where('id', $actor->id)->lockForUpdate()->first();
                 } else {
@@ -41,6 +49,8 @@ class DocumentService
                     $this->authorize($actor, $doc, true);
                     abort_if($doc->trashed_at, 409, 'Restore this document before adding a version.');
                     abort_unless($doc->revision === (int) $input['revision'], 409, 'Document changed. Reload and retry.');
+                    // The document being versioned is excluded: re-versioning it is not a dup.
+                    $duplicates = $this->duplicateMatches($actor, $checksum, $id, $confirmDuplicate);
                     DB::table('documents')->where('id', $id)->update(['revision' => $doc->revision + 1, 'updated_at' => now()]);
                 } else {
                     if ($actor instanceof User) {
@@ -50,6 +60,7 @@ class DocumentService
                         $folder = Access::scope(DB::table('folders'), $actor)->where('id', $input['folder_id'])->where('source', $source)->first();
                         abort_unless($folder && $actor instanceof User && ($folder->owner_id === $actor->id || Access::manages($actor, $folder)), 403);
                     }
+                    $duplicates = $this->duplicateMatches($actor, $checksum, null, $confirmDuplicate);
                     $id = (string) Str::uuid();
                     DB::table('documents')->insert(['id' => $id, 'owner_id' => $actor instanceof User ? $actor->id : null,
                         'folder_id' => $input['folder_id'] ?? null, 'source' => $source, 'school_id' => $actor->school_id, 'campus' => $actor->campus,
@@ -65,7 +76,8 @@ class DocumentService
                     'filename' => basename(str_replace('\\', '/', $file->getClientOriginalName())), 'mime' => $file->getMimeType(),
                     'size' => $file->getSize(), 'checksum' => $checksum, 'storage_key' => $stored, 'scan_status' => $status, 'created_at' => now()]);
                 $doc = DB::table('documents')->where('id', $id)->first();
-                Access::audit($actor, 'document.uploaded', $doc, ['version_id' => $version, 'scan_status' => $status]);
+                Access::audit($actor, 'document.uploaded', $doc, ['version_id' => $version, 'scan_status' => $status]
+                    + ($duplicates ? ['duplicate_of' => array_values(array_unique(array_column($duplicates, 'document_id')))] : []));
                 Access::event($doc, 'document.version.created');
                 $response = ['document_id' => $id, 'version_id' => $version, 'revision' => $doc->revision, 'scan_status' => $status];
                 if ($requestKey) {
@@ -80,6 +92,31 @@ class DocumentService
                 Storage::disk('local')->delete($stored);
             }
             throw $e;
+        } finally {
+            $this->releaseChecksumLock($checksumLock);
+        }
+    }
+
+    /**
+     * MySQL advisory lock scoped to one checksum. SQLite serialises writers already.
+     * Returns the lock name when held, null when no lock is needed.
+     */
+    private function lockChecksum(string $checksum): ?string
+    {
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return null;
+        }
+        $name = 'dms:dup:'.substr($checksum, 0, 40);
+        $acquired = (int) (DB::selectOne('SELECT GET_LOCK(?, ?) AS acquired', [$name, 5])->acquired ?? 0);
+        abort_unless($acquired === 1, 409, 'Another upload of the same file is in progress. Retry with the same submission key.');
+
+        return $name;
+    }
+
+    private function releaseChecksumLock(?string $name): void
+    {
+        if ($name) {
+            DB::selectOne('SELECT RELEASE_LOCK(?)', [$name]);
         }
     }
 
@@ -126,5 +163,28 @@ class DocumentService
         }
 
         return response()->download($path, $version->filename, $headers);
+    }
+
+    /**
+     * Advisory duplicate check performed inside the upload transaction.
+     *
+     * Same-checksum uploads are serialised by the advisory lock taken in upload().
+     * The lock is taken before the transaction opens, so the waiter's first read
+     * observes the winner's committed row. Nothing is written and no file is stored
+     * before this decision.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function duplicateMatches(object $actor, string $checksum, ?string $documentId, bool $confirmed): array
+    {
+        if (! config('dms.duplicate_detection', true)) {
+            return [];
+        }
+        $matches = DuplicateDetection::matches($actor, $checksum, $documentId);
+        if ($matches && ! $confirmed) {
+            throw new DuplicateFileException($matches);
+        }
+
+        return $matches;
     }
 }

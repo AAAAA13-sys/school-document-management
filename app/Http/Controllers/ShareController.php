@@ -52,7 +52,7 @@ class ShareController extends Controller
             Access::document($user, $document);
             $doc = DB::table('documents')->where('id', $document)->lockForUpdate()->first();
             abort_if($doc->trashed_at, 409);
-            $grant = Access::grant($user, $doc);
+            $grant = Access::effectiveGrant($user, $doc);
             abort_unless($doc->owner_id === $user->id || Access::manages($user, $doc) || in_array($grant?->permission, ['Commenter', 'Editor']), 403);
             DB::table('comments')->insert(['document_id' => $document, 'user_id' => $user->id, 'body' => $request->validated('body'), 'created_at' => now()]);
             Access::audit($user, 'comment.created', $doc);

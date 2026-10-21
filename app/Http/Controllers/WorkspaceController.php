@@ -29,9 +29,10 @@ class WorkspaceController extends Controller
         if ($view !== 'shared' || $source === 'DMS') {
             $base->where('source', $source);
         }
+        $foldersForSharing = Access::inheritedFolderIds($user);
         $stats = ['documents' => (clone $base)->whereNull('trashed_at')->count(),
             'blocked' => DB::table('document_versions')->whereIn('document_id', (clone $base)->select('id'))->where('scan_status', '!=', 'Clean')->count(),
-            'shared' => (clone $base)->whereIn('id', DB::table('shares')->select('document_id')->whereNull('revoked_at')->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now())))->count(),
+            'shared' => (clone $base)->where(fn ($q) => $q->whereIn('id', DB::table('shares')->select('document_id')->whereNull('revoked_at')->where(fn ($s) => $s->whereNull('expires_at')->orWhere('expires_at', '>', now())))->orWhereIn('folder_id', $foldersForSharing))->count(),
             'history' => $user->role === 'staff' ? null : Access::scope(DB::table('history_receipts'), $user)->where('source', $source)->count()];
 
         if ($view === 'trash') {
@@ -43,7 +44,7 @@ class WorkspaceController extends Controller
             $base->where('owner_id', $user->id);
         }
         if ($view === 'shared') {
-            $base->whereIn('id', DB::table('shares')->select('document_id')->where('recipient_id', $user->id)->whereNull('revoked_at')->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now())));
+            $base->where(fn ($q) => $q->whereIn('id', DB::table('shares')->select('document_id')->where('recipient_id', $user->id)->whereNull('revoked_at')->where(fn ($s) => $s->whereNull('expires_at')->orWhere('expires_at', '>', now())))->orWhereIn('folder_id', $foldersForSharing));
         }
         if ($view === 'starred') {
             $base->whereIn('id', DB::table('stars')->select('document_id')->where('user_id', $user->id));
@@ -54,11 +55,23 @@ class WorkspaceController extends Controller
         $folder = null;
         $parentFolder = null;
         if ($request->filled('folder')) {
-            $folder = Access::scope(DB::table('folders'), $user)->where('id', $request->input('folder'))->when(!in_array($user->role, ['super_admin','admin']) || $source === 'DMS', fn ($q) => $q->where('owner_id', $user->id))->where('source', $source)->first() ?? abort(404);
+            $folder = Access::folders($user)->where('id', $request->input('folder'))
+                ->when($user->role === 'super_admin' && $source === 'DMS', fn ($q) => $q->where('owner_id', $user->id))
+                ->where('source', $source)->first() ?? abort(404);
             $base->where('folder_id', $folder->id);
             if ($folder->parent_id) {
-                $parentFolder = Access::scope(DB::table('folders'), $user)->where('id', $folder->parent_id)->where('source', $source)->first();
+                $parentFolder = Access::folders($user)->where('id', $folder->parent_id)->where('source', $source)->first();
             }
+        }
+        $canManageFolder = $folder && ($folder->owner_id === $user->id || Access::managesFolder($user, $folder));
+        $folderShares = collect();
+        $folderRecipients = collect();
+        if ($canManageFolder) {
+            $folderShares = DB::table('folder_shares')->join('users', 'users.id', '=', 'folder_shares.recipient_id')
+                ->where('folder_id', $folder->id)->select('folder_shares.*', 'users.name', 'users.email')->orderByDesc('folder_shares.id')->get();
+            $folderRecipients = Access::scope(DB::table('users'), $user)->where('active', true)->where('id', '!=', $user->id)
+                ->when($folder->source !== 'DMS', fn ($q) => $q->where(fn ($r) => $r->where('source', $folder->source)->orWhere('role', 'super_admin')))
+                ->orderBy('name')->get(['id', 'name', 'email']);
         }
         if ($section === 'documents' && !$folder && !$request->filled('q') && in_array($view, ['all','mine'])) {
             $base->whereNull('folder_id');
@@ -75,7 +88,8 @@ class WorkspaceController extends Controller
             }
         }
         $starred = DB::table('stars')->where('user_id', $user->id)->pluck('document_id')->all();
-        $folders = Access::scope(DB::table('folders'), $user)->when(!in_array($user->role, ['super_admin','admin']) || $source === 'DMS', fn ($q) => $q->where('owner_id', $user->id))->where('source', $source)
+        $folders = Access::folders($user)->where('source', $source)
+            ->when($user->role === 'super_admin' && $source === 'DMS', fn ($q) => $q->where('owner_id', $user->id))
             ->select('folders.*')->selectSub(Access::documents($user)->whereColumn('folder_id', 'folders.id')->whereNull('trashed_at')->selectRaw('COUNT(*)'), 'document_count')
             ->orderBy('name')->get();
         $stats['folders'] = $folders->count();
@@ -88,7 +102,7 @@ class WorkspaceController extends Controller
             $history = $query->orderByDesc('id')->paginate(20)->withQueryString();
         }
 
-        return view('workspace', compact('source', 'section', 'stats', 'documents', 'versions', 'folders', 'folder', 'parentFolder', 'starred', 'view', 'history'));
+        return view('workspace', compact('source', 'section', 'stats', 'documents', 'versions', 'folders', 'folder', 'parentFolder', 'starred', 'view', 'history', 'canManageFolder', 'folderShares', 'folderRecipients'));
     }
 
     public function show(ReadRequest $request, string $document)
@@ -98,7 +112,7 @@ class WorkspaceController extends Controller
         $section = 'documents';
         $versions = DB::table('document_versions')->where('document_id', $document)->orderByDesc('number')->get();
         $user = $request->user();
-        $grant = Access::grant($user, $doc);
+        $grant = Access::effectiveGrant($user, $doc);
         if ($grant?->version_id && $doc->owner_id !== $user->id && ($user->role === 'staff' || ! in_array($source, $user->sources()))) {
             $versions = $versions->where('id', $grant->version_id);
         }
