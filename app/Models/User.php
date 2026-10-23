@@ -100,4 +100,55 @@ class User extends Authenticatable
 
         return $source ? '/workspaces/'.strtolower($source) : '/account';
     }
+
+    public function hasRole(string ...$roles): bool
+    {
+        return in_array($this->role, $roles, true);
+    }
+
+    public function documents(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Document::class, 'owner_id');
+    }
+
+    public function folders(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Folder::class, 'owner_id');
+    }
+
+    public function shares(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Share::class, 'recipient_id');
+    }
+
+    public function folderShares(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(FolderShare::class, 'recipient_id');
+    }
+
+    public function comments(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Comment::class, 'user_id');
+    }
+
+    public function stars(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Star::class, 'user_id');
+    }
+
+    public function auditEntries(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(AuditEntry::class, 'actor_id');
+    }
+
+    public function workspaceMemberships(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(WorkspaceMembership::class, 'user_id');
+    }
+
+    public function workspaces(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Workspace::class, 'workspace_memberships');
+    }
 }
+

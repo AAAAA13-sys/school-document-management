@@ -103,6 +103,22 @@ class WorkspaceController extends Controller
             $history = $query->orderByDesc('id')->paginate(20)->withQueryString();
         }
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'source' => $source,
+                'section' => $section,
+                'stats' => $stats,
+                'view' => $view,
+                'folder' => $folder,
+                'parent_folder' => $parentFolder,
+                'folders' => $folders,
+                'documents' => $documents,
+                'versions' => $versions,
+                'starred' => $starred,
+                'history' => $history,
+            ]);
+        }
+
         return view('workspace', compact('source', 'section', 'stats', 'documents', 'versions', 'folders', 'folder', 'parentFolder', 'starred', 'view', 'history', 'canManageFolder', 'folderShares', 'folderRecipients'));
     }
 
@@ -138,6 +154,28 @@ class WorkspaceController extends Controller
             ->when($user->isStaff(), fn ($q) => $q->where('owner_id', $user->id))
             ->get();
         $activity = Access::scope(DB::table('audit_entries'), $user)->where('document_id', $document)->orderByDesc('id')->limit(20)->get();
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'document' => $doc,
+                'source' => $source,
+                'section' => $section,
+                'versions' => $versions->values(),
+                'comments' => $comments,
+                'shares' => $shares,
+                'recipients' => $recipients,
+                'permissions' => [
+                    'can_manage' => (bool) $owner,
+                    'can_edit' => (bool) $editor,
+                    'can_comment' => (bool) $commenter,
+                    'can_share' => (bool) $sharer,
+                    'classifications' => $classifications,
+                ],
+                'folders' => $folders,
+                'activity' => $activity,
+                'grant' => $grant,
+            ]);
+        }
 
         return view('document', compact('doc', 'source', 'section', 'versions', 'comments', 'shares', 'recipients', 'owner', 'editor', 'commenter', 'sharer', 'classifications', 'folders', 'activity', 'grant'));
     }

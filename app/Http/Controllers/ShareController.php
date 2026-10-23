@@ -35,6 +35,6 @@ class ShareController extends Controller
             Access::audit($user, 'comment.created', $doc);
         });
 
-        return back()->with('status', 'Comment added.');
+        return $request->expectsJson() ? response()->json(['message' => 'Comment added.'], 201) : back()->with('status', 'Comment added.');
     }
 }

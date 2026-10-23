@@ -8,7 +8,9 @@ abstract class TestCase extends BaseTestCase
 {
     public function createApplication()
     {
-        $app = parent::createApplication();
+        $app = require __DIR__.'/../bootstrap/app.php';
+        $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+
         $driver = $app['config']['database.default'];
         $database = $app['config']['database.connections.'.$driver.'.database'];
         if (! $app->environment('testing') || ! (($driver === 'sqlite' && $database === ':memory:') || ($driver === 'mysql' && $database === 'dms_test'))) {

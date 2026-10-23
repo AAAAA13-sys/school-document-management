@@ -15,7 +15,26 @@ class AccountController extends Controller
 {
     public function show(Request $request)
     {
-        $source = $request->user()->source ?? 'ALL';
+        $user = $request->user();
+        $source = $user->source ?? 'ALL';
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                    'role_label' => config('dms.role_labels.'.$user->role, ucfirst(str_replace('_', ' ', $user->role))),
+                    'source' => $user->source,
+                    'sources' => $user->sources(),
+                    'school_id' => $user->school_id,
+                    'campus' => $user->campus,
+                    'active' => (bool) $user->active,
+                ],
+                'home_path' => $user->homePath(),
+            ]);
+        }
 
         return view('account', ['source' => $source, 'section' => 'account']);
     }

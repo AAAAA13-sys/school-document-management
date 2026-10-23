@@ -28,6 +28,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/workspaces/{source}/{section?}', [WorkspaceController::class, 'index'])
         ->where('source', '[a-zA-Z0-9_-]+');
+    Route::get('/documents', [DocumentController::class, 'index'])->name('documents.index');
     Route::get('/documents/{document}', [WorkspaceController::class, 'show']);
 
     Route::post('/documents/batch', BatchUploadController::class)
@@ -40,6 +41,9 @@ Route::middleware(['auth', 'active'])->group(function () {
         ->middleware('can:documents.write');
     Route::patch('/documents/{document}', [DocumentController::class, 'update'])
         ->name('documents.update')
+        ->middleware('can:documents.write');
+    Route::delete('/documents/{document}', [DocumentController::class, 'trash'])
+        ->name('documents.delete')
         ->middleware('can:documents.write');
     Route::post('/documents/{document}/trash', [DocumentController::class, 'trash'])
         ->name('documents.trash')

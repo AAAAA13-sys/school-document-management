@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\Document;
+use App\Models\Folder;
 use App\Models\User;
 use App\Policies\ConnectorPolicy;
 use App\Policies\DocumentPolicy;
@@ -23,6 +25,8 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('signin', fn (Request $r) => [Limit::perMinute(5)->by(strtolower((string) $r->input('email')).'|'.$r->ip()), Limit::perMinute(30)->by('signin-ip:'.$r->ip())]);
 
         Gate::policy(User::class, UserPolicy::class);
+        Gate::policy(Document::class, DocumentPolicy::class);
+        Gate::policy(Folder::class, FolderPolicy::class);
 
         // Administrative sections and account/connector management.
         Gate::define('admin.access', [UserPolicy::class, 'viewAdmin']);
