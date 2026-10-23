@@ -211,7 +211,7 @@
                             @if ($owner)
                                 <label for="document-classification" class="form-label">Classification</label
                                 ><select id="document-classification" name="classification" class="form-select mb-4">
-                                    @foreach (['Internal','Confidential','Restricted'] as $classification)
+                                    @foreach (($classifications ?? ['Internal','Confidential','Restricted']) as $classification)
                                         <option @selected ($doc->classification===$classification)>{{ $classification }}</option>
                                     @endforeach</select
                                 ><label for="move-folder" class="form-label">Folder</label

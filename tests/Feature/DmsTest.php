@@ -220,7 +220,7 @@ class DmsTest extends TestCase
             $outsider = $this->staff($scope + ['role' => 'super_admin']);
             $this->actingAs($outsider)->get('/documents/'.$id)->assertNotFound();
             $this->get('/files/'.$v->id)->assertNotFound();
-            $this->post('/documents/'.$id.'/shares', ['recipient_id' => $owner->id, 'permission' => 'Editor'])->assertForbidden();
+            $this->post('/documents/'.$id.'/shares', ['recipient_id' => $owner->id, 'permission' => 'Editor'])->assertNotFound();
         }
     }
 

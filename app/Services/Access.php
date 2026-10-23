@@ -35,21 +35,77 @@ class Access
         return self::manages($user, $folder);
     }
 
+    /**
+     * The single classification/visibility scope for every document read path.
+     *
+     * Internal: active users in the document's source, plus Super Admin.
+     * Confidential: owner, Admin of the source, Super Admin, or an explicit
+     * document share. Folder grants never widen Confidential access.
+     * Restricted: owner, Super Admin, or an explicit document share. Folder
+     * grants never widen Restricted access.
+     *
+     * Connectors are source-bound integration actors: they can read Internal and
+     * Confidential documents in their source, but never Restricted documents.
+     */
+    public static function visibleTo(Builder $query, object $actor, string $prefix = ''): Builder
+    {
+        if ($actor instanceof User) {
+            if (! ($actor->active ?? true)) {
+                return $query->whereRaw('0 = 1');
+            }
+
+            $query->where($prefix.'school_id', $actor->school_id)
+                ->where($prefix.'campus', $actor->campus);
+
+            if ($actor->isSuperAdmin()) {
+                return $query;
+            }
+
+            return $query->where(function (Builder $q) use ($actor, $prefix) {
+                // Owners can always see their own document.
+                $q->where($prefix.'owner_id', $actor->id)
+                    // Internal is source-wide for active staff/admin accounts.
+                    ->orWhere(function (Builder $q) use ($actor, $prefix) {
+                        $q->where($prefix.'classification', 'Internal')
+                            ->whereIn($prefix.'source', $actor->sources());
+                    });
+
+                // An Admin can see Confidential documents in its own source.
+                if ($actor->isAdmin()) {
+                    $q->orWhere(function (Builder $q) use ($actor, $prefix) {
+                        $q->where($prefix.'classification', 'Confidential')
+                            ->whereIn($prefix.'source', $actor->sources());
+                    });
+                }
+
+                // Named document shares cross source boundaries by design and
+                // apply to every classification.
+                $q->orWhereIn($prefix.'id', DB::table('shares')->select('document_id')
+                    ->where('recipient_id', $actor->id)->whereNull('revoked_at')
+                    ->where(fn ($s) => $s->whereNull('expires_at')->orWhere('expires_at', '>', now())));
+
+                // Folder grants are inherited, but only for Internal documents.
+                // Confidential and Restricted need a document-level share.
+                $folders = self::inheritedFolderIds($actor);
+                if ($folders) {
+                    $q->orWhere(function (Builder $q) use ($prefix, $folders) {
+                        $q->where($prefix.'classification', 'Internal')
+                            ->whereIn($prefix.'folder_id', $folders);
+                    });
+                }
+            });
+        }
+
+        // Source-bound connector identities never receive Restricted documents.
+        return $query->where($prefix.'school_id', $actor->school_id)
+            ->where($prefix.'campus', $actor->campus)
+            ->where($prefix.'source', $actor->source)
+            ->whereIn($prefix.'classification', ['Internal', 'Confidential']);
+    }
+
     public static function documents(User $user): Builder
     {
-        return self::scope(DB::table('documents'), $user)->where(function (Builder $q) use ($user) {
-            $q->where('owner_id', $user->id);
-            // Staff can read every document in their source; edit/delete authority
-            // remains with the owner, a scoped Admin, or an explicit Editor grant.
-            $q->orWhereIn('source', $user->sources());
-            $q->orWhereIn('id', DB::table('shares')->select('document_id')->where('recipient_id', $user->id)
-                ->whereNull('revoked_at')->where(fn ($s) => $s->whereNull('expires_at')->orWhere('expires_at', '>', now())));
-            // Folder grants are inherited by the granted folder and every descendant.
-            $folders = self::inheritedFolderIds($user);
-            if ($folders) {
-                $q->orWhereIn('folder_id', $folders);
-            }
-        });
+        return self::visibleTo(DB::table('documents'), $user);
     }
 
     public static function folders(User $user): Builder

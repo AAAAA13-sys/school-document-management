@@ -34,7 +34,7 @@ class DocumentController extends Controller
             abort_if($doc->trashed_at, 409, 'Restore this document first.');
             abort_unless($doc->revision === (int) $request->validated('revision'), 409, 'Document changed. Reload and retry.');
             $classification = $request->validated('classification', $doc->classification);
-            if ($classification !== $doc->classification) Gate::forUser($user)->authorize('document.manage', $doc);
+            if ($classification !== $doc->classification) Gate::forUser($user)->authorize('document.classify', [$doc, $classification]);
             $previousClassification = $doc->classification;
             $previousFolder = $doc->folder_id;
             $folder = $request->validated('folder_id');
@@ -53,7 +53,7 @@ class DocumentController extends Controller
                     abort_unless($destination, 404);
                 }
                 // A move silently re-scopes inherited access; warn before broadening it.
-                $accessChange = DocumentMoves::audienceDelta($doc, $folder);
+                $accessChange = DocumentMoves::audienceDelta($doc, $folder, $classification);
                 if ($accessChange['broadened'] && ! $request->boolean('confirm_move')) {
                     throw new AccessChangeException(['gained' => count($accessChange['gained']),
                         'folder' => $destination?->name, 'permissions' => array_count_values($accessChange['gained'])]);

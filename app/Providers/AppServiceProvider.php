@@ -44,6 +44,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('document.view', [DocumentPolicy::class, 'view']);
         Gate::define('document.create', [DocumentPolicy::class, 'create']);
         Gate::define('document.edit', [DocumentPolicy::class, 'edit']);
+        Gate::define('document.classify', [DocumentPolicy::class, 'classify']);
         Gate::define('document.manage', [DocumentPolicy::class, 'manage']);
         Gate::define('document.delete', [DocumentPolicy::class, 'manage']);
         Gate::define('document.restore', [DocumentPolicy::class, 'manage']);

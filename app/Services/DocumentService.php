@@ -131,7 +131,9 @@ class DocumentService
                 Gate::forUser($actor)->authorize('document.edit', $doc);
             }
         } else {
-            abort_unless($actor->source === $doc->source, 404);
+            // Connector read-back follows the same classification scope, with
+            // Restricted documents never exposed to source connectors.
+            abort_unless(Access::visibleTo(DB::table('documents')->where('id', $doc->id), $actor)->exists(), 404);
         }
     }
 

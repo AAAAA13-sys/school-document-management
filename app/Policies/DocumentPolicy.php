@@ -4,16 +4,19 @@ namespace App\Policies;
 
 use App\Models\User;
 use App\Services\Access;
+use Illuminate\Support\Facades\DB;
 
 class DocumentPolicy
 {
     /**
      * Document lists and detail pages are always fetched through Access first so
      * IDs outside the actor's school/campus/source scope remain 404 responses.
+     * The policy delegates non-owner decisions to Access::visibleTo so listings,
+     * search, counts, downloads and the API cannot drift from this check.
      */
     public function view(User $actor, object $document): bool
     {
-        if (! $this->sameSchoolAndCampus($actor, $document)) {
+        if (! $this->sameSchoolAndCampus($actor, $document) || ! ($actor->active ?? true)) {
             return false;
         }
 
@@ -21,12 +24,7 @@ class DocumentPolicy
             return true;
         }
 
-        if ($actor->canAccessSource($document->source)) {
-            return true;
-        }
-
-        // Named shares and folder grants are the documented cross-source exception.
-        return Access::effectiveGrant($actor, $document) !== null;
+        return Access::visibleTo(DB::table('documents')->where('id', $document->id), $actor)->exists();
     }
 
     public function create(User $actor, string $source): bool
@@ -62,8 +60,21 @@ class DocumentPolicy
             return true;
         }
 
-        // Admins manage content in their own source only; a cross-source named
-        // share must not turn into repository management authority.
+        // Restricted documents do not inherit Admin source-management authority.
+        // A same-source Admin must rely on an explicit Editor grant, just like
+        // Staff; a cross-source Admin share remains read-only under Phase 3 rules.
+        if ($document->classification === 'Restricted') {
+            if ($actor->isAdmin() && ! Access::manages($actor, $document)) {
+                return false;
+            }
+
+            $grant = Access::effectiveGrant($actor, $document);
+
+            return $grant?->permission === 'Editor' && ! $grant?->version_id;
+        }
+
+        // Admins manage Internal/Confidential content in their own source only;
+        // a cross-source named share must not become repository management.
         if ($actor->isAdmin()) {
             return Access::manages($actor, $document);
         }
@@ -75,20 +86,57 @@ class DocumentPolicy
 
     public function manage(User $actor, object $document): bool
     {
-        if (! $this->sameSchoolAndCampus($actor, $document) || $actor->isSuperAdmin()) {
+        if (! $this->sameSchoolAndCampus($actor, $document) || $actor->isSuperAdmin() || ! ($actor->active ?? true)) {
             return false;
         }
 
-        return $document->owner_id === $actor->id || Access::manages($actor, $document);
+        if (! $this->view($actor, $document)) {
+            return false;
+        }
+
+        if ($document->owner_id === $actor->id) {
+            return true;
+        }
+
+        // Restricted documents are owner-only for management actions; explicit
+        // shares can grant editing but never delete/move/reclassify authority.
+        return $document->classification !== 'Restricted' && Access::manages($actor, $document);
     }
 
     public function share(User $actor, object $document): bool
     {
-        // Sharing and re-sharing are repository-management actions. Staff and
-        // Super Admin accounts cannot grant access.
-        return $actor->isAdmin()
-            && $this->sameSchoolAndCampus($actor, $document)
-            && Access::manages($actor, $document);
+        if (! $this->sameSchoolAndCampus($actor, $document) || ! ($actor->active ?? true) || ! $this->view($actor, $document)) {
+            return false;
+        }
+
+        // Restricted documents are the one sharing action reserved to Super Admin.
+        if ($document->classification === 'Restricted') {
+            return $actor->isSuperAdmin();
+        }
+
+        // Sharing and re-sharing Internal/Confidential documents remain Admin
+        // repository-management actions. Super Admin stays read-only for them.
+        return $actor->isAdmin() && Access::manages($actor, $document);
+    }
+
+    /**
+     * A classification change is a management action, and the actor must also be
+     * able to see the target level. Owners see every level; an Admin can move
+     * Internal/Confidential documents inside its source but cannot promote them
+     * to Restricted unless it owns the document.
+     */
+    public function classify(User $actor, object $document, string $classification): bool
+    {
+        if (! in_array($classification, ['Internal', 'Confidential', 'Restricted'], true)
+            || ! $this->manage($actor, $document)) {
+            return false;
+        }
+
+        if ($document->owner_id === $actor->id) {
+            return true;
+        }
+
+        return $classification !== 'Restricted' && $actor->isAdmin() && Access::manages($actor, $document);
     }
 
     public function comment(User $actor, object $document): bool
@@ -97,7 +145,12 @@ class DocumentPolicy
             return false;
         }
 
-        if ($document->owner_id === $actor->id || Access::manages($actor, $document)) {
+        if ($document->owner_id === $actor->id) {
+            return true;
+        }
+
+        // Restricted documents require the explicit share permission.
+        if ($document->classification !== 'Restricted' && Access::manages($actor, $document)) {
             return true;
         }
 
@@ -113,16 +166,32 @@ class DocumentPolicy
 
     public function allVersions(User $actor, object $document): bool
     {
+        if (! $this->sameSchoolAndCampus($actor, $document) || ! ($actor->active ?? true)) {
+            return false;
+        }
+
         if ($actor->isSuperAdmin() || $document->owner_id === $actor->id) {
             return true;
         }
 
-        return $actor->canAccessSource($document->source) || Access::manages($actor, $document);
+        // Restricted version history follows the explicit grant, including any
+        // pinned version, rather than source-wide visibility.
+        if ($document->classification === 'Restricted') {
+            return false;
+        }
+
+        if ($actor->isAdmin() && Access::manages($actor, $document)) {
+            return true;
+        }
+
+        return $document->classification === 'Internal' && $actor->canAccessSource($document->source);
     }
 
     public function shareAny(User $actor): bool
     {
-        return $actor->isAdmin();
+        // Super Admin may share Restricted documents; the document policy still
+        // rejects every other classification for that role.
+        return $actor->isAdmin() || $actor->isSuperAdmin();
     }
 
     public function commentAny(User $actor): bool

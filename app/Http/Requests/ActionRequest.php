@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Enums\Role;
 use App\Enums\Source;
 use App\Models\User;
+use App\Services\Access;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -47,6 +48,15 @@ class ActionRequest extends FormRequest
             abort_unless($target, 404);
 
             return $user->can('update', $target);
+        }
+
+        if (in_array($route, ['shares.create', 'shares.revoke'], true)) {
+            // Resolve visibility before validation so an out-of-scope document
+            // stays a 404 and a Super Admin's non-Restricted share attempt is a
+            // 403 rather than a validation error.
+            $document = Access::document($user, (string) $this->route('document'));
+
+            return $user->can('document.share', $document);
         }
 
         return true;

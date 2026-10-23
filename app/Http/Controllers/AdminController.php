@@ -21,16 +21,22 @@ class AdminController extends Controller
         Gate::forUser($user)->authorize('admin.section', $section);
         // Application area marker for the shared layout; it is not a document source.
         $source = 'ALL';
-        $stats = ['documents' => Access::administrationScope(DB::table('documents'), $user)->whereIn('source', Source::values())->whereNull('trashed_at')->count(),
+        $stats = ['documents' => Access::visibleTo(DB::table('documents'), $user)->whereNull('trashed_at')->count(),
             'accounts' => Access::administrationScope(DB::table('users'), $user)->where('active', true)->count(),
             'history' => Access::administrationScope(DB::table('history_receipts'), $user)->count(),
             'connectors' => Access::administrationScope(DB::table('connectors'), $user)->where('active', true)->distinct()->count('source'),
-            'blocked' => Access::administrationScope(DB::table('documents'), $user)->join('document_versions', 'documents.id', '=', 'document_versions.document_id')->where('scan_status', '!=', 'Clean')->count()];
-        $workspaceCounts = Access::administrationScope(DB::table('documents'), $user)->whereNull('trashed_at')->selectRaw('source, COUNT(*) AS total')->groupBy('source')->pluck('total', 'source')->all();
+            'blocked' => Access::visibleTo(DB::table('documents'), $user, 'documents.')
+                ->join('document_versions', 'documents.id', '=', 'document_versions.document_id')
+                ->where('scan_status', '!=', 'Clean')->count()];
+        $workspaceCounts = Access::visibleTo(DB::table('documents'), $user)->whereNull('trashed_at')->selectRaw('source, COUNT(*) AS total')->groupBy('source')->pluck('total', 'source')->all();
         $accounts = Access::administrationScope(DB::table('users'), $user)->when($user->isAdmin(), fn ($q) => $q->where('role', Role::Staff->value))->orderBy('name')->get(['id', 'name', 'email', 'role', 'source', 'active']);
         $connectors = Access::administrationScope(DB::table('connectors'), $user)->orderBy('source')->get(['id', 'name', 'source', 'active', 'last_seen_at', 'created_at']);
         $auditQuery = Access::administrationScope(DB::table('audit_entries as a'), $user, 'a.')
             ->leftJoin('users as u', 'u.id', '=', 'a.actor_id')->select('a.*', 'u.name as actor_name');
+        // Audit rows can name a document; do not disclose activity on a document
+        // the viewer cannot see. Non-document audit entries remain visible.
+        $visibleDocuments = Access::visibleTo(DB::table('documents'), $user)->select('id');
+        $auditQuery->where(fn ($q) => $q->whereNull('a.document_id')->orWhereIn('a.document_id', $visibleDocuments));
         if ($section === 'audit') {
             if ($request->filled('source')) {
                 $auditQuery->where('a.source', $request->input('source'));
@@ -51,7 +57,7 @@ class AdminController extends Controller
             $docs->where('classification', $request->input('classification'));
         }
         $documents = $docs->orderByDesc('updated_at')->paginate(20)->withQueryString();
-        $scans = Access::administrationScope(
+        $scans = Access::visibleTo(
             DB::table('document_versions')->join('documents', 'documents.id', '=', 'document_versions.document_id'),
             $user,
             'documents.',

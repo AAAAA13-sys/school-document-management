@@ -119,6 +119,9 @@ class WorkspaceController extends Controller
         $editor = Gate::forUser($user)->allows('document.edit', $doc);
         $commenter = Gate::forUser($user)->allows('document.comment', $doc);
         $sharer = Gate::forUser($user)->allows('document.share', $doc);
+        $classifications = collect(['Internal', 'Confidential', 'Restricted'])
+            ->filter(fn (string $level) => Gate::forUser($user)->allows('document.classify', [$doc, $level]))
+            ->values();
         $recipients = $sharer
             ? Access::scope(DB::table('users'), $user)->where('active', true)->where('id', '!=', $user->id)->orderBy('name')->get(['id', 'name', 'email'])
             : collect();
@@ -127,7 +130,7 @@ class WorkspaceController extends Controller
             ->get();
         $activity = Access::scope(DB::table('audit_entries'), $user)->where('document_id', $document)->orderByDesc('id')->limit(20)->get();
 
-        return view('document', compact('doc', 'source', 'section', 'versions', 'comments', 'shares', 'recipients', 'owner', 'editor', 'commenter', 'sharer', 'folders', 'activity'));
+        return view('document', compact('doc', 'source', 'section', 'versions', 'comments', 'shares', 'recipients', 'owner', 'editor', 'commenter', 'sharer', 'classifications', 'folders', 'activity'));
     }
 
     public function scanStatus(Request $request, string $document)

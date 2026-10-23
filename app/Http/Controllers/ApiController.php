@@ -48,9 +48,9 @@ class ApiController extends Controller
         $limit = (int) $request->input('limit', 50);
         $after = $request->input('after', 0);
         if ($resource === 'files') {
-            $rows = DB::table('document_versions as v')->join('documents as d', 'd.id', '=', 'v.document_id')
-                ->where('d.school_id', $actor->school_id)->where('d.campus', $actor->campus)->where('d.source', $actor->source)
-                ->where('v.cursor', '>', $after)->orderBy('v.cursor')->limit($limit + 1)
+            $query = DB::table('document_versions as v')->join('documents as d', 'd.id', '=', 'v.document_id');
+            Access::visibleTo($query, $actor, 'd.');
+            $rows = $query->where('v.cursor', '>', $after)->orderBy('v.cursor')->limit($limit + 1)
                 ->get(['v.cursor', 'v.id', 'v.document_id', 'v.number', 'v.filename', 'v.mime', 'v.size', 'v.checksum', 'v.scan_status', 'v.created_at']);
             $more = $rows->count() > $limit;
             $rows = $rows->take($limit);
@@ -59,13 +59,19 @@ class ApiController extends Controller
         }
         $query = Access::scope(DB::table($table), $actor)->where('source', $actor->source);
         if ($resource === 'documents') {
-            // UUIDs are not time ordered. Cursor over creation events and hydrate current documents.
-            $events = Access::scope(DB::table('integration_events'), $actor)->where('source', $actor->source)->where('id', '>', $after)->orderBy('id')->limit($limit + 1)->get();
+            // UUIDs are not time ordered. Cursor over creation events for visible
+            // documents and hydrate the current document rows.
+            $visible = Access::visibleTo(DB::table('documents'), $actor)->select('id');
+            $events = Access::scope(DB::table('integration_events'), $actor)->where('source', $actor->source)
+                ->whereIn('document_id', $visible)->where('id', '>', $after)->orderBy('id')->limit($limit + 1)->get();
             $more = $events->count() > $limit;
             $events = $events->take($limit);
-            $docs = Access::scope(DB::table('documents'), $actor)->where('source', $actor->source)->whereIn('id', $events->pluck('document_id')->filter())->get();
+            $docs = Access::visibleTo(DB::table('documents'), $actor)->whereIn('id', $events->pluck('document_id')->filter())->get();
 
             return response()->json(['data' => $docs, 'next_cursor' => $events->last()?->id ?? (int) $after, 'has_more' => $more]);
+        }
+        if ($resource === 'events') {
+            $query->whereIn('document_id', Access::visibleTo(DB::table('documents'), $actor)->select('id'));
         }
         foreach (['record_type', 'record_id'] as $field) {
             if ($resource === 'history' && $request->filled($field)) {
@@ -87,7 +93,7 @@ class ApiController extends Controller
     public function document(Request $request, string $document)
     {
         $actor = $request->attributes->get('connector');
-        $doc = Access::scope(DB::table('documents'), $actor)->where('source', $actor->source)->where('id', $document)->first() ?? abort(404);
+        $doc = Access::visibleTo(DB::table('documents'), $actor)->where('id', $document)->first() ?? abort(404);
         $versions = DB::table('document_versions')->where('document_id', $document)->orderBy('number')->get(['id', 'number', 'filename', 'mime', 'size', 'checksum', 'scan_status', 'created_at']);
 
         return response()->json(['data' => $doc, 'versions' => $versions]);

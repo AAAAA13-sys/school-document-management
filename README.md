@@ -38,8 +38,8 @@ The actual document categories still need confirmation. These descriptions ident
 | File security      | Private UUID storage, detected MIME metadata, SHA-256 integrity checks and queued local ClamAV scanning.                                 | Failed, pending and quarantined versions remain blocked; deployed scanner/worker health still needs verification.                           |
 | Preview            | Local PDF.js viewer; common raster images; escaped text, CSV and JSON previews.                                                          | Office documents and archives remain download-only. No external document viewer receives private files.                                     |
 | Organization       | Folders, rename, classification editing, move menu, document-to-folder drag/drop, stars, trash/restore and Back navigation.              | Department/group permissions are not implemented. Moving a file does not create a folder-sharing permission.                                |
-| Sharing            | Named-user document and folder grants: Viewer, Commenter or Editor; optional expiry, revocation, pinned versions and folder inheritance. | College/department groups still need a design and implementation.                                                                           |
-| Integration        | Scoped connector tokens and `/api/v1` document/history endpoints, revision handling and replay protection.                               | Each ERP team must supply and test its adapter. Working endpoints do not mean all four real ERPs are connected.                             |
+| Sharing            | Named-user document and folder grants: Viewer, Commenter or Editor; optional expiry, revocation, pinned versions and folder inheritance. Folder grants expose Internal documents only; only Super Admin can share Restricted. | College/department groups still need a design and implementation.                                                                           |
+| Integration        | Scoped connector tokens and `/api/v1` document/history endpoints, revision handling and replay protection. API read-back exposes Internal/Confidential only.                               | Each ERP team must supply and test its adapter. Working endpoints do not mean all four real ERPs are connected.                             |
 | Duplicate handling | SHA-256 is recorded; idempotency keys prevent duplicate processing of the same submission retry.                                         | **Detecting the same file in separate uploads with different keys is still backlog work.**                                                  |
 | Frontend           | Blade, Bootstrap, jQuery and jQuery UI; role-aware menus; four-second top-right notifications with a progress bar.                       | Complete the mobile/tablet/desktop checklist, consistent zebra table styling and screenshot evidence.                                       |
 
@@ -47,7 +47,7 @@ The actual document categories still need confirmation. These descriptions ident
 
 ### A. Explain the sharing mechanism and its purpose
 
-**Current mechanism:** an Admin managing the document grants a named account Viewer, Commenter or Editor access. Sharing is limited by the existing school/campus scope; named grants may cross ERP source boundaries. Staff cannot change access permissions. There are no public links.
+**Current mechanism:** an Admin managing an Internal/Confidential document grants a named account Viewer, Commenter or Editor access. Only Super Admin can create or revoke a share on a Restricted document. Sharing is limited by the existing school/campus scope; named grants may cross ERP source boundaries. Staff cannot change access permissions. There are no public links.
 
 | Permission | Current document access                                                                                                                        |
 | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -55,7 +55,7 @@ The actual document categories still need confirmation. These descriptions ident
 | Commenter  | Viewer access plus comments.                                                                                                                   |
 | Editor     | Commenter access plus rename and new-version uploads; cannot move, trash, reshare or change classification merely because of the Editor grant. |
 
-Role-based access also applies: Super Admin has read-only oversight of all four ERP repositories and the full audit log; an Admin manages content in its assigned ERP source; Staff can read all documents in its own source but edits/deletes only owned or Editor-granted documents. Individual grants are not the only access path for these management roles.
+Role-based access also applies: Super Admin has read-only oversight of all four ERP repositories and the full audit log, except for Restricted sharing; an Admin manages Internal/Confidential content in its assigned ERP source and only owned Restricted documents; Staff can read Internal documents in its own source and only owned or explicitly shared Confidential/Restricted documents, while edits/deletes remain limited to owned or Editor-granted content. Individual grants are not the only access path for these management roles.
 
 **Proposed presentation scenario, pending approval:** a college secretary shares an authorized evaluation/report document with a department head and selected faculty. One person reviews, one comments and one updates the working version. Explain why those recipients need that same document rather than another ERP record or an emailed copy.
 
@@ -93,23 +93,23 @@ The current hierarchy is:
 | Manage Admin accounts and roles | Yes, within school/campus scope | No                                | No                                                     |
 | Manage Staff accounts/passwords | Yes                            | Assigned ERP source only          | No                                                     |
 | Manage ERP connectors           | Yes                            | No                                | No                                                     |
-| View ERP documents              | All four sources, read-only    | Assigned source plus named grants | Own source plus named grants                           |
-| Upload/edit/delete documents    | No (read-only oversight)       | Assigned source                   | Own documents; Editor grants can edit but not delete   |
+| View ERP documents              | All four sources and classifications, read-only | Assigned source Internal/Confidential; Restricted only if owner or shared | Own source Internal; Confidential/Restricted only if owner or shared |
+| Upload/edit/delete documents    | No (read-only oversight)       | Assigned source Internal/Confidential; owned Restricted; Editor share edits content only | Own documents; Editor share edits content only |
 | Manage folders                  | No (read-only oversight)       | Assigned source                   | No                                                     |
-| Share documents/change grants   | No                             | Assigned-source documents/folders | No                                                     |
-| Change classification           | No                             | Assigned-source documents         | Owned documents; an Editor grant alone is insufficient |
-| Audit access                    | Full scoped audit              | Assigned-source audit             | No administration audit screen                         |
+| Share documents/change grants   | Restricted documents only      | Assigned-source Internal/Confidential documents/folders; never Restricted | No                                                     |
+| Change classification           | No                             | Own documents at any level; assigned-source Internal/Confidential documents otherwise | Owned documents; an Editor grant alone is insufficient |
+| Audit access                    | Full scoped audit              | Assigned-source audit; hidden-document entries filtered | No administration audit screen                         |
 
-Staff can read every document in its assigned ERP source. Editing and deleting remain limited to owned documents; an Editor grant permits editing but not deleting. Named shares and folder grants may cross ERP sources as the documented exception, while ordinary workspace access stays source-scoped.
+Internal documents are readable by active Staff and Admins in their assigned ERP source and by Super Admin. Confidential documents are visible to their owner, the Admin of that source, Super Admin and explicit document recipients; Staff need ownership or an explicit document grant. Restricted documents are visible only to their owner, Super Admin and explicit document recipients. Named shares and folder grants may cross ERP sources as the documented exception, but folder grants widen Internal access only. Staff editing/deleting remains limited to owned documents; an Editor grant permits editing content but not deleting. Admins manage Internal/Confidential documents in their source and only owned Restricted documents.
 
-**Classification is currently metadata with validated values:** Internal, Confidential and Restricted. It does not automatically create or revoke sharing grants. Access is enforced through roles, ownership, scope and explicit grants. Do not present the classification label alone as a complete confidentiality policy.
+**Classification is enforced server-side:** Internal, Confidential and Restricted all use one reusable visibility scope, and the document policy follows the same rules. Only Super Admin can create or revoke a Restricted document share; Super Admin remains read-only for other document writes. Hidden documents return 404 and do not appear in listings, search, counts, folder totals, downloads, duplicate warnings, API read-back or source audit entries. Existing explicit classifications are preserved; the database default for unspecified rows is Internal.
 
 - [x] Implement the three-role hierarchy and restrict controls on the server as well as in the UI.
 - [x] Provide classification selection during uploads and authorized editing afterward.
-- [ ] Agree what each classification means for viewing, editing, sharing and retention.
-- [ ] Decide and implement any additional classification-based access rules.
+- [x] Agree what each classification means for viewing, editing and sharing; retention remains to be agreed.
+- [x] Implement classification-based access rules for workspaces, search, folders, sharing, history/events, downloads, API read-back, counts and audit.
 - [ ] Demonstrate Super Admin, Admin and Staff interfaces separately.
-- [ ] Prove Staff cannot access administration URLs or unshared documents through direct requests.
+- [x] Prove Staff cannot access administration URLs or unshared documents through direct requests.
 
 Approval workflows, 2FA/SSO, new notification channels and new system-settings modules were deferred from the earlier hierarchy pass. They are not implemented merely because they appeared in a role checklist.
 
@@ -125,7 +125,7 @@ The professor’s proposed CCS-faculty collaboration needs **folder/group permis
 - [ ] Define revocation, classification conflicts and audit requirements.
 - [ ] Revise the scope/specification, then implement and test the agreed model.
 
-**Current limitation:** moving a document to a folder does not grant that folder’s collaborators access, because shared-folder membership does not yet exist.
+**Current limitation:** folder grants cover named accounts only and expose Internal documents; college/department group membership is not implemented.
 
 ### E. Implement duplicate-file detection
 
