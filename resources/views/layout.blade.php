@@ -115,7 +115,6 @@
 
             <a href="/approvals" class="return-admin" data-bs-toggle="tooltip" data-bs-placement="right" title="Requests and approvals"><span class="return-text">Requests and approvals</span></a>
             @if ($isAdmin)
-                @if ($viewer->isSuperAdmin() || $viewer->isAdmin())<a href="/admin/invitations" class="return-admin" data-bs-toggle="tooltip" data-bs-placement="right" title="Invitations"><span class="return-text">Invitations</span></a><a href="/admin/account-requests" class="return-admin" data-bs-toggle="tooltip" data-bs-placement="right" title="Account requests"><span class="return-text">Account requests</span></a>@endif
                 @if ($viewer->isSuperAdmin())<a href="/admin/workspaces" class="return-admin" data-bs-toggle="tooltip" data-bs-placement="right" title="Workspace registry"><span class="return-text">Workspace registry</span></a>@endif
             @endif
             <a href="/account" class="return-admin" data-bs-toggle="tooltip" data-bs-placement="right" title="My account"><span class="return-text">My account</span></a>

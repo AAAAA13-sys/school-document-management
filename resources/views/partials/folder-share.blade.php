@@ -42,7 +42,33 @@
                             <strong>How folder access works</strong>
                             <p>Access is inherited by documents and subfolders. An explicit document grant always wins. Editor can rename and add versions, but still cannot move, delete or reshare.<br />Moving a document out of this folder removes the inherited access; earlier versions and audit records stay intact.</p>
                         </div>
-                        <label for="folder-share-expiry" class="form-label">Expires <span>(optional)</span></label
+                        @php
+                            $hasConfidentialOrRestricted = !empty($folderHasConfidentialOrRestricted)
+                                || (!empty($folder) && (
+                                    !empty($folder->has_confidential_or_restricted)
+                                    || !empty($folder->contains_confidential_or_restricted)
+                                    || !empty($folder->has_confidential)
+                                    || !empty($folder->has_restricted)
+                                    || (!empty($folder->classification) && in_array($folder->classification, ['Confidential', 'Restricted']))
+                                ));
+                        @endphp
+                        @if (!$hasConfidentialOrRestricted)
+                            <div class="form-check mt-3" id="folder-share-apply-all-group">
+                                <input id="folder-share-apply-all" class="form-check-input" type="checkbox" name="apply_to_folder_files" value="1" />
+                                <label class="form-check-label" for="folder-share-apply-all">
+                                    Apply to all files in this folder (Internal only)
+                                </label>
+                            </div>
+                        @else
+                            <div class="form-check mt-3" id="folder-share-apply-all-group" style="display: none;">
+                                <input id="folder-share-apply-all" class="form-check-input" type="checkbox" name="apply_to_folder_files" value="1" disabled hidden />
+                                <label class="form-check-label text-muted" for="folder-share-apply-all">
+                                    Apply to all files in this folder (Internal only)
+                                </label>
+                                <small class="text-muted d-block">This folder contains Confidential or Restricted documents.</small>
+                            </div>
+                        @endif
+                        <label for="folder-share-expiry" class="form-label mt-3">Expires <span>(optional)</span></label
                         ><input
                             id="folder-share-expiry"
                             name="expires_at"

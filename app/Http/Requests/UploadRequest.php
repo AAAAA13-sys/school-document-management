@@ -35,6 +35,8 @@ class UploadRequest extends FormRequest
             'classification' => [$new ? 'required' : 'sometimes', 'in:Internal,Confidential,Restricted'], 'folder_id' => 'nullable|uuid',
             'subject' => 'nullable|string|max:200', 'reference' => 'nullable|string|max:100', 'category' => 'nullable|string|max:100',
             'revision' => [$new ? 'sometimes' : 'required', 'integer', 'min:1'], 'submission_key' => 'required|string|max:100',
-            'confirm_duplicate' => 'sometimes|boolean'];
+            // TODO(Backend): Support 'force_new_version' parameter when resolving duplicate upload conflicts.
+            'confirm_duplicate' => 'sometimes|boolean',
+            'force_new_version' => 'sometimes|boolean'];
     }
 }

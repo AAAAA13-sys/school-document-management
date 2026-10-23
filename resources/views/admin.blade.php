@@ -70,11 +70,18 @@
             <a class="btn btn-outline-secondary mt-4" href="/admin/connectors">Manage ERP connections</a>
         @endif
     @elseif ($section==='accounts')
-        <nav class="library-tabs" aria-label="Staff status">
-            <button type="button" data-staff-filter="all" class="active" aria-pressed="true">All staff</button
-            ><button type="button" data-staff-filter="active" aria-pressed="false">Active</button
-            ><button type="button" data-staff-filter="inactive" aria-pressed="false">Inactive</button>
+        <nav class="library-tabs" aria-label="People management">
+            <a href="/admin/accounts" class="active" aria-current="page">Staff directory</a>
+            @if ($viewer->isSuperAdmin() || $viewer->isAdmin())
+                <a href="/admin/invitations">Invitations</a>
+                <a href="/admin/account-requests">Account requests</a>
+            @endif
         </nav>
+        <div class="filter-pills-bar mb-3">
+            <button type="button" data-staff-filter="all" class="filter-pill active" aria-pressed="true">All staff ({{ $accounts->count() }})</button
+            ><button type="button" data-staff-filter="active" class="filter-pill" aria-pressed="false">Active ({{ $accounts->where('active', true)->count() }})</button
+            ><button type="button" data-staff-filter="inactive" class="filter-pill" aria-pressed="false">Inactive ({{ $accounts->where('active', false)->count() }})</button>
+        </div>
         <form class="document-toolbar" data-search-form>
             <div class="search-field">
                 <x-figma-icon name="search" /><label class="visually-hidden" for="staff-search">Search staff</label
@@ -84,7 +91,7 @@
         <section class="panel">
             <div class="panel-header"><h2>School staff</h2></div>
             <div class="table-responsive">
-                <table class="table table-zebra" data-filter-table id="staff-table">
+                <table class="table table-striped table-zebra" data-filter-table id="staff-table">
                     <thead>
                         <tr>
                             <th>Staff member</th>
@@ -117,8 +124,8 @@
         <div class="info-strip mt-4">
             <x-figma-icon name="link-notice" :size="24" />
             <div>
-                <strong>Accounts inherit your school and campus</strong>
-                <p>Students are not DMS users. You cannot demote or deactivate your own account.</p>
+                <strong>Accounts are provisioned via expiring invitations</strong>
+                <p>Recipients choose their own password. Scoped Admin proposals require Super Admin approval before dispatch.</p>
             </div>
         </div>
     @elseif ($section==='connectors')
@@ -143,7 +150,7 @@
         <section class="panel">
             <div class="panel-header"><h2>Connector identities</h2></div>
             <div class="table-responsive">
-                <table class="table table-zebra">
+                <table class="table table-striped table-zebra">
                     <thead>
                         <tr>
                             <th>Connection</th>
@@ -230,7 +237,7 @@
         <section class="panel">
             <div class="panel-header"><h2>School documents</h2></div>
             <div class="table-responsive">
-                <table class="table table-zebra table-sticky" data-filter-table>
+                <table class="table table-zebra table-sticky table-striped" data-filter-table>
                     <thead>
                         <tr>
                             <th scope="col" class="sort-header" data-sort-table="0" role="columnheader" tabindex="0" aria-sort="none">Document <span class="sort-indicator" aria-hidden="true"></span></th>
@@ -274,7 +281,7 @@
         <section class="panel">
             <div class="panel-header"><h2>Versions awaiting attention</h2></div>
             <div class="table-responsive">
-                <table class="table table-zebra">
+                <table class="table table-striped table-zebra">
                     <thead>
                         <tr>
                             <th>Document</th>
@@ -333,7 +340,7 @@
         <section class="panel">
             <div class="panel-header"><h2>Repository activity</h2></div>
             <div class="table-responsive table-scroll-y">
-                <table class="table table-zebra table-sticky" data-filter-table>
+                <table class="table table-zebra table-sticky table-striped" data-filter-table>
                     <thead>
                         <tr>
                             <th>Action</th>
@@ -386,16 +393,16 @@
                 <div class="modal-content">
                     <form method="post" action="/admin/accounts" data-demo-action="account">
                         <div class="modal-header">
-                            <h2 id="account-new-title" class="modal-title">Create staff account</h2>
+                            <h2 id="account-new-title" class="modal-title">Invite staff member</h2>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
-                            <p class="modal-subtitle">Access is scoped to {{ $viewer->school_id }} · {{ $viewer->campus }} campus.</p>
+                            <p class="modal-subtitle">An expiring, single-use invitation will be sent for the recipient to activate their account. Access is scoped to {{ $viewer->school_id }} · {{ $viewer->campus }} campus.</p>
                             @include ('partials.account-form',['account'=>null])
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button
-                            ><button type="submit" class="btn btn-primary">Invite staff</button>
+                            ><button type="submit" class="btn btn-primary">Send invitation</button>
                         </div>
                     </form>
                 </div>

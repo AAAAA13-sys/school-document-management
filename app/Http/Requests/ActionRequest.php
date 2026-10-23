@@ -87,7 +87,8 @@ class ActionRequest extends FormRequest
             'documents.trash', 'documents.restore' => ['revision' => 'required|integer|min:1'],
             'shares.revoke' => ['revision' => 'required|integer|min:1'],
             'shares.create' => ['revision' => 'required|integer|min:1', 'recipient_id' => 'required|integer', 'permission' => 'required|in:Viewer,Commenter,Editor', 'expires_at' => 'nullable|date|after:now|before_or_equal:'.now()->addDays(30)->toDateTimeString(), 'version_id' => 'nullable|uuid'],
-            'folder-shares.create' => ['recipient_id' => 'required|integer', 'permission' => 'required|in:Viewer,Commenter,Editor', 'expires_at' => 'nullable|date|after:now|before_or_equal:'.now()->addDays(30)->toDateTimeString()],
+            // TODO(Backend): Support 'apply_to_folder_files' parameter to propagate folder sharing to internal documents
+            'folder-shares.create' => ['recipient_id' => 'required|integer', 'permission' => 'required|in:Viewer,Commenter,Editor', 'expires_at' => 'nullable|date|after:now|before_or_equal:'.now()->addDays(30)->toDateTimeString(), 'apply_to_folder_files' => 'sometimes|boolean'],
             'comments.create' => ['body' => 'required|string|max:2000'],
             'accounts.create', 'accounts.update' => [
                 'name' => 'required|string|max:255', 'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore($this->route('account'))],

@@ -58,6 +58,8 @@ class DuplicateDetection
             ->map(fn ($row) => [
                 'document_id' => $row->document_id,
                 'title' => $row->title,
+                // TODO(Backend): Include owner name/email in duplicate match array for duplicate warning modal
+                'owner' => $row->owner_id ? DB::table('users')->where('id', $row->owner_id)->value('name') : null,
                 'version_number' => (int) $row->number,
                 'uploaded_at' => $row->created_at,
                 'can_add_version' => self::canAddVersion($actor, $row),

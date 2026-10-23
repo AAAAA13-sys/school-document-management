@@ -2891,6 +2891,7 @@ body.login-page {
 
   .document-items.is-grid {
     display: flex;
+    flex-direction: column;
     padding: 0;
     gap: 20px;
   }
@@ -3547,6 +3548,70 @@ body.login-page {
    full-width cell reads as a rendering fault, so it stays plain. */
 .table.table-zebra > tbody > tr.is-empty > * {
   background-color: var(--bs-table-bg);
+}
+
+/* Custom rule to enforce alternating gray (#f8f9fa) and white (#ffffff) rows */
+.table-striped,
+.table.table-striped {
+  --table-stripe: #f8f9fa;
+  --bs-table-bg: #ffffff;
+  --bs-table-striped-bg: #f8f9fa;
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) > *,
+.table.table-striped > tbody > tr:nth-of-type(odd) > * {
+  --bs-table-bg-type: #f8f9fa;
+  background-color: #f8f9fa;
+}
+
+.table-striped > tbody > tr:nth-of-type(even) > *,
+.table.table-striped > tbody > tr:nth-of-type(even) > * {
+  --bs-table-bg-type: #ffffff;
+  background-color: #ffffff;
+}
+
+.table-striped > tbody > tr:hover > *,
+.table.table-striped > tbody > tr:hover > * {
+  background-color: var(--table-hover, #d8e3d1);
+}
+
+.table-striped > tbody > tr.table-active > *,
+.table.table-striped > tbody > tr.table-active > * {
+  background-color: var(--table-active, #d8e3d1);
+  box-shadow: inset 3px 0 0 var(--green-800);
+}
+
+.table-striped > tbody > tr.is-empty > *,
+.table.table-striped > tbody > tr.is-empty > * {
+  background-color: #ffffff;
+}
+
+/* QA Responsive verification: data-device="mobile" */
+body[data-device="mobile"] .sidebar {
+  transform: translateX(-100%);
+  width: min(300px, 85vw);
+}
+
+body[data-device="mobile"] .sidebar.is-open {
+  transform: translateX(0);
+}
+
+body[data-device="mobile"] .document-items.is-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+body[data-device="mobile"] .document-items.is-grid .document-row {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+body[data-device="mobile"] .modal-dialog {
+  margin: 12px;
+  max-width: none;
+  width: calc(100% - 24px);
 }
 
 /* D-4 — sticky header for long scrollable tables (audit trail, repository).
@@ -5022,4 +5087,39 @@ body.login-page .preview-login-link {
   border-radius: 8px;
   margin-bottom: 6px;
   font-size: 14px;
+}
+
+/* Staff Directory Filter Pills */
+.filter-pills-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+  color: var(--muted);
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.filter-pill:hover {
+  color: var(--ink);
+  border-color: #cbd5e1;
+}
+
+.filter-pill.active {
+  color: var(--green-800);
+  background: var(--green-100);
+  border-color: #bbf7d0;
+  font-weight: 600;
 }

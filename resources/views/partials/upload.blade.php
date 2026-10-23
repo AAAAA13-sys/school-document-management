@@ -135,5 +135,29 @@
             </div>
         </div>
     </div>
-
 @endif
+
+<div class="modal fade" id="duplicate-warning-modal" tabindex="-1" aria-labelledby="duplicate-warning-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="duplicate-warning-title">Duplicate file detected</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-subtitle">An identical file already exists in a document you can access.</p>
+                <div class="duplicate-info-card p-3 my-3 rounded" style="background: var(--canvas, #f8f9fa); border: 1px solid var(--line, #e2e8f0);">
+                    <p class="mb-2"><strong>Document Title:</strong> <span id="duplicate-modal-doc-title">—</span></p>
+                    <p class="mb-0"><strong>Document Owner:</strong> <span id="duplicate-modal-doc-owner">—</span></p>
+                </div>
+                <p class="text-muted small mb-0">You can upload this file as a new version of the existing document, or cancel the upload.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="duplicate-modal-cancel">Cancel</button>
+                <button type="button" class="btn btn-primary" id="duplicate-modal-upload-new-version">Upload as New Version</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
