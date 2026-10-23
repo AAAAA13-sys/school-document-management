@@ -700,3 +700,416 @@ All error responses adhere to the standard Laravel JSON error specification:
 | `422 Unprocessable`| Validation error | Missing required fields, oversize file (>10MB). |
 | `423 Locked` | Security lock | Download requested for a file that is not `Clean`. |
 | `429 Too Many Req` | Rate limit reached | Exceeded connector (120 req/min) or login throttle. |
+
+---
+
+## 7. Approvals Queue & Staff Memos API
+
+### 7.1 List Approvals
+- **Method**: `GET /approvals`
+- **Headers**: `Accept: application/json`
+- **Access**: Staff (views own requested changes), Admin (reviews Staff requests in assigned workspace), Super Admin (reviews Admin requests).
+- **Response `200 OK`**:
+  ```json
+  {
+    "data": [
+      {
+        "id": "b96839aa-096b-4e89-9831-27bfb7b3e012",
+        "document_id": "e4b105a2-9907-4e3f-a18a-9d9fc9287a91",
+        "document_title": "Faculty Service Record 2026",
+        "document_reference": "REF-2026-001",
+        "source": "EMS",
+        "action": "document.trash",
+        "requester_role": "staff",
+        "revision": 2,
+        "payload": {
+          "reason": "Superseded by new faculty charter"
+        },
+        "status": "pending",
+        "reason": null,
+        "decided_at": null,
+        "created_at": "2026-10-23T07:15:00Z",
+        "requester": {
+          "id": 1,
+          "name": "Prof. Juan Dela Cruz",
+          "email": "juan@plp.edu.ph",
+          "role": "staff"
+        },
+        "reviewer": null
+      }
+    ],
+    "total": 1
+  }
+  ```
+
+### 7.2 Decide Approval (Approve or Reject)
+- **Method**: `POST /approvals/{approval}`
+- **Headers**: `Accept: application/json`, `Content-Type: application/json`, `X-CSRF-TOKEN`
+- **Request Body**:
+  ```json
+  {
+    "decision": "approve",
+    "reason": "Verified and sanctioned by College Dean."
+  }
+  ```
+  *(decision can be `approve` or `reject`; reason is mandatory, max 2,000 characters).*
+- **Response `200 OK`**:
+  ```json
+  {
+    "status": "approved",
+    "revision": 3
+  }
+  ```
+
+### 7.3 Publish Staff Memo
+- **Method**: `POST /documents/{document}/publish`
+- **Headers**: `Accept: application/json`, `Content-Type: application/json`, `X-CSRF-TOKEN`
+- **Request Body**:
+  ```json
+  {
+    "revision": 1,
+    "version_id": "7fa84128-1b20-4b89-a292-628d0113c2c4",
+    "type": "Policy Memo",
+    "reference": "MEMO-2026-042",
+    "issuer": "Office of the Vice President for Academic Affairs",
+    "audience": [1, 2, 5]
+  }
+  ```
+- **Response `200 OK` / `202 Accepted`**:
+  ```json
+  {
+    "status": "applied",
+    "revision": 2
+  }
+  ```
+  *(Returns `202` with `{"approval_id": "...", "status": "pending"}` if submitted by Staff requiring Admin approval).*
+
+---
+
+## 8. Account Invitations & Account Changes API
+
+### 8.1 List Account Invitations
+- **Method**: `GET /admin/invitations`
+- **Headers**: `Accept: application/json`
+- **Access**: Admin (views own requested staff invitations), Super Admin (views all invitations institution-wide).
+- **Response `200 OK`**: Paginated array of invitations (`id`, `name`, `email`, `role`, `source`, `status`, `expires_at`, `created_at`).
+
+### 8.2 Request New Invitation
+- **Method**: `POST /admin/invitations`
+- **Headers**: `Accept: application/json`, `Content-Type: application/json`, `X-CSRF-TOKEN`
+- **Request Body**:
+  ```json
+  {
+    "name": "Maria Santos",
+    "email": "maria.santos@plp.edu.ph",
+    "role": "staff",
+    "source": "ES"
+  }
+  ```
+- **Response `201 Created`**:
+  ```json
+  {
+    "id": "18f97e20-302a-464a-bc12-f04642930219",
+    "status": "delivered",
+    "message": "Invitation email sent."
+  }
+  ```
+
+### 8.3 Review Staff Invitation (Super Admin)
+- **Method**: `POST /admin/invitations/{invitation}/review`
+- **Request Body**:
+  ```json
+  {
+    "approve": true,
+    "reason": "Credentials confirmed by Registrar."
+  }
+  ```
+- **Response `200 OK`**:
+  ```json
+  {
+    "status": "approved",
+    "message": "Invitation decision recorded."
+  }
+  ```
+
+### 8.4 List Account Change Proposals
+- **Method**: `GET /admin/account-requests`
+- **Headers**: `Accept: application/json`
+- **Response `200 OK`**: Paginated list of proposed changes to user accounts pending Super Admin review.
+
+### 8.5 Decide Account Change Proposal
+- **Method**: `POST /admin/account-requests/{change}/decide`
+- **Request Body**:
+  ```json
+  {
+    "approve": true,
+    "reason": "Approved title promotion."
+  }
+  ```
+- **Response `200 OK`**:
+  ```json
+  {
+    "status": "approved",
+    "message": "Account decision recorded."
+  }
+  ```
+
+---
+
+## 9. Workspace Registry Management API
+
+### 9.1 List Workspaces & Memberships
+- **Method**: `GET /admin/workspaces`
+- **Access**: Super Admin
+- **Headers**: `Accept: application/json`
+- **Response `200 OK`**:
+  ```json
+  {
+    "workspaces": [
+      {
+        "id": 1,
+        "school_id": "PLP",
+        "campus": "Main",
+        "code": "EMS",
+        "name": "Employee Management System",
+        "kind": "erp",
+        "status": "active"
+      }
+    ],
+    "users": [...],
+    "memberships": {
+      "1": [
+        {
+          "id": 1,
+          "workspace_id": 1,
+          "user_id": 2
+        }
+      ]
+    }
+  }
+  ```
+
+### 9.2 Create Workspace
+- **Method**: `POST /admin/workspaces`
+- **Request Body**:
+  ```json
+  {
+    "code": "RESEARCH",
+    "name": "Research & Publication Office",
+    "kind": "internal"
+  }
+  ```
+- **Response `201 Created`**:
+  ```json
+  {
+    "message": "Workspace created.",
+    "workspace": {
+      "code": "RESEARCH",
+      "name": "Research & Publication Office",
+      "kind": "internal",
+      "status": "active"
+    }
+  }
+  ```
+
+### 9.3 Update Workspace
+- **Method**: `PATCH /admin/workspaces/{workspace}`
+- **Request Body**:
+  ```json
+  {
+    "name": "Updated Office Name",
+    "status": "active"
+  }
+  ```
+- **Response `200 OK`**:
+  ```json
+  {
+    "message": "Workspace updated.",
+    "workspace": { ... }
+  }
+  ```
+
+### 9.4 Assign / Revoke Workspace Membership
+- **Method**: `POST /admin/workspaces/{workspace}/membership`
+- **Request Body**:
+  ```json
+  {
+    "user_id": 5,
+    "action": "grant"
+  }
+  ```
+  *(action: `grant` or `revoke`)*
+- **Response `200 OK`**:
+  ```json
+  {
+    "message": "Workspace membership updated.",
+    "action": "grant",
+    "user_id": 5,
+    "workspace_id": 1
+  }
+  ```
+
+---
+
+## 10. Admin Console & Connectors API
+
+### 10.1 Admin Section Summary
+- **Method**: `GET /admin/{section}`
+- **Sections**: `overview`, `repository`, `accounts`, `connectors`, `audit`, `scans`
+- **Headers**: `Accept: application/json`
+- **Response `200 OK`**:
+  ```json
+  {
+    "section": "overview",
+    "stats": {
+      "documents": 142,
+      "accounts": 28,
+      "history": 1205,
+      "connectors": 4,
+      "blocked": 0
+    },
+    "workspace_counts": {
+      "EMS": 45,
+      "PMS": 30,
+      "ES": 52,
+      "OAS": 15
+    },
+    "accounts": [...],
+    "connectors": [...]
+  }
+  ```
+
+### 10.2 Create Connector
+- **Method**: `POST /admin/connectors`
+- **Request Body**:
+  ```json
+  {
+    "name": "OAS Gateway Production",
+    "source": "OAS"
+  }
+  ```
+- **Response `201 Created`**:
+  ```json
+  {
+    "message": "Connector created. Copy its token now; it will not be shown again.",
+    "connector_token": "a1b2c3d4e5f6... (64 hex characters)",
+    "connector_id": 8
+  }
+  ```
+
+### 10.3 Revoke Connector
+- **Method**: `DELETE /admin/connectors/{connector}`
+- **Response `200 OK`**:
+  ```json
+  {
+    "message": "Connector revoked.",
+    "status": "revoked"
+  }
+  ```
+
+---
+
+## 11. Audit Legal Holds Admin API
+
+### 11.1 List Legal Holds
+- **Method**: `GET /admin/legal-holds`
+- **Access**: Super Admin
+- **Headers**: `Accept: application/json`
+- **Response `200 OK`**: Paginated array of legal holds (`id`, `school_id`, `campus`, `reason`, `released_at`, `created_at`, `actor`).
+
+### 11.2 Record Legal Hold
+- **Method**: `POST /admin/legal-holds`
+- **Request Body**:
+  ```json
+  {
+    "reason": "Notice of pending litigation Docket No. 2026-CV-0199; document disposal suspended."
+  }
+  ```
+- **Response `201 Created`**:
+  ```json
+  {
+    "message": "Legal hold recorded. Audit history is retained; disposal suspended.",
+    "legal_hold": {
+      "id": 1,
+      "school_id": "PLP",
+      "campus": "Main",
+      "actor_id": 1,
+      "reason": "Notice of pending litigation Docket No. 2026-CV-0199; document disposal suspended.",
+      "released_at": null,
+      "created_at": "2026-10-23T07:30:00Z"
+    }
+  }
+  ```
+
+### 11.3 Release Legal Hold
+- **Method**: `POST /admin/legal-holds/{hold}/release`
+- **Request Body**:
+  ```json
+  {
+    "reason": "Court resolution reached and case dismissed."
+  }
+  ```
+- **Response `200 OK`**:
+  ```json
+  {
+    "message": "Legal hold released.",
+    "status": "released"
+  }
+  ```
+
+---
+
+## 12. OAS-to-ES Applicant Packet Integration API (INT-04 & INT-07)
+
+### 12.1 OAS Receive / Release Applicant Packet
+- **Method**: `POST /api/v1/applicant-packets`
+- **Auth**: Connector Bearer Token (`source: OAS`)
+- **Request Body**:
+  ```json
+  {
+    "event_id": "EVT-OAS-2026-0012",
+    "applicant_id": "APP-2026-9012",
+    "revision": 1,
+    "released": true,
+    "admitted": true,
+    "verified": true,
+    "version_ids": [
+      "7fa84128-1b20-4b89-a292-628d0113c2c4"
+    ]
+  }
+  ```
+- **Response `201 Created`**:
+  ```json
+  {
+    "packet_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "revision": 1,
+    "applied": true
+  }
+  ```
+  *(Security enforcement: Release fails with `403` if any document belongs to a medical or clinical category, and fails with `423` if any version is not `Clean`).*
+
+### 12.2 ES Retrieve Released Applicant Packet
+- **Method**: `GET /api/v1/applicant-packets/{packet}`
+- **Auth**: Connector Bearer Token (`source: ES`)
+- **Response `200 OK`**:
+  ```json
+  {
+    "packet_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "applicant_id": "APP-2026-9012",
+    "revision": 1,
+    "versions": [
+      {
+        "document_id": "e4b105a2-9907-4e3f-a18a-9d9fc9287a91",
+        "version_id": "7fa84128-1b20-4b89-a292-628d0113c2c4",
+        "filename": "form137.pdf",
+        "checksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ]
+  }
+  ```
+
+### 12.3 ES Download Packet Version File
+- **Method**: `GET /api/v1/applicant-packets/{packet}/files/{version}`
+- **Auth**: Connector Bearer Token (`source: ES`)
+- **Response `200 OK`**: Binary stream of the clean version file.
+

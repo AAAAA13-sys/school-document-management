@@ -89,6 +89,9 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/admin/workspaces', [\App\Http\Controllers\WorkspaceRegistryController::class, 'store'])->name('workspaces.registry.store');
     Route::patch('/admin/workspaces/{workspace}', [\App\Http\Controllers\WorkspaceRegistryController::class, 'update'])->name('workspaces.registry.update');
     Route::post('/admin/workspaces/{workspace}/membership', [\App\Http\Controllers\WorkspaceRegistryController::class, 'membership'])->name('workspaces.registry.membership');
+    Route::get('/admin/legal-holds', [AdminController::class, 'legalHolds'])->name('admin.legal_holds');
+    Route::post('/admin/legal-holds', [AdminController::class, 'storeLegalHold'])->name('admin.legal_holds.store');
+    Route::post('/admin/legal-holds/{hold}/release', [AdminController::class, 'releaseLegalHold'])->name('admin.legal_holds.release');
     Route::get('/admin/{section?}', [AdminController::class, 'index'])
         ->middleware('can:admin.access');
     Route::post('/admin/accounts', [AdminController::class, 'account'])

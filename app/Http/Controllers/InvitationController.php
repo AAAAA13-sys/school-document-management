@@ -21,6 +21,10 @@ class InvitationController extends Controller
         $invitations = DB::table('account_invitations')->where('school_id', $actor->school_id)->where('campus', $actor->campus)
             ->when(! $actor->isSuperAdmin(), fn ($q) => $q->where('requested_by', $actor->id))->latest()->paginate(30);
 
+        if ($request->expectsJson()) {
+            return response()->json($invitations);
+        }
+
         return view('invitations.index', compact('invitations'));
     }
 
@@ -32,6 +36,14 @@ class InvitationController extends Controller
             $service->deliver($request->user(), $id);
         }
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'id' => $id,
+                'status' => $request->user()->isSuperAdmin() ? 'delivered' : 'pending',
+                'message' => $request->user()->isSuperAdmin() ? 'Invitation email sent.' : 'Staff invitation submitted for Super Admin approval.',
+            ], 201);
+        }
+
         return back()->with('status', $request->user()->isSuperAdmin() ? 'Invitation email sent.' : 'Staff invitation submitted for Super Admin approval.');
     }
 
@@ -40,6 +52,13 @@ class InvitationController extends Controller
         $data = $request->validate(['approve' => 'required|boolean', 'reason' => 'required|string|max:2000']);
         $service->review($request->user(), $invitation, (bool) $data['approve'], $data['reason']);
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => (bool) $data['approve'] ? 'approved' : 'rejected',
+                'message' => 'Invitation decision recorded.',
+            ]);
+        }
+
         return back()->with('status', 'Invitation decision recorded. Approved invitations can now be sent.');
     }
 
@@ -47,12 +66,26 @@ class InvitationController extends Controller
     {
         $service->deliver($request->user(), $invitation);
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => 'delivered',
+                'message' => 'Invitation email sent.',
+            ]);
+        }
+
         return back()->with('status', 'Invitation email sent; previous invitation links are invalid.');
     }
 
     public function revoke(Request $request, string $invitation, InvitationService $service)
     {
         $service->revoke($request->user(), $invitation);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => 'revoked',
+                'message' => 'Invitation revoked.',
+            ]);
+        }
 
         return back()->with('status', 'Invitation revoked.');
     }

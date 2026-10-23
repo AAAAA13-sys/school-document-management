@@ -92,6 +92,16 @@ class Document extends Model
         return $this->hasMany(AuditEntry::class, 'document_id')->orderByDesc('id');
     }
 
+    public function sensitiveChanges(): HasMany
+    {
+        return $this->hasMany(SensitiveChange::class, 'document_id')->orderByDesc('created_at');
+    }
+
+    public function memoPublication(): HasOne
+    {
+        return $this->hasOne(MemoPublication::class, 'document_id');
+    }
+
     public function scopeUntrashed(Builder $query): Builder
     {
         return $query->whereNull('trashed_at');

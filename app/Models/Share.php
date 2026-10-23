@@ -20,6 +20,7 @@ class Share extends Model
         'expires_at',
         'revoked_at',
         'memo_generated',
+        'folder_inheritance',
     ];
 
     protected function casts(): array
@@ -28,6 +29,7 @@ class Share extends Model
             'expires_at' => 'datetime',
             'revoked_at' => 'datetime',
             'memo_generated' => 'boolean',
+            'folder_inheritance' => 'boolean',
         ];
     }
 
@@ -59,5 +61,10 @@ class Share extends Model
     public function isRevoked(): bool
     {
         return $this->revoked_at !== null;
+    }
+
+    public function hasFolderInheritance(): bool
+    {
+        return (bool) $this->folder_inheritance;
     }
 }

@@ -19,6 +19,8 @@ class DocumentService
         // out of the idempotency hash so the same submission key stays replayable.
         $confirmDuplicate = (bool) ($input['confirm_duplicate'] ?? false);
         unset($input['confirm_duplicate']);
+        $forceNewVersion = filter_var($input['force_new_version'] ?? request()->input('force_new_version', false), FILTER_VALIDATE_BOOLEAN);
+        unset($input['force_new_version']);
         $checksum = hash_file('sha256', $file->getRealPath());
         $scope = HistoryService::hash([$actor->school_id, $actor->campus, $actor->source, $actor instanceof User ? 'user:'.$actor->id : 'connector']);
         $hash = HistoryService::hash([$input, $checksum, $file->getClientOriginalName(), $id]);
@@ -27,7 +29,7 @@ class DocumentService
         $checksumLock = $this->lockChecksum($checksum);
         $stored = null;
         try {
-            return DB::transaction(function () use ($actor, $input, $file, $id, $requestKey, $scope, $hash, $checksum, $confirmDuplicate, &$stored) {
+            return DB::transaction(function () use ($actor, $input, $file, $id, $requestKey, $scope, $hash, $checksum, $confirmDuplicate, $forceNewVersion, &$stored) {
                 if ($actor instanceof User) {
                     DB::table('users')->where('id', $actor->id)->lockForUpdate()->first();
                 } else {
@@ -48,13 +50,35 @@ class DocumentService
                 if (! ($actor instanceof User) && in_array($source, ['OAS', 'ES'], true)) {
                     abort_if(preg_match('/medical|health|clinical|diagnos|vaccin/i', $input['category'] ?? ''), 422, 'Medical intake requires separately agreed access rules.');
                 }
+                if (! $id) {
+                    $existingDoc = DB::table('document_versions as v')
+                        ->join('documents as d', 'd.id', '=', 'v.document_id')
+                        ->where('v.checksum', $checksum)
+                        ->where('d.school_id', $actor->school_id)
+                        ->where('d.campus', $actor->campus)
+                        ->where('d.source', $source)
+                        ->whereNull('d.trashed_at')
+                        ->select('d.id', 'd.revision')
+                        ->first();
+
+                    if ($existingDoc) {
+                        if ($forceNewVersion) {
+                            $id = $existingDoc->id;
+                        } elseif (! $confirmDuplicate) {
+                            $matches = DuplicateDetection::matches($actor, $checksum, null);
+                            throw new DuplicateFileException($matches ?: [['document_id' => $existingDoc->id]], $existingDoc->id);
+                        }
+                    }
+                }
                 if ($id) {
                     $doc = DB::table('documents')->where('id', $id)->lockForUpdate()->first() ?? abort(404);
                     $this->authorize($actor, $doc, true);
                     abort_if($doc->trashed_at, 409, 'Restore this document before adding a version.');
-                    abort_unless($doc->revision === (int) $input['revision'], 409, 'Document changed. Reload and retry.');
+                    if (! $forceNewVersion && isset($input['revision'])) {
+                        abort_unless($doc->revision === (int) $input['revision'], 409, 'Document changed. Reload and retry.');
+                    }
                     // The document being versioned is excluded: re-versioning it is not a dup.
-                    $duplicates = $this->duplicateMatches($actor, $checksum, $id, $confirmDuplicate);
+                    $duplicates = $this->duplicateMatches($actor, $checksum, $id, true);
                     DB::table('documents')->where('id', $id)->update(['revision' => $doc->revision + 1, 'updated_at' => now()]);
                 } else {
                     if ($actor instanceof User) {
@@ -197,7 +221,7 @@ class DocumentService
         }
         $matches = DuplicateDetection::matches($actor, $checksum, $documentId);
         if ($matches && ! $confirmed) {
-            throw new DuplicateFileException($matches);
+            throw new DuplicateFileException($matches, $matches[0]['document_id'] ?? null);
         }
 
         return $matches;

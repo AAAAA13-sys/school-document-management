@@ -19,6 +19,34 @@ class ApprovalController extends Controller
             $requester = User::find($change->requester_id);
             return $doc && $requester && $service->canReview($user, $requester, $doc);
         });
+        if ($request->expectsJson()) {
+            return response()->json([
+                'data' => $changes->values()->map(function ($change) {
+                    $doc = DB::table('documents')->where('id', $change->document_id)->first();
+                    $requester = User::find($change->requester_id);
+                    $reviewer = $change->reviewer_id ? User::find($change->reviewer_id) : null;
+                    return [
+                        'id' => $change->id,
+                        'document_id' => $change->document_id,
+                        'document_title' => $doc?->title,
+                        'document_reference' => $doc?->reference,
+                        'source' => $doc?->source,
+                        'action' => $change->action,
+                        'requester_role' => $change->requester_role,
+                        'revision' => (int) $change->revision,
+                        'payload' => json_decode($change->payload, true),
+                        'status' => $change->status,
+                        'reason' => $change->reason,
+                        'decided_at' => $change->decided_at,
+                        'created_at' => $change->created_at,
+                        'requester' => $requester ? ['id' => $requester->id, 'name' => $requester->name, 'email' => $requester->email, 'role' => $requester->role] : null,
+                        'reviewer' => $reviewer ? ['id' => $reviewer->id, 'name' => $reviewer->name, 'email' => $reviewer->email] : null,
+                    ];
+                }),
+                'total' => $changes->count(),
+            ]);
+        }
+
         return view('approvals.index', compact('changes'));
     }
 

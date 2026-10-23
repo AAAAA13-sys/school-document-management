@@ -79,7 +79,7 @@ class ApplicantPacketService
     {
         $v = DB::table('document_versions')->where('id', $version)->where('scan_status', 'Clean')->first() ?? abort(423, 'Released versions must remain Clean.');
         $doc = Access::scope(DB::table('documents'), $actor)->where('id', $v->document_id)->where('source', 'OAS')->whereNull('trashed_at')->whereIn('classification', ['Internal', 'Confidential'])->first() ?? abort(404);
-        abort_if(preg_match('/medical|health|clinical|diagnos|vaccin/i', $doc->category ?? ''), 403, 'Medical files require separately agreed access rules.');
+        app(ReleaseGrant::class)->authorize($doc);
         return $v;
     }
 }

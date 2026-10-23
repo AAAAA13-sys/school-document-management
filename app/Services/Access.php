@@ -155,11 +155,15 @@ class Access
      */
     public static function effectiveGrant(User $user, object $document): ?object
     {
-        return self::grant($user, $document) ?? self::folderGrant($user, $document->folder_id);
+        return self::grant($user, $document) ?? self::folderGrant($user, $document->folder_id, $document->classification ?? null);
     }
 
-    public static function folderGrant(User $user, ?string $folderId): ?object
+    public static function folderGrant(User $user, ?string $folderId, ?string $classification = null): ?object
     {
+        if ($classification !== null && $classification !== 'Internal') {
+            return null;
+        }
+
         $chain = self::folderChain($folderId);
         if (! $chain) {
             return null;
@@ -167,10 +171,28 @@ class Access
         $grants = DB::table('folder_shares')->where('recipient_id', $user->id)->whereIn('folder_id', $chain)
             ->whereNull('revoked_at')->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
             ->get()->keyBy('folder_id');
+
+        $shareGrants = DB::table('shares as s')
+            ->join('documents as d', 'd.id', '=', 's.document_id')
+            ->where('s.recipient_id', $user->id)
+            ->where('s.folder_inheritance', true)
+            ->whereNull('s.revoked_at')
+            ->where(fn ($q) => $q->whereNull('s.expires_at')->orWhere('s.expires_at', '>', now()))
+            ->whereIn('d.folder_id', $chain)
+            ->select('s.*', 'd.folder_id')
+            ->get()
+            ->keyBy('folder_id');
+
         foreach ($chain as $id) {
             if ($grants->has($id)) {
                 $grant = $grants->get($id);
                 // Folder grants are never version-pinned; callers share the explicit-grant contract.
+                $grant->version_id = null;
+
+                return $grant;
+            }
+            if ($shareGrants->has($id)) {
+                $grant = $shareGrants->get($id);
                 $grant->version_id = null;
 
                 return $grant;
@@ -219,6 +241,17 @@ class Access
         $granted = DB::table('folder_shares')->where('recipient_id', $user->id)->whereNull('revoked_at')
             ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
             ->pluck('folder_id')->all();
+
+        $fromShares = DB::table('shares as s')
+            ->join('documents as d', 'd.id', '=', 's.document_id')
+            ->where('s.recipient_id', $user->id)
+            ->where('s.folder_inheritance', true)
+            ->whereNull('s.revoked_at')
+            ->where(fn ($q) => $q->whereNull('s.expires_at')->orWhere('s.expires_at', '>', now()))
+            ->whereNotNull('d.folder_id')
+            ->pluck('d.folder_id')->all();
+
+        $granted = array_values(array_unique(array_merge($granted, $fromShares)));
         if (! $granted) {
             $memo?->set($key, []);
 

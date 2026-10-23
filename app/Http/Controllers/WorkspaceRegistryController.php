@@ -17,6 +17,13 @@ class WorkspaceRegistryController extends Controller
         $workspaces = WorkspaceRegistry::query($request->user(), false)->orderBy('name')->get();
         $users = Access::scope(DB::table('users'), $request->user())->where('active', true)->where('role', '!=', 'super_admin')->orderBy('name')->get();
         $memberships = DB::table('workspace_memberships')->whereIn('workspace_id', $workspaces->pluck('id'))->get()->groupBy('workspace_id');
+        if ($request->expectsJson()) {
+            return response()->json([
+                'workspaces' => $workspaces,
+                'users' => $users,
+                'memberships' => $memberships,
+            ]);
+        }
         return view('workspaces-registry', compact('workspaces', 'users', 'memberships'));
     }
 
@@ -30,6 +37,12 @@ class WorkspaceRegistryController extends Controller
             DB::table('workspaces')->insert($data + ['school_id' => $actor->school_id, 'campus' => $actor->campus, 'status' => 'active', 'created_at' => now(), 'updated_at' => now()]);
             Access::audit($actor, 'workspace.created', details: $data, source: $data['code']);
         });
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Workspace created.',
+                'workspace' => $data + ['status' => 'active'],
+            ], 201);
+        }
         return back()->with('status', 'Workspace created.');
     }
 
@@ -43,6 +56,12 @@ class WorkspaceRegistryController extends Controller
             DB::table('workspaces')->where('id', $row->id)->update($data + ['updated_at' => now()]);
             Access::audit($actor, 'workspace.updated', details: $data, source: $row->code);
         });
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Workspace updated.',
+                'workspace' => array_merge((array) $row, $data),
+            ]);
+        }
         return back()->with('status', 'Workspace updated.');
     }
 
@@ -65,6 +84,14 @@ class WorkspaceRegistryController extends Controller
             }
             Access::audit($actor, 'workspace.membership.'.$data['action'], details: ['user_id' => $user->id], source: $row->code);
         });
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Workspace membership updated.',
+                'action' => $data['action'],
+                'user_id' => $user->id,
+                'workspace_id' => $row->id,
+            ]);
+        }
         return back()->with('status', 'Workspace membership updated.');
     }
 }
