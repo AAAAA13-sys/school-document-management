@@ -5,7 +5,7 @@
     $sources = $viewer->sources();
     $navSource = in_array($source ?? null, $sources, true) ? $source : ($sources[0] ?? $viewer->source ?? 'EMS');
     $root = $isAdmin ? '/admin' : '/workspaces/'.strtolower($navSource);
-    $workspaceName = $isAdmin ? 'Administration' : (config('dms.sources.'.$source) ?? 'Workspace');
+    $workspaceName = $isAdmin ? 'Administration' : (($workspaceLabels ?? App\Services\WorkspaceRegistry::labels($viewer))[$source] ?? 'Workspace');
     $workspaceCode = $isAdmin ? 'ADMIN' : $source;
     $libraryView = request('view', 'all');
     $roleName = config('dms.role_labels.'.$viewer->role);
@@ -113,6 +113,11 @@
                 <a class="return-admin" href="/admin" data-bs-toggle="tooltip" data-bs-placement="right" title="Administration"><span class="return-text">← Administration</span></a>
             @endif
 
+            <a href="/approvals" class="return-admin" data-bs-toggle="tooltip" data-bs-placement="right" title="Requests and approvals"><span class="return-text">Requests and approvals</span></a>
+            @if ($isAdmin)
+                @if ($viewer->isSuperAdmin() || $viewer->isAdmin())<a href="/admin/invitations" class="return-admin" data-bs-toggle="tooltip" data-bs-placement="right" title="Invitations"><span class="return-text">Invitations</span></a><a href="/admin/account-requests" class="return-admin" data-bs-toggle="tooltip" data-bs-placement="right" title="Account requests"><span class="return-text">Account requests</span></a>@endif
+                @if ($viewer->isSuperAdmin())<a href="/admin/workspaces" class="return-admin" data-bs-toggle="tooltip" data-bs-placement="right" title="Workspace registry"><span class="return-text">Workspace registry</span></a>@endif
+            @endif
             <a href="/account" class="return-admin" data-bs-toggle="tooltip" data-bs-placement="right" title="My account"><span class="return-text">My account</span></a>
             <div class="profile" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="right" title="{{ $viewer->name }} · {{ $roleName }}" aria-label="{{ $viewer->name }} · {{ $roleName }}">
                 <span class="avatar">{{ $initials }}</span>
@@ -190,7 +195,7 @@
             <span>Frontend preview · Sample data</span><label class="visually-hidden" for="preview-workspace">Preview workspace</label
             ><select id="preview-workspace" aria-label="Preview workspace">
                 <option value="/admin" @selected ($isAdmin)>Administration</option>
-                @foreach (config('dms.sources') as $code=>$name)
+                @foreach (($workspaceLabels ?? App\Services\WorkspaceRegistry::labels($viewer)) as $code=>$name)
                     <option value="/workspaces/{{ strtolower($code) }}" @selected ($source===$code)>{{ $code }}</option>
                 @endforeach
                 <option value="/login">Sign-in screen</option></select

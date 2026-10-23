@@ -42,7 +42,8 @@
         <div class="login-form-inner">
             <span class="eyebrow">Staff access</span>
             <h2>Sign in to your account</h2>
-            <p class="section-description mb-4">Sign in with your PLP staff email and password.</p>
+            <p class="section-description mb-4">Sign in with your invited email address and DMS password.</p>
+            @if (session('status'))<div class="alert alert-info" role="status">{{ session('status') }}</div>@endif
             @if ($errors->any())
                 <div class="alert alert-danger" role="alert">{{ $errors->first() }}</div>
             @endif
@@ -66,7 +67,7 @@
                 </div>
                 <button class="btn btn-primary w-100" type="submit">Sign in</button>
             </form>
-            <p class="login-help">Need an account or forgot your password?<br />Contact your DMS administrator or IT support.</p>
+            <p class="login-help"><a href="/forgot-password">Forgot your password?</a><br />Need an account? Request an invitation from your DMS administrator.</p>
             <p class="login-policy">For authorized PLP personnel only. Activity is logged.</p>
             @if (!empty($frontendPreview))
                 <a href="/admin" class="preview-login-link">Frontend preview · Open sample workspace →</a>

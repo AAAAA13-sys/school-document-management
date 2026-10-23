@@ -29,8 +29,7 @@ class DocumentPolicy
 
     public function create(User $actor, string $source): bool
     {
-        // Super Admin has organisation-wide read-only document oversight.
-        return ! $actor->isSuperAdmin() && $actor->canAccessSource($source);
+        return $actor->active && $actor->canAccessSource($source);
     }
 
     /**
@@ -39,24 +38,24 @@ class DocumentPolicy
      */
     public function writeAny(User $actor): bool
     {
-        return ! $actor->isSuperAdmin() && ($actor->isAdmin() || $actor->isStaff());
+        return $actor->active && ($actor->isSuperAdmin() || $actor->isAdmin() || $actor->isStaff());
     }
 
     /**
-     * Folder batch intake creates folders implicitly, so it remains an Admin action.
+     * Folder batch intake creates folders owned by the uploading account.
      */
     public function batchAny(User $actor): bool
     {
-        return $actor->isAdmin();
+        return $this->writeAny($actor);
     }
 
     public function edit(User $actor, object $document): bool
     {
-        if (! $this->view($actor, $document) || $actor->isSuperAdmin()) {
+        if (! $this->view($actor, $document)) {
             return false;
         }
 
-        if ($document->owner_id === $actor->id) {
+        if ($actor->isSuperAdmin() || $document->owner_id === $actor->id) {
             return true;
         }
 
@@ -86,7 +85,7 @@ class DocumentPolicy
 
     public function manage(User $actor, object $document): bool
     {
-        if (! $this->sameSchoolAndCampus($actor, $document) || $actor->isSuperAdmin() || ! ($actor->active ?? true)) {
+        if (! $this->sameSchoolAndCampus($actor, $document) || ! ($actor->active ?? true)) {
             return false;
         }
 
@@ -94,7 +93,7 @@ class DocumentPolicy
             return false;
         }
 
-        if ($document->owner_id === $actor->id) {
+        if ($actor->isSuperAdmin() || $document->owner_id === $actor->id) {
             return true;
         }
 
@@ -114,9 +113,8 @@ class DocumentPolicy
             return $actor->isSuperAdmin();
         }
 
-        // Sharing and re-sharing Internal/Confidential documents remain Admin
-        // repository-management actions. Super Admin stays read-only for them.
-        return $actor->isAdmin() && Access::manages($actor, $document);
+        return $actor->isSuperAdmin() || $document->owner_id === $actor->id
+            || ($actor->isAdmin() && Access::manages($actor, $document));
     }
 
     /**
@@ -132,7 +130,7 @@ class DocumentPolicy
             return false;
         }
 
-        if ($document->owner_id === $actor->id) {
+        if ($actor->isSuperAdmin() || $document->owner_id === $actor->id) {
             return true;
         }
 
@@ -141,11 +139,11 @@ class DocumentPolicy
 
     public function comment(User $actor, object $document): bool
     {
-        if (! $this->view($actor, $document) || $actor->isSuperAdmin()) {
+        if (! $this->view($actor, $document)) {
             return false;
         }
 
-        if ($document->owner_id === $actor->id) {
+        if ($actor->isSuperAdmin() || $document->owner_id === $actor->id) {
             return true;
         }
 
@@ -161,7 +159,7 @@ class DocumentPolicy
 
     public function star(User $actor, object $document): bool
     {
-        return ! $actor->isSuperAdmin() && $this->view($actor, $document);
+        return $this->view($actor, $document);
     }
 
     public function allVersions(User $actor, object $document): bool
@@ -189,14 +187,13 @@ class DocumentPolicy
 
     public function shareAny(User $actor): bool
     {
-        // Super Admin may share Restricted documents; the document policy still
-        // rejects every other classification for that role.
-        return $actor->isAdmin() || $actor->isSuperAdmin();
+        // Resource policies and approval routing decide the specific action.
+        return $this->writeAny($actor);
     }
 
     public function commentAny(User $actor): bool
     {
-        return ! $actor->isSuperAdmin() && ($actor->isAdmin() || $actor->isStaff());
+        return $this->writeAny($actor);
     }
 
     private function sameSchoolAndCampus(User $actor, object $document): bool

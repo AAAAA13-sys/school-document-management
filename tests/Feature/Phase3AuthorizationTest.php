@@ -6,11 +6,15 @@ use App\Enums\Role;
 use App\Enums\Source;
 use App\Jobs\ScanDocumentVersion;
 use App\Models\User;
+use App\Services\AccountChangeService;
+use App\Services\InvitationService;
 use App\Services\Scanner;
+use App\Services\SensitiveChangeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -71,7 +75,6 @@ class Phase3AuthorizationTest extends TestCase
         return $overrides + [
             'name' => $target->name,
             'email' => $target->email,
-            'password' => '',
             'role' => $target->role,
             'source' => $target->source,
             'active' => $target->active ? 1 : 0,
@@ -83,14 +86,13 @@ class Phase3AuthorizationTest extends TestCase
         return [
             'name' => 'Phase Three Account',
             'email' => $email,
-            'password' => 'SyntheticPass!123',
             'role' => $role,
             'source' => $source,
             'active' => 1,
         ];
     }
 
-    public function test_super_admin_has_read_only_document_oversight_and_manages_every_account(): void
+    public function test_super_admin_manages_scoped_documents_and_invites_accounts(): void
     {
         $super = $this->account(['role' => Role::SuperAdmin->value, 'source' => null]);
         $ems = $this->account();
@@ -104,20 +106,29 @@ class Phase3AuthorizationTest extends TestCase
         $this->get('/workspaces/pms/documents')->assertOk();
         $this->get('/files/'.$emsVersion)->assertOk();
 
-        $this->post('/documents', ['source' => Source::EMS->value])->assertForbidden();
-        $this->post('/documents/batch', ['source' => Source::EMS->value])->assertForbidden();
-        $this->patch('/documents/'.$emsDocument, ['title' => 'Read only', 'revision' => 1])->assertForbidden();
-        $this->post('/documents/'.$emsDocument.'/trash', ['revision' => 1])->assertForbidden();
-        $this->post('/documents/'.$emsDocument.'/star')->assertForbidden();
-        $this->post('/documents/'.$emsDocument.'/shares', ['recipient_id' => $ems->id, 'permission' => 'Viewer'])->assertForbidden();
-        $this->post('/documents/'.$emsDocument.'/comments', ['body' => 'Read only'])->assertForbidden();
-        $this->post('/folders', ['source' => Source::EMS->value, 'name' => 'Super folder'])->assertForbidden();
+        $this->patch('/documents/'.$emsDocument, ['title' => 'Super Admin edited', 'revision' => 1])->assertRedirect();
+        $this->post('/documents/'.$emsDocument.'/trash', ['revision' => 2])->assertRedirect();
+        $this->assertSoftDeletedDocument($emsDocument);
+        $this->post('/documents/'.$emsDocument.'/restore', ['revision' => 3])->assertRedirect();
+        $this->assertNull(DB::table('documents')->where('id', $emsDocument)->value('trashed_at'));
+        $this->post('/documents/'.$emsDocument.'/star')->assertRedirect();
+        $this->post('/documents/'.$emsDocument.'/shares', ['recipient_id' => $ems->id, 'permission' => 'Viewer', 'revision' => 4])->assertRedirect();
+        $this->post('/documents/'.$emsDocument.'/comments', ['body' => 'Scoped oversight'])->assertRedirect();
+        $this->post('/folders', ['source' => Source::EMS->value, 'name' => 'Super folder'])->assertRedirect();
 
+        config(['mail.default' => 'smtp']);
+        Mail::fake();
         $email = 'phase3.new.admin@example.test';
         $this->post('/admin/accounts', $this->createPayload($email, Role::Admin->value, Source::PMS->value))
             ->assertRedirect()->assertSessionHasNoErrors();
-        $created = User::where('email', $email)->firstOrFail();
-        $this->assertSame(Role::Admin->value, $created->role);
+        $this->assertDatabaseMissing('users', ['email' => $email]);
+        $invitation = DB::table('account_invitations')->where('email', $email)->first();
+        $this->assertSame('sent', $invitation->status);
+        $this->assertSame(Role::Admin->value, $invitation->role);
+        // Only the recipient's valid activation token can create the account.
+        $token = 'recipient-activation';
+        DB::table('account_invitations')->where('id', $invitation->id)->update(['token_hash' => hash('sha256', $token)]);
+        $created = app(InvitationService::class)->accept($token, 'RecipientPassword123!');
         $this->assertSame(Source::PMS->value, $created->source);
 
         $this->patch('/admin/accounts/'.$created->id, $this->accountPayload($created, ['active' => 0]))
@@ -138,9 +149,13 @@ class Phase3AuthorizationTest extends TestCase
             'school_id' => 'FORGED',
             'campus' => 'Elsewhere',
         ])->assertRedirect()->assertSessionHasNoErrors();
-        $created = User::where('email', $staffEmail)->firstOrFail();
-        $this->assertSame('PLP', $created->school_id);
-        $this->assertSame('Main', $created->campus);
+        $this->assertDatabaseMissing('users', ['email' => $staffEmail]);
+        $invitation = DB::table('account_invitations')->where('email', $staffEmail)->first();
+        $this->assertSame('pending', $invitation->status);
+        $this->assertSame('PLP', $invitation->school_id);
+        $this->assertSame('Main', $invitation->campus);
+        app(InvitationService::class)->review($super, $invitation->id, true, 'Approve scoped staff');
+        $this->assertDatabaseHas('account_invitations', ['id' => $invitation->id, 'status' => 'approved']);
 
         $this->post('/admin/accounts', $this->createPayload('phase3.staff.pms@example.test', Role::Staff->value, Source::PMS->value))->assertForbidden();
         $this->post('/admin/accounts', $this->createPayload('phase3.admin.ems@example.test', Role::Admin->value, Source::EMS->value))->assertForbidden();
@@ -151,8 +166,14 @@ class Phase3AuthorizationTest extends TestCase
         $this->patch('/admin/accounts/'.$otherStaff->id, $this->accountPayload($otherStaff))->assertNotFound();
 
         $this->patch('/admin/accounts/'.$staff->id, $this->accountPayload($staff, ['active' => 0]))->assertRedirect();
+        $this->assertTrue($staff->fresh()->active);
+        $change = DB::table('account_changes')->where('account_id', $staff->id)->where('status', 'pending')->value('id');
+        app(AccountChangeService::class)->decide($super, $change, true, 'Approve suspension');
         $this->assertFalse($staff->fresh()->active);
         $this->patch('/admin/accounts/'.$staff->id, $this->accountPayload($staff, ['active' => 1]))->assertRedirect();
+        $this->assertFalse($staff->fresh()->active);
+        $change = DB::table('account_changes')->where('account_id', $staff->id)->where('status', 'pending')->value('id');
+        app(AccountChangeService::class)->decide($super, $change, true, 'Approve reactivation');
         $this->assertTrue($staff->fresh()->active);
 
         $this->get('/admin/accounts')->assertOk()->assertDontSee($otherStaff->email);
@@ -172,8 +193,8 @@ class Phase3AuthorizationTest extends TestCase
         $this->post('/documents/'.$document.'/trash', ['revision' => 1])->assertForbidden();
         $this->post('/documents/'.$document.'/comments', ['body' => 'Not mine'])->assertForbidden();
         $this->post('/documents/'.$document.'/shares', ['recipient_id' => $owner->id, 'permission' => 'Viewer'])->assertForbidden();
-        $this->post('/folders', ['source' => Source::EMS->value, 'name' => 'Staff folder'])->assertForbidden();
-        $this->post('/documents/batch', ['source' => Source::EMS->value])->assertForbidden();
+        $this->post('/folders', ['source' => Source::EMS->value, 'name' => 'Staff folder'])->assertRedirect()->assertSessionHasNoErrors();
+        $this->post('/documents/batch', ['source' => Source::EMS->value])->assertSessionHasErrors(['files', 'paths']);
         $this->post('/documents', [
             'title' => 'Cross-source upload',
             'source' => Source::PMS->value,
@@ -185,12 +206,16 @@ class Phase3AuthorizationTest extends TestCase
         $this->get('/admin/audit')->assertForbidden();
         $this->get('/workspaces/pms')->assertForbidden();
 
+        DB::table('workspaces')->insert(['school_id' => 'PLP', 'campus' => 'Other', 'code' => 'EMS', 'name' => 'Other campus EMS', 'kind' => 'erp', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()]);
         $outsideOwner = $this->account(['campus' => 'Other']);
         [$outsideDocument] = $this->upload($outsideOwner, Source::EMS->value, 'Other campus document');
         $this->actingAs($viewer)->get('/documents/'.$outsideDocument)->assertNotFound();
 
         $this->actingAs($owner)->patch('/documents/'.$document, ['title' => 'Staff edited', 'revision' => 1])->assertRedirect();
         $this->post('/documents/'.$document.'/trash', ['revision' => 2])->assertRedirect();
+        $this->assertNull(DB::table('documents')->where('id', $document)->value('trashed_at'));
+        $approval = DB::table('sensitive_changes')->where('document_id', $document)->where('status', 'pending')->value('id');
+        app(SensitiveChangeService::class)->decide($this->account(['role' => Role::Admin->value]), $approval, true, 'Approve owner trash');
         $this->assertSoftDeletedDocument($document);
     }
 
@@ -211,14 +236,17 @@ class Phase3AuthorizationTest extends TestCase
 
         $this->actingAs($pmsAdmin)->post('/folders', ['source' => Source::PMS->value, 'name' => 'PMS folder'])->assertRedirect();
         $pmsFolder = DB::table('folders')->where('name', 'PMS folder')->value('id');
-        $this->post('/documents/'.$otherDocument.'/shares', ['recipient_id' => $admin->id, 'permission' => 'Editor'])->assertRedirect();
+        $this->post('/documents/'.$otherDocument.'/shares', ['recipient_id' => $admin->id, 'permission' => 'Editor', 'revision' => 1])->assertRedirect();
+        $this->assertDatabaseMissing('shares', ['document_id' => $otherDocument]);
+        $approval = DB::table('sensitive_changes')->where('document_id', $otherDocument)->where('status', 'pending')->value('id');
+        app(SensitiveChangeService::class)->decide($this->account(['role' => Role::SuperAdmin->value]), $approval, true, 'Approve cross-workspace share');
 
         // A named share is the cross-source exception, but it is not management authority.
         $this->actingAs($admin)->get('/documents/'.$otherDocument)->assertOk();
         $this->patchJson('/documents/'.$ownDocument, ['title' => 'Admin edited', 'folder_id' => $pmsFolder, 'revision' => 2])->assertNotFound();
         $this->patch('/documents/'.$otherDocument, ['title' => 'Shared edit', 'revision' => 1])->assertForbidden();
-        $this->post('/documents/'.$otherDocument.'/trash', ['revision' => 1])->assertForbidden();
-        $this->post('/documents/'.$otherDocument.'/shares', ['recipient_id' => $emsStaff->id, 'permission' => 'Viewer'])->assertForbidden();
+        $this->post('/documents/'.$otherDocument.'/trash', ['revision' => 2])->assertForbidden();
+        $this->post('/documents/'.$otherDocument.'/shares', ['recipient_id' => $emsStaff->id, 'permission' => 'Viewer', 'revision' => 2])->assertForbidden();
 
         $this->patch('/folders/'.$pmsFolder, ['name' => 'Changed', 'revision' => 1])->assertNotFound();
         $this->post('/folders', ['source' => Source::PMS->value, 'name' => 'Bad folder'])->assertForbidden();
@@ -232,7 +260,6 @@ class Phase3AuthorizationTest extends TestCase
         $this->actingAs($staff)->patch('/admin/accounts/'.$staff->id, [
             'name' => 'Escalated',
             'email' => $staff->email,
-            'password' => '',
             'role' => Role::SuperAdmin->value,
             'source' => Source::PMS->value,
             'active' => 0,

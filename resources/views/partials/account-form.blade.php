@@ -36,27 +36,14 @@
     <div class="col-sm-6">
         <label for="source-{{ $suffix }}" class="form-label">Primary workspace</label
         ><select id="source-{{ $suffix }}" name="source" class="form-select" data-account-source>
-            @foreach (($viewer->role==='admin'?array_intersect_key(config('dms.sources'),array_flip($viewer->sources())):config('dms.sources')) as $code=>$label)
+            @foreach (($workspaceLabels ?? App\Services\WorkspaceRegistry::labels($viewer)) as $code=>$label)
                 <option value="{{ $code }}" @selected (($account->source??'EMS')===$code)>{{ $code }} - {{ $label }}</option>
             @endforeach
         </select>
-        <small class="input-help">Super Admin has no primary source and oversees all four.</small>
+        <small class="input-help">Super Admin has no primary source and oversees registered workspaces.</small>
     </div>
 </div>
-<div class="mb-4">
-    <label for="password-{{ $suffix }}" class="form-label">{{ isset($account)?'New password (leave blank to keep)':'Initial password' }}</label
-    ><input
-        id="password-{{ $suffix }}"
-        name="password"
-        type="password"
-        class="form-control"
-        autocomplete="new-password"
-        minlength="12"
-        maxlength="255"
-        data-password-policy
-        @required (!isset($account))
-        placeholder="Create a strong password" /><small class="input-help">12+ characters, upper- and lowercase letters,<br />a number, and a symbol.</small>
-</div>
+<p class="input-help">Recipients set their own password through a single-use invitation or recovery email.</p>
 <div>
     <label for="active-{{ $suffix }}" class="form-label">Account status</label
     ><select id="active-{{ $suffix }}" class="form-select" name="active">

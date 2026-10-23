@@ -61,3 +61,14 @@ For each source, provision a scoped connector; submit/replay an event; reject ch
 Application and MySQL session timestamps use UTC; clients should display them in the appropriate local timezone.
 
 Upload formats (2026-10-17): single-file, version and folder uploads accept any file extension, including extensionless files. The 10 MB per-file limit, actual-file validation, detected MIME metadata, private UUID storage and automatic ClamAV gate still apply. Downloads use attachments; unsupported preview formats remain download-only. Encrypted/oversized-to-scan archives may remain blocked by ClamAV.
+
+
+## Verified OAS-to-ES applicant packet release
+
+OAS sends `POST /applicant-packets` JSON with `event_id` (stable retry identity), `applicant_id`, increasing integer `revision`, boolean `released`, `admitted`, `verified` and `version_ids` (exact UUIDs). Release requires admitted/verified assertions from OAS and at least one Clean OAS version in the connector school/campus. DMS preserves source evidence rather than performing admissions verification. Medical categories and Restricted documents are excluded.
+
+New receipts return 201 with packet_id, revision and applied. Identical replay returns the original result with 200; changed content under an event ID or another event at the same applicant revision returns 409. Older revisions preserve a receipt with applied=false. Send a newer released=false event to revoke the packet; all prior receipts remain.
+
+ES uses `GET /applicant-packets/{packet}` and `GET /applicant-packets/{packet}/files/{version}`. Each request rechecks active connector identity, school/campus, live release, allowed exact version, Clean scan state, trash state and medical exclusion. File download also rechecks SHA-256. Packet grants do not widen ordinary `/documents` or `/files` source access. Ordinary API memo read-back and downloads expose the approved published version, keeping later drafts out of circulation.
+
+Workspace registration is database-driven; a connector must belong to an active ERP workspace. Internal workspaces cannot create valid ERP connectors. Human accounts and invitation candidates are never provisioned by history payloads.

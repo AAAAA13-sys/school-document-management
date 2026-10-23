@@ -6,8 +6,9 @@ use App\Enums\Role;
 use App\Enums\Source;
 use App\Http\Requests\ActionRequest;
 use App\Http\Requests\ReadRequest;
-use App\Models\User;
 use App\Services\Access;
+use App\Services\AccountChangeService;
+use App\Services\InvitationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -70,56 +71,29 @@ class AdminController extends Controller
 
     public function account(ActionRequest $request, ?string $account = null)
     {
-        $admin = $request->user();
-        Gate::forUser($admin)->authorize('accounts.manage');
+        $actor = $request->user();
+        Gate::forUser($actor)->authorize('accounts.manage');
         $data = $request->validated();
         $data['source'] = $data['role'] === Role::SuperAdmin->value ? null : Source::normalize($data['source'] ?? null);
-        DB::transaction(function () use ($admin, $account, $data) {
-            if ($account) {
-                $query = User::where('school_id', $admin->school_id)
-                    ->where('campus', $admin->campus)
-                    ->whereKey($account);
-                if ($admin->isAdmin() && $admin->source) {
-                    // Guessing an account in another source is a 404, not a
-                    // disclosure that the account exists.
-                    $query->where('source', $admin->source);
-                }
-                $row = $query->lockForUpdate()->first() ?? abort(404);
-                Gate::forUser($admin)->authorize('update', $row);
-                abort_if($row->id === $admin->id && ($data['role'] !== $row->role || $data['source'] !== $row->source || ! $data['active']), 422, 'You cannot demote or deactivate yourself.');
-                Gate::forUser($admin)->authorize('changeRole', [$row, $data['role']]);
-                Gate::forUser($admin)->authorize('changeSource', [$row, $data['source']]);
-                if (empty($data['password'])) {
-                    unset($data['password']);
-                }
-                $accessChanged = $row->role !== $data['role'] || $row->source !== $data['source'];
-                $row->fill($data);
-                $row->save();
-                if (isset($data['password']) || ! $data['active'] || $accessChanged) {
-                    $row->increment('auth_version');
-                    $row->setRememberToken(Str::random(60));
-                    $row->save();
-                    DB::table('sessions')->where('user_id', $row->id)->delete();
-                }
-            } else {
-                Gate::forUser($admin)->authorize('accounts.role', $data['role']);
-                Gate::forUser($admin)->authorize('accounts.source', $data['source']);
-                $row = new User($data);
-                // These are server-assigned and never accepted from the form.
-                $row->school_id = $admin->school_id;
-                $row->campus = $admin->campus;
-                $row->save();
-            }
-            Access::audit($admin, $account ? 'account.updated' : 'account.created', details: ['account_id' => $row->id]);
-        });
+        if ($account) {
+            $status = app(AccountChangeService::class)->submit($actor, $account, $data);
 
-        return back()->with('status', 'Account saved.');
+            return back()->with('status', $status === 'pending' ? 'Account change submitted for Super Admin approval.' : 'Account updated.');
+        }
+        $service = app(InvitationService::class);
+        $id = $service->request($actor, $data);
+        if ($actor->isSuperAdmin()) {
+            $service->deliver($actor, $id);
+        }
+
+        return back()->with('status', $actor->isSuperAdmin() ? 'Invitation email sent.' : 'Staff invitation submitted for Super Admin approval.');
     }
 
     public function connector(ActionRequest $request)
     {
         $user = $request->user();
         Gate::forUser($user)->authorize('connectors.manage');
+        abort_unless(in_array($request->validated('source'), \App\Services\WorkspaceRegistry::codes($user, true), true), 422, 'Choose an active ERP workspace.');
         $token = Str::random(64);
         DB::transaction(function () use ($user, $request, $token) {
             $id = DB::table('connectors')->insertGetId($request->validated() + ['school_id' => $user->school_id, 'campus' => $user->campus, 'token_hash' => hash('sha256', $token), 'active' => true, 'created_at' => now(), 'updated_at' => now()]);

@@ -14,6 +14,7 @@ class WorkspaceController extends Controller
     {
         $source = strtoupper($source);
         $user = $request->user();
+        abort_unless(\App\Services\Access::scope(DB::table('workspaces'), $user)->where('code', $source)->where('status', 'active')->exists(), 404);
         Gate::forUser($user)->authorize('workspaces.access', $source);
         abort_unless(in_array($section, ['overview', 'documents', 'history', 'snapshots']), 404);
         if (in_array($section, ['history', 'snapshots'])) {
@@ -75,6 +76,11 @@ class WorkspaceController extends Controller
         $documents = $base->orderByDesc('updated_at')->paginate(12)->withQueryString();
         $versions = DB::table('document_versions')->whereIn('document_id', $documents->pluck('id'))->orderBy('number')->get()->keyBy('document_id');
         foreach ($documents as $item) {
+            $memoPin = \App\Services\MemoService::circulatedVersion($user, $item);
+            if ($memoPin) {
+                $versions[$item->id] = DB::table('document_versions')->where('id', $memoPin)->first();
+                continue;
+            }
             if ($item->owner_id === $user->id || Gate::forUser($user)->allows('document.all-versions', $item)) {
                 continue;
             }
@@ -114,6 +120,8 @@ class WorkspaceController extends Controller
             && ! Gate::forUser($user)->allows('document.all-versions', $doc)) {
             $versions = $versions->where('id', $grant->version_id);
         }
+        $memoPin = \App\Services\MemoService::circulatedVersion($user, $doc);
+        if ($memoPin) $versions = $versions->where('id', $memoPin);
         $comments = DB::table('comments')->join('users', 'users.id', '=', 'comments.user_id')->where('document_id', $document)->select('comments.*', 'users.name')->orderByDesc('comments.id')->get();
         $shares = DB::table('shares')->join('users', 'users.id', '=', 'shares.recipient_id')->where('document_id', $document)->select('shares.*', 'users.name', 'users.email')->get();
         $owner = Gate::forUser($user)->allows('document.manage', $doc);
@@ -147,6 +155,8 @@ class WorkspaceController extends Controller
             }
         }
 
+        $memoPin = \App\Services\MemoService::circulatedVersion($user, $doc);
+        if ($memoPin) $query->where('id', $memoPin);
         return response()->json(['versions' => $query->get(['id', 'scan_status'])])->header('Cache-Control', 'private, no-store');
     }
 }

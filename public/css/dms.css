@@ -456,12 +456,20 @@ a .figma-icon {
   overflow-x: hidden;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
-  flex-shrink: 1;
+  flex: 1 1 auto;
+  min-height: 0;
   padding-right: 2px;
+  padding-bottom: 8px;
 }
 
 .main-nav::-webkit-scrollbar {
   width: 4px;
+}
+
+.main-nav::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .main-nav::-webkit-scrollbar-track {

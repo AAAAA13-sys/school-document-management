@@ -61,3 +61,5 @@ Artisan::command('dms:scan-retry {--limit=50}', function () {
 Schedule::command('dms:scan-retry')->everyFiveMinutes()->withoutOverlapping();
 
 Schedule::command('dms:signatures-update')->hourly()->withoutOverlapping();
+
+Schedule::command('dms:backup')->dailyAt('02:00')->when(fn () => config('operations.backup_enabled'))->withoutOverlapping();

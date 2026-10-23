@@ -202,9 +202,11 @@ class Phase4ClassificationTest extends TestCase
         $this->assertAdminCount($otherAdmin, 0);
 
         $this->actingAs($admin)->post('/documents/'.$document.'/shares', [
+            'revision' => $this->revision($document),
             'recipient_id' => $staff->id,
             'permission' => 'Viewer',
         ])->assertRedirect();
+        $this->approvePending();
 
         $this->actingAs($staff)->get('/documents/'.$document)->assertOk();
         $this->actingAs($staff)->get('/files/'.$version)->assertOk();
@@ -215,22 +217,26 @@ class Phase4ClassificationTest extends TestCase
 
         // A cross-source named share is the documented read-only exception.
         $this->actingAs($admin)->post('/documents/'.$document.'/shares', [
+            'revision' => $this->revision($document),
             'recipient_id' => $otherAdmin->id,
             'permission' => 'Viewer',
         ])->assertRedirect();
+        $this->approvePending();
         $this->actingAs($otherAdmin)->get('/documents/'.$document)->assertOk();
         $this->actingAs($otherAdmin)->get('/files/'.$version)->assertOk();
-        $this->actingAs($otherAdmin)->post('/documents/'.$document.'/trash', ['revision' => 1])->assertForbidden();
+        $this->actingAs($otherAdmin)->post('/documents/'.$document.'/trash', ['revision' => $this->revision($document)])->assertForbidden();
         $this->actingAs($otherAdmin)->post('/documents/'.$document.'/shares', [
+            'revision' => $this->revision($document),
             'recipient_id' => $staff->id,
             'permission' => 'Editor',
         ])->assertForbidden();
 
-        // Super Admin remains read-only for non-Restricted sharing.
+        // Super Admin can directly share Confidential documents.
         $this->actingAs($super)->post('/documents/'.$document.'/shares', [
+            'revision' => $this->revision($document),
             'recipient_id' => $staff->id,
             'permission' => 'Viewer',
-        ])->assertForbidden();
+        ])->assertRedirect();
     }
 
     public function test_restricted_visibility_and_super_admin_sharing(): void
@@ -271,10 +277,12 @@ class Phase4ClassificationTest extends TestCase
         // Staff and non-owner Admins cannot share Restricted documents. A hidden
         // document is a 404 before the policy can even be reached.
         $this->actingAs($owner)->post('/documents/'.$document.'/shares', [
+            'revision' => $this->revision($document),
             'recipient_id' => $staff->id,
             'permission' => 'Viewer',
         ])->assertForbidden();
         $this->actingAs($admin)->post('/documents/'.$document.'/shares', [
+            'revision' => $this->revision($document),
             'recipient_id' => $staff->id,
             'permission' => 'Viewer',
         ])->assertNotFound();
@@ -285,17 +293,23 @@ class Phase4ClassificationTest extends TestCase
             ->assertViewHas('sharer', true)
             ->assertViewHas('recipients', fn ($recipients) => $recipients->isNotEmpty());
         $this->actingAs($super)->post('/documents/'.$document.'/shares', [
+            'revision' => $this->revision($document),
             'recipient_id' => $staff->id,
             'permission' => 'Viewer',
         ])->assertRedirect();
+        $this->approvePending();
         $this->actingAs($super)->post('/documents/'.$document.'/shares', [
+            'revision' => $this->revision($document),
             'recipient_id' => $otherAdmin->id,
             'permission' => 'Editor',
         ])->assertRedirect();
+        $this->approvePending();
         $this->actingAs($super)->post('/documents/'.$document.'/shares', [
+            'revision' => $this->revision($document),
             'recipient_id' => $admin->id,
             'permission' => 'Editor',
         ])->assertRedirect();
+        $this->approvePending();
 
         $this->actingAs($staff)->get('/documents/'.$document)->assertOk();
         $this->actingAs($staff)->get('/files/'.$version)->assertOk();
@@ -308,6 +322,7 @@ class Phase4ClassificationTest extends TestCase
         ])->assertForbidden();
         $this->actingAs($otherAdmin)->post('/documents/'.$document.'/trash', ['revision' => $this->revision($document)])->assertForbidden();
         $this->actingAs($otherAdmin)->post('/documents/'.$document.'/shares', [
+            'revision' => $this->revision($document),
             'recipient_id' => $staff->id,
             'permission' => 'Editor',
         ])->assertForbidden();
@@ -319,8 +334,10 @@ class Phase4ClassificationTest extends TestCase
             'title' => 'Same-source restricted edit',
             'revision' => $this->revision($document),
         ])->assertRedirect();
+        $this->approvePending();
         $this->actingAs($admin)->post('/documents/'.$document.'/trash', ['revision' => $this->revision($document)])->assertForbidden();
         $this->actingAs($admin)->post('/documents/'.$document.'/shares', [
+            'revision' => $this->revision($document),
             'recipient_id' => $staff->id,
             'permission' => 'Viewer',
         ])->assertForbidden();
@@ -328,24 +345,26 @@ class Phase4ClassificationTest extends TestCase
         // An Admin who owns a Restricted document still cannot share it.
         [$adminDocument] = $this->upload($admin, 'Restricted', 'Admin restricted');
         $this->actingAs($admin)->post('/documents/'.$adminDocument.'/shares', [
+            'revision' => $this->revision($adminDocument),
             'recipient_id' => $staff->id,
             'permission' => 'Viewer',
         ])->assertForbidden();
 
-        // Super Admin's share exception does not unlock other document writes.
+        // Latest SDD grants Super Admin full document authority.
         $this->actingAs($super)->patch('/documents/'.$document, [
             'title' => 'Super edit attempt',
             'classification' => 'Internal',
             'revision' => $this->revision($document),
-        ])->assertForbidden();
-        $this->actingAs($super)->post('/documents/'.$document.'/trash', ['revision' => $this->revision($document)])->assertForbidden();
-        $this->actingAs($super)->post('/documents', ['source' => Source::EMS->value])->assertForbidden();
+        ])->assertRedirect();
+        $this->actingAs($super)->post('/documents/'.$document.'/trash', ['revision' => $this->revision($document)])->assertRedirect();
+        $this->actingAs($super)->post('/documents', ['source' => Source::EMS->value])->assertSessionHasErrors(['file', 'title']);
 
-        [$confidential] = $this->upload($owner, 'Confidential', 'Super cannot share confidential');
+        [$confidential] = $this->upload($owner, 'Confidential', 'Super can share confidential');
         $this->actingAs($super)->post('/documents/'.$confidential.'/shares', [
+            'revision' => $this->revision($confidential),
             'recipient_id' => $staff->id,
             'permission' => 'Viewer',
-        ])->assertForbidden();
+        ])->assertRedirect();
     }
 
     public function test_classification_changes_follow_visibility_and_management_authority(): void
@@ -360,15 +379,16 @@ class Phase4ClassificationTest extends TestCase
         // An Admin can move an Internal document to Confidential but cannot
         // promote a non-owned document to Restricted.
         $this->actingAs($admin)->patch('/documents/'.$document, [
-            'title' => 'Classification lifecycle',
+            'title' => DB::table('documents')->where('id', $document)->value('title'),
             'classification' => 'Restricted',
             'revision' => $this->revision($document),
         ])->assertForbidden();
         $this->actingAs($admin)->patch('/documents/'.$document, [
-            'title' => 'Classification lifecycle',
+            'title' => DB::table('documents')->where('id', $document)->value('title'),
             'classification' => 'Confidential',
             'revision' => $this->revision($document),
         ])->assertRedirect();
+        $this->approvePending();
 
         $this->actingAs($staff)->get('/documents/'.$document)->assertNotFound();
         $this->actingAs($admin)->get('/documents/'.$document)->assertOk();
@@ -376,13 +396,16 @@ class Phase4ClassificationTest extends TestCase
 
         // An Editor share permits content edits but not classification changes.
         $this->actingAs($admin)->post('/documents/'.$document.'/shares', [
+            'revision' => $this->revision($document),
             'recipient_id' => $staff->id,
             'permission' => 'Editor',
         ])->assertRedirect();
+        $this->approvePending();
         $this->actingAs($staff)->patch('/documents/'.$document, [
             'title' => 'Editor title change',
             'revision' => $this->revision($document),
         ])->assertRedirect();
+        $this->approvePending();
         $this->actingAs($staff)->patch('/documents/'.$document, [
             'title' => 'Editor title change',
             'classification' => 'Internal',
@@ -390,7 +413,7 @@ class Phase4ClassificationTest extends TestCase
         ])->assertForbidden();
 
         $this->actingAs($admin)->patch('/documents/'.$document, [
-            'title' => 'Classification lifecycle',
+            'title' => DB::table('documents')->where('id', $document)->value('title'),
             'classification' => 'Restricted',
             'revision' => $this->revision($document),
         ])->assertForbidden();
@@ -398,27 +421,29 @@ class Phase4ClassificationTest extends TestCase
         // The owner can raise and lower their own document. An existing Editor
         // share still works at the Restricted level.
         $this->actingAs($owner)->patch('/documents/'.$document, [
-            'title' => 'Classification lifecycle',
+            'title' => DB::table('documents')->where('id', $document)->value('title'),
             'classification' => 'Restricted',
             'revision' => $this->revision($document),
         ])->assertRedirect();
+        $this->approvePending();
         $this->actingAs($admin)->get('/documents/'.$document)->assertNotFound();
         $this->actingAs($staff)->get('/documents/'.$document)->assertOk();
         $this->actingAs($super)->get('/documents/'.$document)->assertOk();
 
         $this->actingAs($owner)->patch('/documents/'.$document, [
-            'title' => 'Classification lifecycle',
+            'title' => DB::table('documents')->where('id', $document)->value('title'),
             'classification' => 'Internal',
             'revision' => $this->revision($document),
         ])->assertRedirect();
+        $this->approvePending();
         $this->actingAs($admin)->get('/documents/'.$document)->assertOk();
 
-        // Super Admin is still read-only for document writes, including classification.
+        // Super Admin applies classification changes directly.
         $this->actingAs($super)->patch('/documents/'.$document, [
-            'title' => 'Classification lifecycle',
+            'title' => DB::table('documents')->where('id', $document)->value('title'),
             'classification' => 'Confidential',
             'revision' => $this->revision($document),
-        ])->assertForbidden();
+        ])->assertRedirect();
 
         // An Admin owner can lower their own Restricted document.
         [$adminDocument] = $this->upload($admin, 'Restricted', 'Admin classification lifecycle');
@@ -427,6 +452,7 @@ class Phase4ClassificationTest extends TestCase
             'classification' => 'Internal',
             'revision' => $this->revision($adminDocument),
         ])->assertRedirect();
+        $this->approvePending();
         $this->actingAs($staff)->get('/documents/'.$adminDocument)->assertOk();
     }
 
@@ -448,9 +474,11 @@ class Phase4ClassificationTest extends TestCase
         $restricted = $this->insertDocument($owner, 'Restricted', 'Folder restricted', $folder->id);
 
         $this->actingAs($admin)->post('/folders/'.$folder->id.'/shares', [
-            'recipient_id' => $pmsStaff->id,
-            'permission' => 'Viewer',
-        ])->assertRedirect();
+            'recipient_id' => $pmsStaff->id, 'permission' => 'Viewer',
+        ])->assertNotFound();
+        // Existing historical grants remain readable; new folder sharing is excluded.
+        DB::table('folder_shares')->insert(['folder_id' => $folder->id, 'recipient_id' => $pmsStaff->id,
+            'permission' => 'Viewer', 'created_at' => now(), 'updated_at' => now()]);
 
         // Admin sees Internal and Confidential in the folder, but not the
         // Restricted document owned by Staff.
@@ -477,9 +505,11 @@ class Phase4ClassificationTest extends TestCase
 
         // Explicit document shares still cross the classification boundary.
         $this->actingAs($admin)->post('/documents/'.$confidential.'/shares', [
+            'revision' => $this->revision($confidential),
             'recipient_id' => $pmsStaff->id,
             'permission' => 'Viewer',
         ])->assertRedirect();
+        $this->approvePending();
         $this->actingAs($pmsStaff)->get('/documents/'.$confidential)->assertOk();
         $this->assertSame(2, Access::documents($pmsStaff)->where('folder_id', $folder->id)->count());
     }
@@ -576,6 +606,15 @@ class Phase4ClassificationTest extends TestCase
     /**
      * @return array<string, mixed>
      */
+    private function approvePending(): void
+    {
+        foreach (DB::table('sensitive_changes')->where('status', 'pending')->get() as $change) {
+            $requester = User::findOrFail($change->requester_id);
+            $reviewer = $this->account(['role' => $requester->isAdmin() ? Role::SuperAdmin->value : Role::Admin->value, 'source' => $requester->source]);
+            app(\App\Services\SensitiveChangeService::class)->decide($reviewer, $change->id, true, 'Approved fixture change for visibility verification.');
+        }
+    }
+
     private function apiUpload(string $title, string $classification, string $content): array
     {
         $result = $this->withToken($this->token)

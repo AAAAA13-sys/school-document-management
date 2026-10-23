@@ -6,7 +6,9 @@ use App\Enums\Role;
 use App\Enums\Source;
 use App\Jobs\ScanDocumentVersion;
 use App\Models\User;
+use App\Services\AccountChangeService;
 use App\Services\Scanner;
+use App\Services\SensitiveChangeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -75,17 +77,18 @@ class Phase5AccessControlTest extends TestCase
         $this->actingAs($staff);
         $this->assertTrue($staff->fresh()->active);
 
-        // An Admin in the same source suspends the staff account (invalidates
-        // the account and rotates auth_version so existing sessions are dead).
+        // Admin proposes suspension; approval changes live state and invalidates sessions.
         $this->actingAs($admin);
         $this->patch('/admin/accounts/'.$staff->id, [
             'name' => $staff->name,
             'email' => $staff->email,
-            'password' => '',
             'role' => Role::Staff->value,
             'source' => Source::EMS->value,
             'active' => 0,
         ])->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertTrue($staff->fresh()->active);
+        $change = DB::table('account_changes')->where('account_id', $staff->id)->where('status', 'pending')->value('id');
+        app(AccountChangeService::class)->decide($this->account(['role' => Role::SuperAdmin->value]), $change, true, 'Approved suspension');
         $this->assertFalse($staff->fresh()->active);
         $this->assertNotNull($staff->fresh()->auth_version);
 
@@ -148,19 +151,22 @@ class Phase5AccessControlTest extends TestCase
             'source' => Source::PMS->value, 'name' => 'Foreign folder',
         ])->assertForbidden();
 
-        // Staff cannot share any document at all (sharing is an Admin action),
-        // so a guessing attempt is forbidden rather than disclosing existence.
+        // Staff cannot request access changes to documents they cannot see.
+        // A guessed cross-workspace identifier remains undisclosed.
         $this->actingAs($emsStaff)->post('/documents/'.$pmsDocument.'/shares', [
             'recipient_id' => $emsStaff->id,
             'permission' => 'Viewer',
-        ])->assertForbidden();
+        ])->assertNotFound();
 
         // Explicit named share is the documented cross-source exception. Only an
         // Admin can create it, and the PMS Admin manages this source's documents.
         $this->actingAs($pmsAdmin)->post('/documents/'.$pmsDocument.'/shares', [
             'recipient_id' => $emsStaff->id,
-            'permission' => 'Viewer',
+            'permission' => 'Viewer', 'revision' => 1,
         ])->assertRedirect();
+        $this->assertDatabaseMissing('shares', ['document_id' => $pmsDocument]);
+        $approval = DB::table('sensitive_changes')->where('document_id', $pmsDocument)->where('status', 'pending')->value('id');
+        app(SensitiveChangeService::class)->decide($this->account(['role' => Role::SuperAdmin->value]), $approval, true, 'Approve cross-workspace share');
 
         // EMS staff can now view and download the shared PMS document...
         $this->actingAs($emsStaff)->get('/documents/'.$pmsDocument)->assertOk();
@@ -168,10 +174,10 @@ class Phase5AccessControlTest extends TestCase
 
         // ...but cannot edit, trash, reshare, or move it.
         $this->actingAs($emsStaff)->patch('/documents/'.$pmsDocument, ['title' => 'Escalated edit', 'revision' => 1])->assertForbidden();
-        $this->actingAs($emsStaff)->post('/documents/'.$pmsDocument.'/trash', ['revision' => 1])->assertForbidden();
+        $this->actingAs($emsStaff)->post('/documents/'.$pmsDocument.'/trash', ['revision' => 2])->assertForbidden();
         $this->actingAs($emsStaff)->post('/documents/'.$pmsDocument.'/shares', [
             'recipient_id' => $this->account()->id,
-            'permission' => 'Viewer',
+            'permission' => 'Viewer', 'revision' => 2,
         ])->assertForbidden();
     }
 }

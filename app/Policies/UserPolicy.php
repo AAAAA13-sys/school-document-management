@@ -78,15 +78,14 @@ class UserPolicy
     public function createSource(User $actor, ?string $source = null): bool
     {
         if ($actor->isSuperAdmin()) {
-            return $source === null || in_array($source, Source::values(), true);
+            return $source === null || in_array($source, Source::values($actor), true);
         }
 
-        if (! $actor->isAdmin() || $source === null || ! in_array($source, Source::values(), true)) {
+        if (! $actor->isAdmin() || $source === null || ! in_array($source, Source::values($actor), true)) {
             return false;
         }
 
-        // Legacy admins without a primary source retain school-wide management.
-        return $actor->source === null || $actor->source === $source;
+        return $actor->canAccessSource($source);
     }
 
     public function update(User $actor, User $target): bool
@@ -108,9 +107,7 @@ class UserPolicy
             return false;
         }
 
-        if ($actor->isSuperAdmin() || $actor->id === $target->id) {
-            // The account controller rejects self-demotion/deactivation with a
-            // validation response; policy access itself must not mask that guard.
+        if ($actor->isSuperAdmin()) {
             return true;
         }
 
@@ -120,16 +117,16 @@ class UserPolicy
 
     public function changeSource(User $actor, User $target, ?string $source): bool
     {
-        if (! $this->update($actor, $target) || ($source !== null && ! in_array($source, Source::values(), true))) {
+        if (! $this->update($actor, $target) || ($source !== null && ! in_array($source, Source::values($actor), true))) {
             return false;
         }
 
-        if ($actor->isSuperAdmin() || $actor->id === $target->id) {
+        if ($actor->isSuperAdmin()) {
             return true;
         }
 
         // An Admin cannot move a Staff account out of their assigned source.
-        return $source !== null && ($actor->source === null || $source === $actor->source);
+        return $source !== null && $actor->canAccessSource($source);
     }
 
     private function sameSchoolAndCampus(User $actor, User $target): bool
@@ -139,6 +136,6 @@ class UserPolicy
 
     private function isStaffInAdminScope(User $actor, User $target): bool
     {
-        return $target->isStaff() && ($actor->source === null || $target->source === $actor->source);
+        return $target->isStaff() && $target->sourceCode() !== null && $actor->canAccessSource($target->sourceCode());
     }
 }

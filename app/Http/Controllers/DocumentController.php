@@ -26,6 +26,14 @@ class DocumentController extends Controller
 
     public function update(ActionRequest $request, string $document)
     {
+        $current = Access::document($request->user(), $document);
+        if (! $request->user()->isSuperAdmin() && $request->validated('classification', $current->classification) !== $current->classification) {
+            Gate::forUser($request->user())->authorize('document.classify', [$current, $request->validated('classification')]);
+            abort_if($request->validated('title') !== $current->title || $request->validated('folder_id', $current->folder_id) !== $current->folder_id, 422, 'Submit a classification request separately from renaming or moving the document.');
+            $result = app(\App\Services\SensitiveChangeService::class)->submit($request->user(), $current, 'classification', $request->validated());
+            $result['message'] = $result['status'] === 'pending' ? 'Classification request submitted. Live document unchanged.' : 'Classification updated.';
+            return $request->expectsJson() ? response()->json($result, $result['status'] === 'pending' ? 202 : 200) : back()->with('status', $result['message']);
+        }
         $result = DB::transaction(function () use ($request, $document) {
             $user = $request->user();
             Access::document($user, $document);
@@ -46,7 +54,7 @@ class DocumentController extends Controller
                 if ($folder) {
                     $destinationQuery = Access::scope(DB::table('folders'), $user)->where('id', $folder)
                         ->where('source', $doc->source);
-                    if (! $user->isAdmin()) {
+                    if ($user->isStaff()) {
                         $destinationQuery->where('owner_id', $user->id);
                     }
                     $destination = $destinationQuery->first();
@@ -85,20 +93,9 @@ class DocumentController extends Controller
     public function trash(ActionRequest $request, string $document)
     {
         $restore = $request->route()->getName() === 'documents.restore';
-        DB::transaction(function () use ($request, $document, $restore) {
-            $user = $request->user();
-            Access::document($user, $document);
-            $doc = DB::table('documents')->where('id', $document)->lockForUpdate()->first();
-            Gate::forUser($user)->authorize('document.manage', $doc);
-            abort_unless($doc->revision === (int) $request->validated('revision'), 409, 'Document changed. Reload and retry.');
-            abort_if($restore ? ! $doc->trashed_at : (bool) $doc->trashed_at, 409, 'Document state changed. Reload and retry.');
-            DB::table('documents')->where('id', $document)->update(['trashed_at' => $restore ? null : now(), 'revision' => $doc->revision + 1, 'updated_at' => now()]);
-            $doc->revision++;
-            Access::audit($user, $restore ? 'document.restored' : 'document.trashed', $doc);
-            Access::event($doc, $restore ? 'document.restored' : 'document.trashed');
-        });
-
-        return back()->with('status', $restore ? 'Document restored.' : 'Document moved to trash. All versions are preserved.');
+        $result = app(\App\Services\SensitiveChangeService::class)->submit($request->user(), Access::document($request->user(), $document), $restore ? 'restore' : 'trash', $request->validated());
+        $message = $result['status'] === 'pending' ? 'Request submitted. Live document unchanged until approval.' : ($restore ? 'Document restored.' : 'Document moved to trash. All versions preserved.');
+        return $request->expectsJson() ? response()->json($result + ['message' => $message], $result['status'] === 'pending' ? 202 : 200) : back()->with('status', $message);
     }
 
     public function star(ActionRequest $request, string $document)

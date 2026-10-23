@@ -952,7 +952,10 @@
             contentType: false,
             headers: { Accept: 'application/json' },
           })
-            .done(() => location.reload())
+            .done((result) => {
+              if (result.status === 'pending') location.assign('/approvals');
+              else location.reload();
+            })
             .fail((xhr) => {
               if (xhr.status === 409 && xhr.responseJSON?.code === 'access_change') {
                 if (window.confirm(xhr.responseJSON.message + '\n\nMove anyway?')) send(true);

@@ -50,6 +50,10 @@ class ApiController extends Controller
         if ($resource === 'files') {
             $query = DB::table('document_versions as v')->join('documents as d', 'd.id', '=', 'v.document_id');
             Access::visibleTo($query, $actor, 'd.');
+            $query->where(function ($q) {
+                $q->whereNotIn('d.id', DB::table('memo_publications')->select('document_id'))
+                    ->orWhereIn('v.id', DB::table('memo_publications')->select('version_id'));
+            });
             $rows = $query->where('v.cursor', '>', $after)->orderBy('v.cursor')->limit($limit + 1)
                 ->get(['v.cursor', 'v.id', 'v.document_id', 'v.number', 'v.filename', 'v.mime', 'v.size', 'v.checksum', 'v.scan_status', 'v.created_at']);
             $more = $rows->count() > $limit;
@@ -94,7 +98,8 @@ class ApiController extends Controller
     {
         $actor = $request->attributes->get('connector');
         $doc = Access::visibleTo(DB::table('documents'), $actor)->where('id', $document)->first() ?? abort(404);
-        $versions = DB::table('document_versions')->where('document_id', $document)->orderBy('number')->get(['id', 'number', 'filename', 'mime', 'size', 'checksum', 'scan_status', 'created_at']);
+        $pin = DB::table('memo_publications')->where('document_id', $document)->value('version_id');
+        $versions = DB::table('document_versions')->when($pin, fn ($q) => $q->where('id', $pin))->where('document_id', $document)->orderBy('number')->get(['id', 'number', 'filename', 'mime', 'size', 'checksum', 'scan_status', 'created_at']);
 
         return response()->json(['data' => $doc, 'versions' => $versions]);
     }

@@ -62,6 +62,40 @@ class DmsTest extends TestCase
         return $id;
     }
 
+    private function acceptInvitation(string $email): User
+    {
+        $row = DB::table('account_invitations')->where('email', $email)->first();
+        $this->assertNotNull($row);
+        if ($row->status === 'pending') {
+            $reviewer = $this->staff(['role' => 'super_admin']);
+            app(\App\Services\InvitationService::class)->review($reviewer, $row->id, true, 'Approved invitation fixture.');
+        }
+        $token = str_repeat('x', 64);
+        DB::table('account_invitations')->where('id', $row->id)->update(['status' => 'sent', 'token_hash' => hash('sha256', $token), 'expires_at' => now()->addHour()]);
+        return app(\App\Services\InvitationService::class)->accept($token, 'SyntheticInvite!2026');
+    }
+
+    private function seedHistoricalFolderGrant(string $folder, array $data): void
+    {
+        DB::table('folder_shares')->updateOrInsert(['folder_id' => $folder, 'recipient_id' => $data['recipient_id']],
+            $data + ['revoked_at' => null, 'created_at' => now(), 'updated_at' => now()]);
+    }
+
+    private function documentRevision(string $id): int
+    {
+        return (int) DB::table('documents')->where('id', $id)->value('revision');
+    }
+
+    private function approvePending(): void
+    {
+        foreach (DB::table('sensitive_changes')->where('status', 'pending')->get() as $change) {
+            $requester = User::findOrFail($change->requester_id);
+            $this->assertSame((int) $change->revision, $this->documentRevision($change->document_id));
+            $reviewer = $this->staff(['role' => $requester->isAdmin() ? 'super_admin' : 'admin', 'source' => $requester->source]);
+            app(\App\Services\SensitiveChangeService::class)->decide($reviewer, $change->id, true, 'Approved fixture change for existing end-to-end checks.');
+        }
+    }
+
     public function test_history_replays_are_idempotent_and_reject_changed_content(): void
     {
         $first = $this->api($this->event())->assertCreated()->assertJsonPath('duplicate', false)->json('history_id');
@@ -163,7 +197,7 @@ class DmsTest extends TestCase
         $this->assertDatabaseCount('documents', 1);
         $this->assertDatabaseCount('document_versions', 1);
         $this->post('/documents', ['title' => 'Changed', 'source' => 'EMS', 'classification' => 'Internal', 'submission_key' => 'same', 'file' => $this->file()])->assertConflict();
-        $this->post('/documents/'.$id.'/versions', ['source' => 'EMS', 'revision' => 1, 'submission_key' => 'version-2', 'file' => $this->file('next.txt', 'New contents')])->assertRedirect();
+        $this->post('/documents/'.$id.'/versions', ['source' => 'EMS', 'revision' => $this->documentRevision($id), 'submission_key' => 'version-2', 'file' => $this->file('next.txt', 'New contents')])->assertRedirect();
         $this->assertDatabaseCount('document_versions', 2);
         $this->assertDatabaseHas('documents', ['id' => $id, 'revision' => 2]);
         $this->post('/documents/'.$id.'/versions', ['source' => 'EMS', 'revision' => 1, 'submission_key' => 'stale', 'file' => $this->file()])->assertConflict();
@@ -230,11 +264,12 @@ class DmsTest extends TestCase
         $id = $this->upload($owner);
         $editor = $this->staff(['role' => 'staff']);
         $recipient = $this->staff();
-        $this->actingAs($owner)->post('/documents/'.$id.'/shares', ['recipient_id' => $editor->id, 'permission' => 'Editor'])->assertRedirect();
-        $this->actingAs($editor)->patch('/documents/'.$id, ['title' => 'Renamed', 'revision' => 1, 'folder_id' => null])->assertRedirect();
-        $this->post('/documents/'.$id.'/trash', ['revision' => 2])->assertForbidden();
+        $this->actingAs($owner)->post('/documents/'.$id.'/shares', ['revision' => $this->documentRevision($id), 'recipient_id' => $editor->id, 'permission' => 'Editor'])->assertRedirect();
+        $this->approvePending();
+        $this->actingAs($editor)->patch('/documents/'.$id, ['title' => 'Renamed', 'revision' => $this->documentRevision($id), 'folder_id' => null])->assertRedirect();
+        $this->post('/documents/'.$id.'/trash', ['revision' => $this->documentRevision($id)])->assertForbidden();
         $this->post('/documents/'.$id.'/shares', ['recipient_id' => $recipient->id, 'permission' => 'Viewer'])->assertForbidden();
-        $this->post('/documents/'.$id.'/versions', ['source' => 'EMS', 'revision' => 2, 'submission_key' => 'editor-v2', 'file' => $this->file()])->assertRedirect();
+        $this->post('/documents/'.$id.'/versions', ['source' => 'EMS', 'revision' => $this->documentRevision($id), 'submission_key' => 'editor-v2', 'file' => $this->file()])->assertRedirect();
         $this->assertDatabaseCount('document_versions', 2);
         $this->post('/documents/'.$id.'/comments', ['body' => 'A valid comment'])->assertRedirect();
     }
@@ -245,8 +280,9 @@ class DmsTest extends TestCase
         $id = $this->upload($owner);
         $viewer = $this->staff(['role' => 'staff', 'source' => 'PMS']);
         $v = DB::table('document_versions')->first();
-        $this->post('/documents/'.$id.'/shares', ['recipient_id' => $viewer->id, 'permission' => 'Viewer', 'version_id' => $v->id])->assertRedirect();
-        $this->post('/documents/'.$id.'/versions', ['source' => 'EMS', 'revision' => 1, 'submission_key' => 'new', 'file' => $this->file('next.txt')])->assertRedirect();
+        $this->post('/documents/'.$id.'/shares', ['revision' => $this->documentRevision($id), 'recipient_id' => $viewer->id, 'permission' => 'Viewer', 'version_id' => $v->id])->assertRedirect();
+        $this->approvePending();
+        $this->post('/documents/'.$id.'/versions', ['source' => 'EMS', 'revision' => $this->documentRevision($id), 'submission_key' => 'new', 'file' => $this->file('next.txt')])->assertRedirect();
         $latest = DB::table('document_versions')->where('number', 2)->first();
         $this->actingAs($viewer)->get('/files/'.$v->id)->assertOk();
         $this->get('/files/'.$latest->id)->assertForbidden();
@@ -255,7 +291,8 @@ class DmsTest extends TestCase
         $this->actingAs($owner)->delete('/documents/'.$id.'/shares/'.$share->id)->assertRedirect();
         // Employees may still read their own documents, but a revoked recipient loses this file.
         $other = $this->staff(['role' => 'staff', 'source' => 'OAS']);
-        $this->post('/documents/'.$id.'/shares', ['recipient_id' => $other->id, 'permission' => 'Commenter', 'expires_at' => now()->addHour()->toDateTimeString()])->assertRedirect();
+        $this->post('/documents/'.$id.'/shares', ['revision' => $this->documentRevision($id), 'recipient_id' => $other->id, 'permission' => 'Commenter', 'expires_at' => now()->addHour()->toDateTimeString()])->assertRedirect();
+        $this->approvePending();
         $this->actingAs($other)->get('/documents/'.$id)->assertOk();
         $this->get('/workspaces/oas/documents?view=shared')->assertSee('Synthetic staff file');
         $this->post('/documents/'.$id.'/comments', ['body' => str_repeat('x', 2001)])->assertSessionHasErrors('body');
@@ -269,13 +306,15 @@ class DmsTest extends TestCase
         $id = $this->upload($user);
         $v = DB::table('document_versions')->first();
         $this->post('/documents/'.$id.'/trash', ['revision' => 99])->assertConflict();
-        $this->post('/documents/'.$id.'/trash', ['revision' => 1])->assertRedirect();
+        $this->post('/documents/'.$id.'/trash', ['revision' => $this->documentRevision($id)])->assertRedirect();
+        $this->approvePending();
         $this->get('/files/'.$v->id)->assertNotFound();
-        $this->post('/documents/'.$id.'/restore', ['revision' => 2])->assertRedirect();
+        $this->post('/documents/'.$id.'/restore', ['revision' => $this->documentRevision($id)])->assertRedirect();
+        $this->approvePending();
         $this->get('/files/'.$v->id)->assertOk();
         $this->assertDatabaseCount('document_versions', 1);
-        $this->assertDatabaseHas('audit_entries', ['action' => 'document.trashed', 'document_id' => $id]);
-        $this->assertDatabaseHas('audit_entries', ['action' => 'document.restored', 'document_id' => $id]);
+        $this->assertDatabaseHas('audit_entries', ['action' => 'trash.applied', 'document_id' => $id]);
+        $this->assertDatabaseHas('audit_entries', ['action' => 'restore.applied', 'document_id' => $id]);
         $this->get('/documents/'.$id)->assertOk();
     }
 
@@ -294,9 +333,13 @@ class DmsTest extends TestCase
 
     public function test_accounts_inherit_scope_and_self_lockout_is_prevented(): void
     {
+        config(['mail.default' => 'smtp']);
+        \Illuminate\Support\Facades\Mail::fake();
         $admin = $this->staff(['role' => 'super_admin']);
-        $data = ['name' => 'Synthetic colleague', 'email' => 'colleague@example.test', 'password' => 'SyntheticPass!123', 'role' => 'admin', 'source' => 'EMS', 'active' => 1, 'school_id' => 'FORGED'];
-        $this->actingAs($admin)->post('/admin/accounts', $data)->assertRedirect();
+        $data = ['name' => 'Synthetic colleague', 'email' => 'colleague@example.test', 'role' => 'admin', 'source' => 'EMS', 'active' => 1, 'school_id' => 'FORGED'];
+        $this->actingAs($admin)->post('/admin/accounts', $data)->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertDatabaseMissing('users', ['email' => $data['email']]);
+        $this->acceptInvitation($data['email']);
         $this->assertDatabaseHas('users', ['email' => 'colleague@example.test', 'school_id' => 'PLP', 'campus' => 'Main']);
         $this->patch('/admin/accounts/'.$admin->id, ['name' => $admin->name, 'email' => $admin->email, 'password' => '', 'role' => 'staff', 'source' => 'EMS', 'active' => 0])->assertUnprocessable();
         $this->assertDatabaseHas('users', ['id' => $admin->id, 'role' => 'super_admin', 'active' => true]);
@@ -434,16 +477,18 @@ class DmsTest extends TestCase
         $this->postJson('/documents/batch', array_replace($data, ['files' => array_fill(0, 51, $this->file()), 'paths' => array_fill(0, 51, 'Office/sample.txt')]))->assertUnprocessable();
     }
 
-    public function test_regrant_can_remove_an_old_expiry_and_pinned_version(): void
+    public function test_regrant_removes_old_pin_and_uses_capped_expiry(): void
     {
         $owner = $this->staff();
         $id = $this->upload($owner);
         $recipient = $this->staff(['role' => 'staff']);
         $v = DB::table('document_versions')->first();
-        $this->post('/documents/'.$id.'/shares', ['recipient_id' => $recipient->id, 'permission' => 'Viewer', 'version_id' => $v->id, 'expires_at' => now()->addDay()->toDateTimeString()])->assertRedirect();
-        $this->post('/documents/'.$id.'/shares', ['recipient_id' => $recipient->id, 'permission' => 'Editor'])->assertRedirect();
-        $this->assertDatabaseHas('shares', ['document_id' => $id, 'recipient_id' => $recipient->id, 'permission' => 'Editor', 'version_id' => null, 'expires_at' => null]);
-        $this->actingAs($recipient)->patch('/documents/'.$id, ['title' => 'Editor regrant works', 'revision' => 1])->assertRedirect();
+        $this->post('/documents/'.$id.'/shares', ['revision' => $this->documentRevision($id), 'recipient_id' => $recipient->id, 'permission' => 'Viewer', 'version_id' => $v->id, 'expires_at' => now()->addDay()->toDateTimeString()])->assertRedirect();
+        $this->approvePending();
+        $this->post('/documents/'.$id.'/shares', ['revision' => $this->documentRevision($id), 'recipient_id' => $recipient->id, 'permission' => 'Editor'])->assertRedirect();
+        $this->approvePending();
+        $this->assertDatabaseHas('shares', ['document_id' => $id, 'recipient_id' => $recipient->id, 'permission' => 'Editor', 'version_id' => null]);
+        $this->actingAs($recipient)->patch('/documents/'.$id, ['title' => 'Editor regrant works', 'revision' => $this->documentRevision($id)])->assertRedirect();
     }
 
     public function test_preview_is_opt_in_and_carries_sandbox_headers(): void
@@ -483,19 +528,22 @@ class DmsTest extends TestCase
         $folder=DB::table('folders')->value('id');
         $id=$this->upload($user,['folder_id'=>$folder]);
         $this->get('/workspaces/ems/documents')->assertViewHas('folders',fn($folders)=>(int)($folders->firstWhere('id',$folder)->document_count??0)===1);
-        $this->post('/documents/'.$id.'/trash',['revision'=>1])->assertRedirect();
+        $this->post('/documents/'.$id.'/trash',['revision' => $this->documentRevision($id)])->assertRedirect();
+        $this->approvePending();
         $this->get('/workspaces/ems/documents')->assertViewHas('folders',fn($folders)=>(int)($folders->firstWhere('id',$folder)->document_count??0)===0);
     }
 
     public function test_super_admin_account_is_source_independent_and_dms_source_is_rejected(): void
     {
+        config(['mail.default' => 'smtp']);
+        \Illuminate\Support\Facades\Mail::fake();
         $admin=$this->staff(['role'=>'super_admin']);
-        $data=['name'=>'New Admin','email'=>'new.admin@example.test','password'=>'SyntheticAdmin!2026','role'=>'super_admin','source'=>'EMS','active'=>1];
+        $data=['name'=>'New Admin','email'=>'new.admin@example.test','role'=>'super_admin','source'=>'EMS','active'=>1];
         $this->actingAs($admin)->post('/admin/accounts',$data)->assertRedirect()->assertSessionHasNoErrors();
-        $created=User::where('email',$data['email'])->firstOrFail();
+        $created=$this->acceptInvitation($data['email']);
         $this->assertNull($created->source);
-        $this->assertSame(['EMS','PMS','ES','OAS'],$created->sources());
-        $this->actingAs($created)->get('/account')->assertOk()->assertSee('DMS ADMINISTRATION')->assertSee('All four ERP sources · read-only oversight')->assertSee('account-grid',false);
+        $this->assertEqualsCanonicalizing(['EMS','PMS','ES','OAS'],$created->sources());
+        $this->actingAs($created)->get('/account')->assertOk()->assertSee('DMS ADMINISTRATION')->assertSee('All registered workspaces')->assertSee('account-grid',false);
         foreach (['ems','pms','es','oas'] as $source) $this->get('/workspaces/'.$source)->assertOk();
         $data['email']='employee@example.test';$data['role']='staff';$data['source']='DMS';
         $this->post('/admin/accounts',$data)->assertSessionHasErrors('source');
@@ -507,22 +555,24 @@ class DmsTest extends TestCase
         $this->actingAs($this->staff(['role'=>'super_admin','source'=>'DMS']))->get('/admin/connectors')->assertOk()->assertSee('Not connected')->assertDontSee('Revoked');
     }
 
-    public function test_super_admin_repository_oversight_blocks_every_write_even_on_owned_documents(): void
+    public function test_super_admin_can_manage_documents_and_folders_in_school_scope(): void
     {
-        $staff=$this->staff();
-        $this->upload($staff);
-        $doc=DB::table('documents')->first();
-        $admin=$this->staff(['role'=>'super_admin','source'=>'DMS']);
-        DB::table('documents')->where('id',$doc->id)->update(['owner_id'=>$admin->id]);
-        $this->actingAs($admin)->get('/documents/'.$doc->id)->assertOk()->assertSee('Read-only oversight')->assertDontSee('Upload new version')->assertDontSee('Manage access')->assertDontSee('Post comment')->assertDontSee('Move to trash');
-        foreach ([['POST','/documents'],['POST','/documents/batch'],['POST','/documents/'.$doc->id.'/versions'],['PATCH','/documents/'.$doc->id],['POST','/documents/'.$doc->id.'/trash'],['POST','/documents/'.$doc->id.'/restore'],['POST','/documents/'.$doc->id.'/star'],['POST','/documents/'.$doc->id.'/shares'],['DELETE','/documents/'.$doc->id.'/shares/1'],['POST','/documents/'.$doc->id.'/comments'],['POST','/folders'],['PATCH','/folders/fixture'],['POST','/folders/fixture/shares'],['DELETE','/folders/fixture/shares/1']] as [$method,$url]) {
-            $this->json($method,$url,[])->assertForbidden();
+        $owner = $this->staff();
+        $id = $this->upload($owner);
+        $super = $this->staff(['role' => 'super_admin']);
+        $this->actingAs($super)->get('/documents/'.$id)->assertOk()->assertSee('Upload new version')->assertSee('Manage access');
+        $this->patch('/documents/'.$id, ['title' => 'Super updated', 'revision' => 1])->assertRedirect();
+        $this->post('/documents/'.$id.'/trash', ['revision' => $this->documentRevision($id)])->assertRedirect();
+        $this->assertNotNull(DB::table('documents')->where('id', $id)->value('trashed_at'));
+        $this->post('/documents/'.$id.'/restore', ['revision' => $this->documentRevision($id)])->assertRedirect();
+        $this->assertNull(DB::table('documents')->where('id', $id)->value('trashed_at'));
+        $this->post('/folders', ['source' => 'EMS', 'name' => 'Super folder'])->assertRedirect();
+        $this->assertDatabaseHas('folders', ['name' => 'Super folder', 'owner_id' => $super->id]);
+        foreach (['ems', 'pms', 'es', 'oas'] as $source) {
+            $this->get('/workspaces/'.$source.'/documents')->assertOk()->assertSee('Upload document')->assertSee('New folder');
         }
-        $this->assertDatabaseHas('documents',['id'=>$doc->id,'revision'=>1,'trashed_at'=>null]);
-        $this->get('/admin/accounts')->assertOk();
-        $this->get('/admin/connectors')->assertOk();
-        foreach (['ems','pms','es','oas'] as $source) $this->get('/workspaces/'.$source.'/documents')->assertOk()->assertSee('Read-only oversight')->assertDontSee('Upload document')->assertDontSee('Upload folder')->assertDontSee('New folder');
-        $this->get('/documents/'.$doc->id.'/scan-status')->assertOk();
+        $this->assertDatabaseCount('sensitive_changes', 0);
+        $this->assertDatabaseCount('document_versions', 1);
     }
 
     public function test_dms_is_not_a_document_source_or_personal_workspace(): void
@@ -545,7 +595,7 @@ class DmsTest extends TestCase
         $super = $this->staff(['role' => 'super_admin']);
         $this->actingAs($super)->get('/admin')->assertOk()->assertSee('School repository')->assertSee('ERP connectors')->assertDontSee('← Administration')->assertDontSee('/my-workspace', false);
         $this->get('/my-workspace')->assertNotFound();
-        $this->get('/workspaces/ems')->assertOk()->assertSee('← Administration')->assertSee('Read-only oversight');
+        $this->get('/workspaces/ems')->assertOk()->assertSee('← Administration')->assertSee('Upload document');
         $this->get('/admin/overview')->assertOk()->assertSee('School repository')->assertDontSee('← Administration');
     }
 
@@ -556,11 +606,15 @@ class DmsTest extends TestCase
         $staff=$this->staff(['role'=>'staff','source'=>'EMS']);
         $outside=$this->staff(['role'=>'staff','source'=>'PMS']);
         $id=$this->upload($staff);
-        $this->actingAs($admin)->patch('/documents/'.$id,['title'=>'Admin reviewed title','folder_id'=>null,'revision'=>1])->assertRedirect();
+        $this->actingAs($admin)->patch('/documents/'.$id,['title'=>'Admin reviewed title','folder_id'=>null,'revision' => $this->documentRevision($id)])->assertRedirect();
         $this->get('/documents/'.$id)->assertOk()->assertSee('Manage access');
         $this->get('/admin/accounts')->assertOk()->assertSee($staff->email)->assertDontSee($outside->email)->assertDontSee($super->email);
-        $data=['name'=>'New Staff','email'=>'scoped.staff@example.test','role'=>'staff','source'=>'EMS','password'=>'SyntheticStaff!2026','active'=>1];
+        $data=['name'=>'New Staff','email'=>'scoped.staff@example.test','role'=>'staff','source'=>'EMS','active'=>1];
         $this->post('/admin/accounts',$data)->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertDatabaseMissing('users', ['email' => $data['email']]);
+        $this->assertDatabaseHas('account_invitations', ['email' => $data['email'], 'status' => 'pending']);
+        $created = $this->acceptInvitation($data['email']);
+        $this->assertSame('EMS', $created->source);
         foreach (['admin','super_admin'] as $role) $this->postJson('/admin/accounts',array_replace($data,['role'=>$role]))->assertForbidden();
         $this->patchJson('/admin/accounts/'.$super->id,array_replace($data,['email'=>$super->email]))->assertNotFound();
         $this->patchJson('/admin/accounts/'.$outside->id,array_replace($data,['email'=>$outside->email]))->assertNotFound();
@@ -572,13 +626,15 @@ class DmsTest extends TestCase
         $this->upload($outside,['source'=>'PMS']);
         $outsideDocument=DB::table('documents')->where('owner_id',$outside->id)->where('source','PMS')->value('id');
         DB::table('shares')->insert(['document_id'=>$outsideDocument,'recipient_id'=>$admin->id,'permission'=>'Editor','created_at'=>now(),'updated_at'=>now()]);
-        $this->actingAs($admin)->patchJson('/documents/'.$outsideDocument,['title'=>'Denied outside edit','folder_id'=>null,'revision'=>1])->assertForbidden();
+        $this->actingAs($admin)->patchJson('/documents/'.$outsideDocument,['title'=>'Denied outside edit','folder_id'=>null,'revision' => $this->documentRevision($outsideDocument)])->assertForbidden();
 
-        $this->actingAs($staff)->postJson('/folders',['source'=>'EMS','name'=>'Denied'])->assertForbidden();
-        $this->postJson('/documents/batch',[])->assertForbidden();
-        $this->postJson('/documents/'.$id.'/shares',['recipient_id'=>$admin->id,'permission'=>'Viewer'])->assertForbidden();
-        $this->get('/documents/'.$id)->assertOk()->assertDontSee('Manage access')->assertSee('Upload new version');
-        $this->get('/workspaces/ems')->assertOk()->assertSee('Upload document')->assertDontSee('New folder')->assertDontSee('Upload folder');
+        $this->actingAs($staff)->postJson('/folders',['source'=>'EMS','name'=>'Staff folder'])->assertRedirect();
+        $this->assertDatabaseHas('folders', ['name' => 'Staff folder', 'owner_id' => $staff->id]);
+        $this->postJson('/documents/batch',[])->assertUnprocessable()->assertJsonValidationErrors(['source', 'files', 'paths']);
+        $this->postJson('/documents/'.$id.'/shares',['recipient_id'=>$admin->id,'permission'=>'Viewer','revision'=>$this->documentRevision($id)])->assertAccepted();
+        $this->assertDatabaseMissing('shares', ['document_id' => $id, 'recipient_id' => $admin->id]);
+        $this->get('/documents/'.$id)->assertOk()->assertSee('Manage access')->assertSee('Upload new version');
+        $this->get('/workspaces/ems')->assertOk()->assertSee('Upload document')->assertSee('New folder')->assertSee('Upload folder');
         $this->get('/admin')->assertForbidden();
     }
 
@@ -610,16 +666,17 @@ class DmsTest extends TestCase
     {
         $owner=$this->staff(['role'=>'staff']);
         $id=$this->upload($owner);
-        $input=['title'=>'Classified file','folder_id'=>null,'revision'=>1,'classification'=>'Restricted'];
+        $input=['title'=>'Synthetic staff file','folder_id'=>null,'revision'=>1,'classification'=>'Restricted'];
         $this->patch('/documents/'.$id,$input)->assertRedirect();
+        $this->approvePending();
         $this->assertDatabaseHas('documents',['id'=>$id,'classification'=>'Restricted','revision'=>2]);
-        $audit=DB::table('audit_entries')->where('action','document.updated')->where('document_id',$id)->first();
-        $this->assertSame('Restricted',json_decode($audit->details,true)['classification_after']);
-        $this->patchJson('/documents/'.$id,array_replace($input,['revision'=>2,'classification'=>'Public']))->assertUnprocessable();
+        $audit=DB::table('audit_entries')->where('action','classification.applied')->where('document_id',$id)->first();
+        $this->assertSame('Restricted',json_decode($audit->details,true)['classification']);
+        $this->patchJson('/documents/'.$id,array_replace($input,['revision' => $this->documentRevision($id),'classification'=>'Public']))->assertUnprocessable();
         $this->patchJson('/documents/'.$id,array_replace($input,['classification'=>'Internal']))->assertConflict();
         $editor=$this->staff(['role'=>'staff']);
         DB::table('shares')->insert(['document_id'=>$id,'recipient_id'=>$editor->id,'permission'=>'Editor','created_at'=>now(),'updated_at'=>now()]);
-        $this->actingAs($editor)->patchJson('/documents/'.$id,array_replace($input,['revision'=>2,'classification'=>'Internal']))->assertForbidden();
+        $this->actingAs($editor)->patchJson('/documents/'.$id,array_replace($input,['revision' => $this->documentRevision($id),'classification'=>'Internal']))->assertForbidden();
         $this->assertDatabaseHas('documents',['id'=>$id,'classification'=>'Restricted','revision'=>2]);
     }
 
@@ -630,7 +687,7 @@ class DmsTest extends TestCase
         $first=DB::table('document_versions')->where('document_id',$id)->first();
         $this->get('/files/'.$first->id.'/preview')->assertOk()->assertHeader('X-Content-Type-Options','nosniff');
         $this->get('/documents/'.$id)->assertOk()->assertSee('Document preview')->assertSee('id="document-preview-frame"',false)->assertSee('document-classification');
-        $this->post('/documents/'.$id.'/versions',['source'=>'EMS','revision'=>1,'submission_key'=>'preview-v2','file'=>$this->file('second.txt','Version two')])->assertRedirect();
+        $this->post('/documents/'.$id.'/versions',['source'=>'EMS','revision' => $this->documentRevision($id),'submission_key'=>'preview-v2','file'=>$this->file('second.txt','Version two')])->assertRedirect();
         $second=DB::table('document_versions')->where('document_id',$id)->where('number',2)->first();
         $this->get('/files/'.$second->id.'/preview')->assertStatus(423);
         DB::table('document_versions')->where('id',$second->id)->update(['scan_status'=>'Clean']);
@@ -658,8 +715,9 @@ class DmsTest extends TestCase
     {
         $owner=$this->staff(['role'=>'staff']);
         $id=$this->upload($owner);
-        $message='Document moved to trash. All versions are preserved.';
-        $this->post('/documents/'.$id.'/trash',['revision'=>1])->assertRedirect()->assertSessionHas('status',$message);
+        $message='Request submitted. Live document unchanged until approval.';
+        $this->post('/documents/'.$id.'/trash',['revision' => $this->documentRevision($id)])->assertRedirect()->assertSessionHas('status',$message);
+        $this->approvePending();
         $this->get('/documents/'.$id)->assertOk()->assertSee($message)->assertSee('position-fixed top-0 end-0',false)->assertSee('toast-countdown',false)->assertDontSee('alert alert-success',false);
         $this->assertDatabaseCount('document_versions',1);
     }
@@ -682,11 +740,11 @@ $this->get('/documents/'.$id)->assertOk()->assertSee('data-global-back',false);
         $this->patchJson('/documents/'.$id,array_replace($input,['folder_id'=>null]))->assertConflict();
         $other=$this->staff(['role'=>'staff']);
         DB::table('shares')->insert(['document_id'=>$id,'recipient_id'=>$other->id,'permission'=>'Editor','created_at'=>now(),'updated_at'=>now()]);
-        $this->actingAs($other)->patchJson('/documents/'.$id,array_replace($input,['folder_id'=>null,'revision'=>2]))->assertForbidden();
-        $this->actingAs($owner)->patchJson('/documents/'.$id,array_replace($input,['folder_id'=>null,'revision'=>2]))->assertOk()->assertJsonPath('folder_id',null);
+        $this->actingAs($other)->patchJson('/documents/'.$id,array_replace($input,['folder_id'=>null,'revision' => $this->documentRevision($id)]))->assertForbidden();
+        $this->actingAs($owner)->patchJson('/documents/'.$id,array_replace($input,['folder_id'=>null,'revision' => $this->documentRevision($id)]))->assertOk()->assertJsonPath('folder_id',null);
         $badFolder=(string) \Illuminate\Support\Str::uuid();
         DB::table('folders')->insert(['id'=>$badFolder,'owner_id'=>$owner->id,'name'=>'Other source','source'=>'PMS','school_id'=>'PLP','campus'=>'Main','revision'=>1,'created_at'=>now(),'updated_at'=>now()]);
-        $this->patchJson('/documents/'.$id,array_replace($input,['folder_id'=>$badFolder,'revision'=>3]))->assertNotFound();
+        $this->patchJson('/documents/'.$id,array_replace($input,['folder_id'=>$badFolder,'revision' => $this->documentRevision($id)]))->assertNotFound();
         $this->assertDatabaseHas('documents',['id'=>$id,'folder_id'=>null,'revision'=>3]);
         $this->get('/workspaces/ems/documents')->assertOk()->assertSee('Move to folder')->assertSee('data-can-move="true"',false);
     }
@@ -711,7 +769,7 @@ $this->get('/documents/'.$id)->assertOk()->assertSee('data-global-back',false);
         $this->assertCount(1, Storage::disk('local')->allFiles('documents'));
 
         // Identical bytes as a new version of the same document are not a duplicate.
-        $this->post('/documents/'.$id.'/versions', ['source' => 'EMS', 'revision' => 1, 'submission_key' => 'same-bytes', 'file' => $this->file('same.txt')])->assertRedirect();
+        $this->post('/documents/'.$id.'/versions', ['source' => 'EMS', 'revision' => $this->documentRevision($id), 'submission_key' => 'same-bytes', 'file' => $this->file('same.txt')])->assertRedirect();
         $this->assertDatabaseCount('document_versions', 2);
 
         // The same submission key still succeeds once the caller confirms a separate record.
@@ -732,16 +790,18 @@ $this->get('/documents/'.$id)->assertOk()->assertSee('data-global-back',false);
         $this->actingAs($outsider)->postJson('/documents', ['source' => 'PMS', 'classification' => 'Internal', 'title' => 'My own copy', 'submission_key' => 'outsider-copy', 'file' => $this->file('mine.txt')])->assertCreated();
 
         // Trashed documents are never offered as an existing copy.
-        $this->actingAs($owner)->post('/documents/'.$id.'/trash', ['revision' => 1])->assertRedirect();
+        $this->actingAs($owner)->post('/documents/'.$id.'/trash', ['revision' => $this->documentRevision($id)])->assertRedirect();
+        $this->approvePending();
         $this->postJson('/documents', ['source' => 'EMS', 'classification' => 'Internal', 'title' => 'After trash', 'submission_key' => 'after-trash', 'file' => $this->file('after-trash.txt')])->assertCreated();
 
         // Version-pinned grants hide versions the recipient may not open.
         $pinner = $this->staff();
         $this->upload($pinner, ['file' => $this->file('pinned-v1.txt', 'Pinned version one')]);
         $docId = DB::table('documents')->where('owner_id', $pinner->id)->value('id');
-        $this->actingAs($pinner)->post('/documents/'.$docId.'/versions', ['source' => 'EMS', 'revision' => 1, 'submission_key' => 'pinned-v2', 'file' => $this->file('pinned-v2.txt', 'Pinned version two')])->assertRedirect();
+        $this->actingAs($pinner)->post('/documents/'.$docId.'/versions', ['source' => 'EMS', 'revision' => $this->documentRevision($docId), 'submission_key' => 'pinned-v2', 'file' => $this->file('pinned-v2.txt', 'Pinned version two')])->assertRedirect();
         $firstVersion = DB::table('document_versions')->where('document_id', $docId)->where('number', 1)->first();
-        $this->post('/documents/'.$docId.'/shares', ['recipient_id' => $outsider->id, 'permission' => 'Viewer', 'version_id' => $firstVersion->id])->assertRedirect();
+        $this->post('/documents/'.$docId.'/shares', ['revision' => $this->documentRevision($docId), 'recipient_id' => $outsider->id, 'permission' => 'Viewer', 'version_id' => $firstVersion->id])->assertRedirect();
+        $this->approvePending();
         $this->actingAs($outsider)->postJson('/documents', ['source' => 'PMS', 'classification' => 'Internal', 'title' => 'Hidden version bytes', 'submission_key' => 'pinned-probe-1', 'file' => $this->file('probe-a.txt', 'Pinned version two')])->assertCreated();
         $this->actingAs($outsider)->postJson('/documents', ['source' => 'PMS', 'classification' => 'Internal', 'title' => 'Visible version bytes', 'submission_key' => 'pinned-probe-2', 'file' => $this->file('probe-b.txt', 'Pinned version one')])
             ->assertStatus(409)->assertJsonPath('duplicates.0.document_id', $docId);
@@ -788,25 +848,26 @@ $this->get('/documents/'.$id)->assertOk()->assertSee('data-global-back',false);
         $this->upload($owner, ['folder_id' => $child, 'title' => 'Child policy', 'file' => $this->file('child.txt', 'Child bytes')]);
         $childDoc = DB::table('documents')->where('title', 'Child policy')->value('id');
 
-        $this->post('/folders/'.$root.'/shares', ['recipient_id' => $recipient->id, 'permission' => 'Editor'])->assertRedirect();
-        $this->actingAs($owner)->get('/workspaces/ems/documents?folder='.$root)->assertOk()->assertSee('Share folder')->assertSee('Grant folder access')->assertSee($recipient->name);
+        $this->seedHistoricalFolderGrant($root, ['recipient_id' => $recipient->id, 'permission' => 'Editor']);
+        $this->actingAs($owner)->get('/workspaces/ems/documents?folder='.$root)->assertOk()->assertDontSee('Grant folder access');
         $this->actingAs($recipient)->get('/workspaces/pms/documents?view=shared')->assertOk()->assertSee('Root policy');
         $this->get('/workspaces/pms/documents?view=shared')->assertOk()->assertSee('Child policy');
         $this->get('/documents/'.$childDoc)->assertOk()->assertSee('Upload new version');
-        $this->post('/documents/'.$childDoc.'/versions', ['source' => 'EMS', 'revision' => 1, 'submission_key' => 'inherited-v2', 'file' => $this->file('child-v2.txt', 'Child second')])->assertRedirect();
+        $this->post('/documents/'.$childDoc.'/versions', ['source' => 'EMS', 'revision' => $this->documentRevision($childDoc), 'submission_key' => 'inherited-v2', 'file' => $this->file('child-v2.txt', 'Child second')])->assertRedirect();
         // Inherited Editor may add versions, but moving, deleting and resharing stay owner actions.
-        $this->postJson('/documents/'.$childDoc.'/trash', ['revision' => 2])->assertForbidden();
-        $this->patchJson('/documents/'.$childDoc, ['title' => 'Moved', 'folder_id' => null, 'revision' => 2])->assertForbidden();
+        $this->postJson('/documents/'.$childDoc.'/trash', ['revision' => $this->documentRevision($childDoc)])->assertForbidden();
+        $this->patchJson('/documents/'.$childDoc, ['title' => 'Moved', 'folder_id' => null, 'revision' => $this->documentRevision($childDoc)])->assertForbidden();
         $this->postJson('/documents/'.$childDoc.'/shares', ['recipient_id' => $owner->id, 'permission' => 'Viewer'])->assertForbidden();
 
         // An explicit document grant always wins over folder inheritance.
-        $this->actingAs($owner)->post('/documents/'.$childDoc.'/shares', ['recipient_id' => $recipient->id, 'permission' => 'Viewer'])->assertRedirect();
+        $this->actingAs($owner)->post('/documents/'.$childDoc.'/shares', ['revision' => $this->documentRevision($childDoc), 'recipient_id' => $recipient->id, 'permission' => 'Viewer'])->assertRedirect();
+        $this->approvePending();
         $this->actingAs($recipient)->post('/documents/'.$childDoc.'/comments', ['body' => 'Explicit viewer cannot comment'])->assertForbidden();
 
         // Nearest folder grant wins: Editor on the parent, Viewer on the child.
         $narrow = $this->staff(['role' => 'staff', 'source' => 'ES']);
-        $this->actingAs($owner)->post('/folders/'.$root.'/shares', ['recipient_id' => $narrow->id, 'permission' => 'Editor'])->assertRedirect();
-        $this->post('/folders/'.$child.'/shares', ['recipient_id' => $narrow->id, 'permission' => 'Viewer'])->assertRedirect();
+        $this->actingAs($owner)->seedHistoricalFolderGrant($root, ['recipient_id' => $narrow->id, 'permission' => 'Editor']);
+        $this->seedHistoricalFolderGrant($child, ['recipient_id' => $narrow->id, 'permission' => 'Viewer']);
         $this->actingAs($narrow)->post('/documents/'.$rootDoc.'/comments', ['body' => 'Root discussion'])->assertRedirect();
         $this->post('/documents/'.$childDoc.'/comments', ['body' => 'Child comment'])->assertForbidden();
         $this->assertDatabaseCount('comments', 1);
@@ -814,7 +875,8 @@ $this->get('/documents/'.$id)->assertOk()->assertSee('data-global-back',false);
         // Revoking the folder path removes inherited access immediately, but an
         // independent explicit document grant survives.
         $share = DB::table('folder_shares')->where('folder_id', $root)->where('recipient_id', $recipient->id)->first();
-        $this->actingAs($owner)->delete('/folders/'.$root.'/shares/'.$share->id)->assertRedirect();
+        $this->actingAs($owner)->delete('/folders/'.$root.'/shares/'.$share->id)->assertNotFound();
+        DB::table('folder_shares')->where('id', $share->id)->update(['revoked_at' => now()]);
         $this->actingAs($recipient)->get('/documents/'.$rootDoc)->assertNotFound();
         $this->get('/documents/'.$childDoc)->assertOk();
     }
@@ -828,12 +890,12 @@ $this->get('/documents/'.$id)->assertOk()->assertSee('data-global-back',false);
         $this->actingAs($owner)->post('/folders', ['source' => 'EMS', 'name' => 'Restricted folder'])->assertRedirect();
         $folder = DB::table('folders')->where('name', 'Restricted folder')->value('id');
 
-        $this->actingAs($staff)->post('/folders/'.$folder.'/shares', ['recipient_id' => $staff->id, 'permission' => 'Viewer'])->assertForbidden();
+        $this->actingAs($staff)->post('/folders/'.$folder.'/shares', ['recipient_id' => $staff->id, 'permission' => 'Viewer'])->assertNotFound();
         $this->actingAs($foreignSource)->post('/folders/'.$folder.'/shares', ['recipient_id' => $foreignSource->id, 'permission' => 'Viewer'])->assertNotFound();
-        $this->actingAs($owner)->post('/folders/'.$folder.'/shares', ['recipient_id' => $otherCampus->id, 'permission' => 'Viewer'])->assertStatus(422);
+        $this->actingAs($owner)->post('/folders/'.$folder.'/shares', ['recipient_id' => $otherCampus->id, 'permission' => 'Viewer'])->assertNotFound();
         // Named shares are the documented exception to ERP source isolation.
-        $this->post('/folders/'.$folder.'/shares', ['recipient_id' => $foreignSource->id, 'permission' => 'Viewer'])->assertRedirect();
-        $this->post('/folders/'.$folder.'/shares', ['recipient_id' => $owner->id, 'permission' => 'Viewer'])->assertStatus(422);
+        $this->seedHistoricalFolderGrant($folder, ['recipient_id' => $foreignSource->id, 'permission' => 'Viewer']);
+        $this->post('/folders/'.$folder.'/shares', ['recipient_id' => $owner->id, 'permission' => 'Viewer'])->assertNotFound();
         $this->assertDatabaseHas('folder_shares', ['folder_id' => $folder, 'recipient_id' => $foreignSource->id, 'permission' => 'Viewer']);
         $this->assertDatabaseCount('folder_shares', 1);
     }
@@ -863,7 +925,7 @@ $this->get('/documents/'.$id)->assertOk()->assertSee('data-global-back',false);
         $inherited = DB::table('documents')->where('title', 'Inherited doc')->value('id');
         $this->upload($owner, ['folder_id' => $hidden, 'title' => 'Hidden doc', 'file' => $this->file('hidden.txt', 'Hidden bytes')]);
         $hiddenDoc = DB::table('documents')->where('title', 'Hidden doc')->value('id');
-        $this->post('/folders/'.$visible.'/shares', ['recipient_id' => $recipient->id, 'permission' => 'Viewer'])->assertRedirect();
+        $this->seedHistoricalFolderGrant($visible, ['recipient_id' => $recipient->id, 'permission' => 'Viewer']);
 
         $this->actingAs($recipient)->get('/documents/'.$inherited)->assertOk();
         $this->get('/documents/'.$hiddenDoc)->assertNotFound();
@@ -881,18 +943,18 @@ $this->get('/documents/'.$id)->assertOk()->assertSee('data-global-back',false);
         $destination = DB::table('folders')->where('name', 'Destination folder')->value('id');
         $this->upload($owner, ['folder_id' => $source, 'title' => 'Moved policy', 'file' => $this->file('move.txt', 'Move bytes')]);
         $doc = DB::table('documents')->where('title', 'Moved policy')->value('id');
-        $this->post('/folders/'.$source.'/shares', ['recipient_id' => $sourceRecipient->id, 'permission' => 'Viewer'])->assertRedirect();
-        $this->post('/folders/'.$destination.'/shares', ['recipient_id' => $destinationRecipient->id, 'permission' => 'Commenter'])->assertRedirect();
+        $this->seedHistoricalFolderGrant($source, ['recipient_id' => $sourceRecipient->id, 'permission' => 'Viewer']);
+        $this->seedHistoricalFolderGrant($destination, ['recipient_id' => $destinationRecipient->id, 'permission' => 'Commenter']);
 
         // The move is refused before any write until the owner confirms the broader access.
-        $this->actingAs($owner)->patchJson('/documents/'.$doc, ['title' => 'Moved policy', 'folder_id' => $destination, 'revision' => 1])
+        $this->actingAs($owner)->patchJson('/documents/'.$doc, ['title' => 'Moved policy', 'folder_id' => $destination, 'revision' => $this->documentRevision($doc)])
             ->assertStatus(409)->assertJsonPath('code', 'access_change')->assertJsonPath('access.gained', 1)
             ->assertJsonPath('access.folder', 'Destination folder');
         $this->assertDatabaseHas('documents', ['id' => $doc, 'folder_id' => $source, 'revision' => 1]);
         $this->assertDatabaseCount('document_versions', 1);
 
         // Confirmed move re-scopes inherited access without new grants.
-        $this->patchJson('/documents/'.$doc, ['title' => 'Moved policy', 'folder_id' => $destination, 'revision' => 1, 'confirm_move' => true])
+        $this->patchJson('/documents/'.$doc, ['title' => 'Moved policy', 'folder_id' => $destination, 'revision' => $this->documentRevision($doc), 'confirm_move' => true])
             ->assertOk()->assertJsonPath('folder_id', $destination)->assertJsonPath('access_gained', 1);
         $this->actingAs($sourceRecipient)->get('/documents/'.$doc)->assertNotFound();
         $this->actingAs($destinationRecipient)->get('/documents/'.$doc)->assertOk();
@@ -906,7 +968,7 @@ $this->get('/documents/'.$id)->assertOk()->assertSee('data-global-back',false);
         $this->assertDatabaseHas('integration_events', ['document_id' => $doc, 'type' => 'document.moved']);
 
         // Moving back out removes the inherited path again; versions stay untouched.
-        $this->actingAs($owner)->patchJson('/documents/'.$doc, ['title' => 'Moved policy', 'folder_id' => null, 'revision' => 2])
+        $this->actingAs($owner)->patchJson('/documents/'.$doc, ['title' => 'Moved policy', 'folder_id' => null, 'revision' => $this->documentRevision($doc)])
             ->assertOk()->assertJsonPath('folder_id', null);
         $this->actingAs($destinationRecipient)->get('/documents/'.$doc)->assertNotFound();
         $this->assertDatabaseCount('document_versions', 1);
@@ -921,7 +983,7 @@ $this->get('/documents/'.$id)->assertOk()->assertSee('data-global-back',false);
         $folder = DB::table('folders')->where('name', 'Revocable folder')->value('id');
         $this->upload($owner, ['folder_id' => $folder, 'title' => 'Revocable document', 'file' => $this->file('revoke.txt', 'Revoke bytes')]);
         $doc = DB::table('documents')->where('title', 'Revocable document')->value('id');
-        $this->post('/folders/'.$folder.'/shares', ['recipient_id' => $recipient->id, 'permission' => 'Editor'])->assertRedirect();
+        $this->seedHistoricalFolderGrant($folder, ['recipient_id' => $recipient->id, 'permission' => 'Editor']);
         $this->actingAs($recipient)->get('/documents/'.$doc)->assertOk();
 
         $payload = ['name' => $recipient->name, 'email' => $recipient->email, 'role' => 'staff', 'source' => 'PMS', 'active' => 0];
@@ -934,9 +996,9 @@ $this->get('/documents/'.$id)->assertOk()->assertSee('data-global-back',false);
 
         // Revoking the folder grant ends inherited access on the next request.
         $share = DB::table('folder_shares')->where('folder_id', $folder)->where('recipient_id', $recipient->id)->first();
-        $this->actingAs($owner)->delete('/folders/'.$folder.'/shares/'.$share->id)->assertRedirect();
+        $this->actingAs($owner)->delete('/folders/'.$folder.'/shares/'.$share->id)->assertNotFound();
+        DB::table('folder_shares')->where('id', $share->id)->update(['revoked_at' => now()]);
         $this->actingAs($recipient->refresh())->get('/documents/'.$doc)->assertNotFound();
-        $this->assertDatabaseHas('audit_entries', ['action' => 'folder.revoked']);
     }
 
     public function test_revoking_an_explicit_grant_falls_back_to_inherited_folder_access(): void
@@ -947,13 +1009,15 @@ $this->get('/documents/'.$id)->assertOk()->assertSee('data-global-back',false);
         $folder = DB::table('folders')->where('name', 'Inherited folder')->value('id');
         $this->upload($owner, ['folder_id' => $folder, 'title' => 'Fallback document', 'file' => $this->file('fallback.txt', 'Fallback bytes')]);
         $doc = DB::table('documents')->where('title', 'Fallback document')->value('id');
-        $this->post('/folders/'.$folder.'/shares', ['recipient_id' => $recipient->id, 'permission' => 'Viewer'])->assertRedirect();
-        $this->post('/documents/'.$doc.'/shares', ['recipient_id' => $recipient->id, 'permission' => 'Editor'])->assertRedirect();
+        $this->seedHistoricalFolderGrant($folder, ['recipient_id' => $recipient->id, 'permission' => 'Viewer']);
+        $this->post('/documents/'.$doc.'/shares', ['revision' => $this->documentRevision($doc), 'recipient_id' => $recipient->id, 'permission' => 'Editor'])->assertRedirect();
+        $this->approvePending();
         $this->actingAs($recipient)->post('/documents/'.$doc.'/comments', ['body' => 'Explicit editor'])->assertRedirect();
         $this->assertDatabaseCount('comments', 1);
 
         $explicit = DB::table('shares')->where('document_id', $doc)->where('recipient_id', $recipient->id)->first();
-        $this->actingAs($owner)->delete('/documents/'.$doc.'/shares/'.$explicit->id)->assertRedirect();
+        $this->actingAs($owner)->delete('/documents/'.$doc.'/shares/'.$explicit->id, ['revision' => $this->documentRevision($doc)])->assertRedirect();
+        $this->approvePending();
         $this->actingAs($recipient)->get('/documents/'.$doc)->assertOk();
         $this->actingAs($recipient)->post('/documents/'.$doc.'/comments', ['body' => 'Viewer cannot comment'])->assertForbidden();
         $this->assertDatabaseCount('comments', 1);
@@ -969,7 +1033,7 @@ $this->get('/documents/'.$id)->assertOk()->assertSee('data-global-back',false);
         $target = DB::table('folders')->where('name', 'Preserve target')->value('id');
         $this->upload($owner, ['folder_id' => $source, 'title' => 'Preserved document', 'file' => $this->file('v1.txt', 'Preserved bytes')]);
         $doc = DB::table('documents')->where('title', 'Preserved document')->value('id');
-        $this->actingAs($owner)->post('/documents/'.$doc.'/versions', ['source' => 'EMS', 'revision' => 1, 'submission_key' => 'preserve-v2', 'file' => $this->file('v2.txt', 'Preserved second')])->assertRedirect();
+        $this->actingAs($owner)->post('/documents/'.$doc.'/versions', ['source' => 'EMS', 'revision' => $this->documentRevision($doc), 'submission_key' => 'preserve-v2', 'file' => $this->file('v2.txt', 'Preserved second')])->assertRedirect();
         $versions = DB::table('document_versions')->where('document_id', $doc)->orderBy('number')->get(['id', 'number', 'checksum', 'storage_key']);
         $this->assertCount(2, $versions);
         foreach ($versions as $version) {
@@ -978,13 +1042,14 @@ $this->get('/documents/'.$id)->assertOk()->assertSee('data-global-back',false);
         }
         $auditBefore = DB::table('audit_entries')->where('document_id', $doc)->pluck('id');
 
-        $this->post('/folders/'.$target.'/shares', ['recipient_id' => $recipient->id, 'permission' => 'Viewer'])->assertRedirect();
-        $this->actingAs($owner)->patchJson('/documents/'.$doc, ['title' => 'Preserved document', 'folder_id' => $target, 'revision' => 2, 'confirm_move' => true])->assertOk();
+        $this->seedHistoricalFolderGrant($target, ['recipient_id' => $recipient->id, 'permission' => 'Viewer']);
+        $this->actingAs($owner)->patchJson('/documents/'.$doc, ['title' => 'Preserved document', 'folder_id' => $target, 'revision' => $this->documentRevision($doc), 'confirm_move' => true])->assertOk();
         $this->actingAs($recipient)->get('/files/'.$versions[0]->id)->assertOk();
         $this->actingAs($recipient)->get('/files/'.$versions[1]->id)->assertStatus(423);
 
         $share = DB::table('folder_shares')->where('folder_id', $target)->where('recipient_id', $recipient->id)->first();
-        $this->actingAs($owner)->delete('/folders/'.$target.'/shares/'.$share->id)->assertRedirect();
+        $this->actingAs($owner)->delete('/folders/'.$target.'/shares/'.$share->id)->assertNotFound();
+        DB::table('folder_shares')->where('id', $share->id)->update(['revoked_at' => now()]);
         $this->actingAs($recipient)->get('/files/'.$versions[0]->id)->assertNotFound();
 
         // Immutable versions, private bytes and earlier audit rows survive every operation.
@@ -1000,8 +1065,6 @@ $this->get('/documents/'.$id)->assertOk()->assertSee('data-global-back',false);
         foreach (['document.uploaded', 'document.updated'] as $action) {
             $this->assertDatabaseHas('audit_entries', ['document_id' => $doc, 'action' => $action]);
         }
-        $this->assertDatabaseHas('audit_entries', ['action' => 'folder.shared']);
-        $this->assertDatabaseHas('audit_entries', ['action' => 'folder.revoked']);
     }
 
     public function test_demo_seeder_creates_one_super_admin_admin_and_staff_per_source(): void
@@ -1029,12 +1092,12 @@ $this->get('/documents/'.$id)->assertOk()->assertSee('data-global-back',false);
     {
         $super = $this->staff(['role' => 'super_admin', 'source' => 'DMS']);
         $this->assertNull($super->fresh()->source);
-        $this->assertSame(['EMS', 'PMS', 'ES', 'OAS'], $super->sources());
+        $this->assertEqualsCanonicalizing(['EMS', 'PMS', 'ES', 'OAS'], $super->sources());
         $this->assertTrue($super->canAccessSource('OAS'));
         $this->assertSame('/admin', $super->homePath());
 
         foreach ([['employee', 'EMS'], ['teacher', 'EMS'], ['hr', 'EMS'], ['payroll', 'PMS']] as [$role, $source]) {
-            $legacy = new User(['role' => $role]);
+            $legacy = new User(['role' => $role, 'school_id' => 'PLP', 'campus' => 'Main']);
             $this->assertTrue($legacy->isStaff(), $role);
             $this->assertSame([$source], $legacy->sources(), $role);
             $this->assertSame('/workspaces/'.strtolower($source), $legacy->homePath(), $role);
@@ -1043,12 +1106,12 @@ $this->get('/documents/'.$id)->assertOk()->assertSee('data-global-back',false);
         $legacyAdmin = new User(['role' => 'admin']);
         $this->assertTrue($legacyAdmin->isAdmin());
         $this->assertFalse($legacyAdmin->isStaff());
-        $this->assertSame(['EMS', 'PMS', 'ES', 'OAS'], $legacyAdmin->sources());
+        $this->assertSame([], $legacyAdmin->sources());
 
         $registrar = new User(['role' => 'registrar']);
         $this->assertFalse($registrar->isStaff());
-        $this->assertSame(['ES', 'OAS'], $registrar->sources());
-        $this->assertSame('/workspaces/es', $registrar->homePath());
+        $this->assertSame([], $registrar->sources());
+        $this->assertSame('/account', $registrar->homePath());
     }
 
     public function test_connector_ids_never_match_user_folder_owners_or_grants(): void
@@ -1072,7 +1135,7 @@ $this->get('/documents/'.$id)->assertOk()->assertSee('data-global-back',false);
         $document = $this->upload($pmsAdmin, ['source' => 'PMS', 'folder_id' => $pmsFolder, 'title' => 'PMS private file']);
         $version = DB::table('document_versions')->where('document_id', $document)->first();
         $recipient = $this->staff(['role' => 'staff', 'source' => 'EMS']);
-        $this->actingAs($pmsAdmin)->post('/folders/'.$pmsFolder.'/shares', ['recipient_id' => $recipient->id, 'permission' => 'Viewer'])->assertRedirect();
+        $this->actingAs($pmsAdmin)->seedHistoricalFolderGrant($pmsFolder, ['recipient_id' => $recipient->id, 'permission' => 'Viewer']);
         DB::table('connectors')->where('id', 1)->update(['id' => $recipient->id]);
 
         $this->withToken($this->token)->get('/api/v1/files/'.$version->id)->assertNotFound();

@@ -6,7 +6,7 @@
         $previewVersion=$versions->first();
         $canDownload=$previewVersion && $previewVersion->scan_status==='Clean' && !$doc->trashed_at;
         $canPreview=$canDownload && in_array($previewVersion->mime,config('dms.preview_mimes'));
-        $sourceName=$source==='DMS'?'My workspace':config('dms.sources.'.$source,$source);
+        $sourceName=$source==='DMS'?'My workspace':(($workspaceLabels ?? App\Services\WorkspaceRegistry::labels($viewer))[$source] ?? $source);
         $ownerName=$doc->owner_id===$viewer->id?$viewer->name:($doc->owner_name??($doc->owner_id?'Document owner':'ERP connector'));
         $detailRoot=$source==='DMS'?'/my-workspace':'/workspaces/'.strtolower(in_array($source,$viewer->sources())?$source:$viewer->source);
         $detailClose=$detailRoot.'/documents'.($doc->folder_id?'?folder='.$doc->folder_id:'');
@@ -28,10 +28,10 @@
         @if ($doc->trashed_at)
             <div class="alert alert-warning">This document is in trash. Restore it before editing or downloading.</div>
         @endif
-        @if ($viewer->isSuperAdmin() && $source!=='DMS')
-            <p class="file-detail-notice"><strong>Super admin · Read-only oversight.</strong> Repository staff manage changes.</p>
-        @endif
-        <div id="document-tabs" class="file-detail-tabs">
+        @if (empty($frontendPreview))
+        @include('partials.memo-publication')
+    @endif
+    <div id="document-tabs" class="file-detail-tabs">
             <ul class="file-detail-tab-list" aria-label="Document sections">
                 <li><a href="#file-details">Details</a></li>
                 <li><a href="#file-versions">Version history</a></li>
@@ -253,7 +253,8 @@
                             @if ($sharer && !$share->revoked_at && !$doc->trashed_at)
                                 <form action="/documents/{{ $doc->id }}/shares/{{ $share->id }}" method="post" data-demo-action="revoke-share">
                                     @csrf
-                                    @method ('DELETE')
+                            <input type="hidden" name="revision" value="{{ $doc->revision }}" />
+                                    @method ('DELETE')<input type="hidden" name="revision" value="{{ $doc->revision }}" />
                                     <button type="submit" class="text-button" aria-label="Revoke access for {{ $share->name }}">Revoke</button>
                                 </form>
                             @endif
@@ -346,6 +347,7 @@
                 <div class="modal-content">
                     <form action="/documents/{{ $doc->id }}/shares" method="post" data-demo-action="share">
                         @csrf
+                            <input type="hidden" name="revision" value="{{ $doc->revision }}" />
                         <div class="modal-header">
                             <h2 class="modal-title" id="share-title">Share with school staff</h2>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -383,7 +385,7 @@
                                 @foreach ($versions as $v)
                                     <option value="{{ $v->id }}">Version {{ $v->number }} only</option>
                                 @endforeach</select
-                            ><label for="share-expiry" class="form-label">Expires <span>(optional)</span></label
+                            ><label for="share-expiry" class="form-label">Expires <span>(within 30 days)</span></label
                             ><input
                                 id="share-expiry"
                                 name="expires_at"
@@ -395,7 +397,7 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button
-                            ><button type="submit" class="btn btn-primary">Grant access</button>
+                            ><button type="submit" class="btn btn-primary">{{ $viewer->isSuperAdmin()?'Grant access':'Request access grant' }}</button>
                         </div>
                     </form>
                 </div>

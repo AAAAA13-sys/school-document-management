@@ -1,3 +1,18 @@
+# Latest SDD implementation authority - 23 October 2026
+
+The user authorized implementing `docs/LATEST SDD.pdf` (v1.0 draft, 21 October 2026), including Samuel's account/access work. Yuri's CI, integration coordination, reporting, task-board and presentation work is deferred. This section supersedes conflicting historical rules below, especially read-only Super Admin, fixed four-workspace selectors, direct account creation and new folder sharing.
+
+- Super Admin may manage DMS-held documents within its school/campus. Classification visibility remains centralized in `Access::visibleTo()`; Restricted sharing remains reserved to Super Admin.
+- Registered workspaces and memberships drive access and selectors. ERP sources EMS/PMS/ES/OAS remain initial integrations; internal workspaces are repositories, not connectors. An unassigned legacy Admin fails closed.
+- Account creation uses individual, expiring, single-use invitations; recipients choose passwords. Admin Staff invitations and account changes require Super Admin approval. Sensitive document changes by Staff require a scoped Admin; Admin changes require Super Admin. Pending changes leave live state unchanged; decisions require reasons, fresh authority, revisions and one application.
+- Memo publication pins an approved Clean version. Later uploads remain drafts for circulation. OAS packet releases authorize ES to retrieve only exact Clean versions through packet endpoints; ordinary connectors keep source isolation. Medical inclusion/access still requires an agreed contract.
+- New folder sharing is outside the latest SDD. Historical folder grants remain compatible; document grants expire within 30 days.
+- The latest SDD specifies 99.5% monthly availability, RPO 24h/RTO 8h, daily encrypted coordinated backups, quarterly recovery drills, three-year minimum audit retention with legal holds, and WCAG 2.2 AA. Target-host measurements, actual drills, DPIA, mail delivery, partner adapters, hosting/data residency and client sign-offs require external evidence; code does not certify them.
+
+Read the historical guide below for architecture, file integrity, API idempotency and other unchanged requirements. For changed workflows, inspect `WorkspaceRegistry`, `InvitationService`, `AccountChangeService`, `SensitiveChangeService`, `MemoService` and `ApplicantPacketService` and their tests.
+
+---
+
 AGENT.md — Document Management System (DMS)
 Project: DMS for Pamantasan ng Lungsod ng Pasig (PLP) School ERP
 Source of truth: DMS-SDD.pdf (Software Design Document v0.1, 2026-10-13)

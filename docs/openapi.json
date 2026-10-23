@@ -99,7 +99,10 @@
                   },
                   "operation": {
                     "type": "string",
-                    "enum": ["upsert", "delete"]
+                    "enum": [
+                      "upsert",
+                      "delete"
+                    ]
                   },
                   "payload": {
                     "oneOf": [
@@ -234,7 +237,11 @@
             "multipart/form-data": {
               "schema": {
                 "type": "object",
-                "required": ["file", "title", "classification"],
+                "required": [
+                  "file",
+                  "title",
+                  "classification"
+                ],
                 "properties": {
                   "file": {
                     "type": "string",
@@ -246,7 +253,11 @@
                   },
                   "classification": {
                     "type": "string",
-                    "enum": ["Internal", "Confidential", "Restricted"]
+                    "enum": [
+                      "Internal",
+                      "Confidential",
+                      "Restricted"
+                    ]
                   },
                   "subject": {
                     "type": "string",
@@ -353,7 +364,10 @@
             "multipart/form-data": {
               "schema": {
                 "type": "object",
-                "required": ["file", "revision"],
+                "required": [
+                  "file",
+                  "revision"
+                ],
                 "properties": {
                   "file": {
                     "type": "string",
@@ -505,6 +519,151 @@
           },
           "423": {
             "description": "JSON error with message and optional field errors"
+          }
+        }
+      }
+    },
+    "/applicant-packets": {
+      "post": {
+        "summary": "OAS submits or revokes an exact-version applicant packet release",
+        "description": "OAS only. Release requires admitted and verified assertions and Clean OAS versions. Medical and Restricted files are excluded. Stable event identity supports replay, revision conflicts and out-of-order receipts.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "event_id",
+                  "applicant_id",
+                  "revision",
+                  "released"
+                ],
+                "properties": {
+                  "event_id": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "applicant_id": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "released": {
+                    "type": "boolean"
+                  },
+                  "admitted": {
+                    "type": "boolean"
+                  },
+                  "verified": {
+                    "type": "boolean"
+                  },
+                  "version_ids": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Immutable receipt stored; applied indicates whether latest release changed"
+          },
+          "200": {
+            "description": "Original receipt returned on identical retry"
+          },
+          "409": {
+            "description": "Changed replay or duplicate revision"
+          },
+          "422": {
+            "description": "Invalid packet or release assertions"
+          }
+        }
+      }
+    },
+    "/applicant-packets/{packet}": {
+      "get": {
+        "summary": "ES reads the currently released exact versions",
+        "parameters": [
+          {
+            "name": "packet",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Released packet and allowed document/version identifiers"
+          },
+          "403": {
+            "description": "Not an active ES connector"
+          },
+          "404": {
+            "description": "No release in scope"
+          },
+          "423": {
+            "description": "A released file is no longer Clean"
+          }
+        }
+      }
+    },
+    "/applicant-packets/{packet}/files/{version}": {
+      "get": {
+        "summary": "ES downloads one explicitly released Clean packet version",
+        "parameters": [
+          {
+            "name": "packet",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Private file with SHA-256 reverified",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Version not explicitly released to this scope"
+          },
+          "409": {
+            "description": "Stored bytes missing or checksum mismatch"
+          },
+          "423": {
+            "description": "File no longer Clean"
           }
         }
       }

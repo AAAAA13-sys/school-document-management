@@ -8,7 +8,6 @@ use App\Models\User;
 use App\Services\Access;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Password;
 
 class ActionRequest extends FormRequest
 {
@@ -20,6 +19,10 @@ class ActionRequest extends FormRequest
         }
 
         $route = $this->route()->getName();
+        if ($route === 'folders.create' && is_string($this->input('source'))) {
+            $registered = Access::scope(\Illuminate\Support\Facades\DB::table('workspaces'), $user)->where('code', $this->input('source'))->exists();
+            return ! $registered || $user->canAccessSource($this->input('source'));
+        }
         if ($route === 'accounts.create') {
             $role = $this->input('role');
             if (is_string($role) && in_array($role, Role::values(), true) && ! $user->can('accounts.role', $role)) {
@@ -29,7 +32,7 @@ class ActionRequest extends FormRequest
             $source = $this->input('source');
             // Let validation reject malformed source values; only enforce a
             // valid, but out-of-scope, source as a forbidden action here.
-            if (($source === null || in_array($source, Source::values(), true)) && ! $user->can('accounts.source', [$source])) {
+            if (($source === null || Access::scope(\Illuminate\Support\Facades\DB::table('workspaces'), $user)->where('code', $source)->exists()) && ! $user->can('accounts.source', [$source])) {
                 return false;
             }
 
@@ -40,9 +43,9 @@ class ActionRequest extends FormRequest
             $query = User::where('school_id', $user->school_id)
                 ->where('campus', $user->campus)
                 ->whereKey($this->route('account'));
-            if ($user->isAdmin() && $user->source) {
+            if ($user->isAdmin()) {
                 // Another source's account does not exist for this Admin.
-                $query->where('source', $user->source);
+                $query->whereIn('source', $user->sources());
             }
             $target = $query->first();
             abort_unless($target, 404);
@@ -78,25 +81,26 @@ class ActionRequest extends FormRequest
     public function rules(): array
     {
         return match ($this->route()->getName()) {
-            'folders.create' => ['name' => 'required|string|max:150', 'parent_id' => 'nullable|uuid', 'source' => ['required', Rule::in(Source::values())]],
+            'folders.create' => ['name' => 'required|string|max:150', 'parent_id' => 'nullable|uuid', 'source' => ['required', Rule::in(Source::values($this->user()))]],
             'folders.update' => ['name' => 'required|string|max:150', 'parent_id' => 'nullable|uuid', 'revision' => 'required|integer|min:1'],
             'documents.update' => ['classification' => 'sometimes|required|in:Internal,Confidential,Restricted', 'title' => 'required|string|max:200', 'folder_id' => 'nullable|uuid', 'revision' => 'required|integer|min:1', 'confirm_move' => 'sometimes|boolean'],
             'documents.trash', 'documents.restore' => ['revision' => 'required|integer|min:1'],
-            'shares.create' => ['recipient_id' => 'required|integer', 'permission' => 'required|in:Viewer,Commenter,Editor', 'expires_at' => 'nullable|date|after:now', 'version_id' => 'nullable|uuid'],
-            'folder-shares.create' => ['recipient_id' => 'required|integer', 'permission' => 'required|in:Viewer,Commenter,Editor', 'expires_at' => 'nullable|date|after:now'],
+            'shares.revoke' => ['revision' => 'required|integer|min:1'],
+            'shares.create' => ['revision' => 'required|integer|min:1', 'recipient_id' => 'required|integer', 'permission' => 'required|in:Viewer,Commenter,Editor', 'expires_at' => 'nullable|date|after:now|before_or_equal:'.now()->addDays(30)->toDateTimeString(), 'version_id' => 'nullable|uuid'],
+            'folder-shares.create' => ['recipient_id' => 'required|integer', 'permission' => 'required|in:Viewer,Commenter,Editor', 'expires_at' => 'nullable|date|after:now|before_or_equal:'.now()->addDays(30)->toDateTimeString()],
             'comments.create' => ['body' => 'required|string|max:2000'],
             'accounts.create', 'accounts.update' => [
                 'name' => 'required|string|max:255', 'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore($this->route('account'))],
-                'password' => [$this->route('account') ? 'nullable' : 'required', 'string', 'max:255', Password::min(12)->mixedCase()->numbers()->symbols()],
+                'password' => 'prohibited',
                 'role' => ['required', Rule::in(Role::values())],
                 'source' => [
                     'nullable',
                     Rule::requiredIf(fn (): bool => $this->input('role') !== Role::SuperAdmin->value),
-                    Rule::in(Source::values()),
+                    Rule::in(Source::values($this->user())),
                 ],
                 'active' => 'required|boolean',
             ],
-            'connectors.create' => ['name' => 'required|string|max:100', 'source' => ['required', Rule::in(Source::values())]],
+            'connectors.create' => ['name' => 'required|string|max:100', 'source' => ['required', Rule::in(\App\Services\WorkspaceRegistry::codes($this->user(), true))]],
             default => [],
         };
     }

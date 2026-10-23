@@ -14,7 +14,7 @@ After deploy/config changes: apply new migrations, `php artisan optimize:clear`,
 
 ## Consistent backups
 
-RPO/RTO, retention, encryption and off-site storage remain SDD-TBD. Until agreed, an operator can take a coordinated offline backup:
+The latest SDD targets RPO 24 hours, RTO 8 hours, daily encrypted backups and quarterly restore drills. Hosting and data residency remain open. For an operator-controlled offline backup:
 
 1. Put the app in maintenance (`php artisan down`), stop scan workers and the scheduler, and wait for in-flight writes to finish. Deny API writes at the same maintenance boundary. Do not leave retry workers running.
 2. Dump only the configured DMS MySQL schema using mysqldump with `--single-transaction --routines --triggers --hex-blob --result-file=<private-backup>/database.sql`. Use an existing private MySQL option file or interactive password prompt; never include a database password in scripts/command history. Verify the command succeeds.
@@ -24,3 +24,14 @@ RPO/RTO, retention, encryption and off-site storage remain SDD-TBD. Until agreed
 Restore into an isolated recovery schema and private directory first. Restore database and documents from the same set, restore the correct application key/configuration, run only pending migrations, and verify every document_versions storage_key/checksum. Exercise scoped login, read-back, a Clean download, a blocked file and a new queued upload before promotion. Do not restore a DB snapshot with files from a different point in time.
 
 The automated feature checks protect version checksums and fail-closed access; MySQL concurrency tests protect receipts. A synthetic local MySQL dump/private-file restore and checksum-verified download were exercised by BackupRestoreTest. A timed restore rehearsal and load/security review on the target host remain required before real school data is introduced. This pass does not choose a retention policy, audit purge schedule, hosting provider, MFA or business approval workflow.
+
+
+## Application operational controls
+
+`GET /admin/health` requires an active Super Admin session. It reports database health, scan backlog, queue failures and backup status with private/no-store responses. Worker liveness is explicitly not measured. An external authenticated monitor and target-host measurements are needed to establish the 99.5% monthly availability objective.
+
+`php artisan dms:backup` creates one AES-256 encrypted archive containing a single-transaction MySQL dump, immutable private version files and a checksum manifest, then decrypts/verifies it before publishing. Configure the dedicated encryption password, private MySQL client option file and private backup destination using operations configuration. Enabled backups run daily at 02:00 application time through the existing scheduler. The key must be retained separately; APP_KEY/configuration also require separate restricted recovery custody.
+
+`php artisan dms:restore-readiness <archive>` verifies decryption and hashes without changing live data. It does not perform or certify a MySQL restore. Quarterly isolated restore drills and the eight-hour recovery objective need operator evidence on the target environment.
+
+Audit entries remain retained, satisfying the three-year minimum without automated disposal. An authorized server operator can record a scoped hold with `php artisan dms:audit-hold <super-admin-email> --reason="<basis>"` and release it with `--release=<hold-id> --reason="<basis>"`. Both actions are audited and neither deletes evidence. A client-approved disposal/archive policy is still needed before implementing any purge.

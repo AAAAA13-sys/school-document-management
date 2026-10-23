@@ -16,7 +16,7 @@ class BatchUploadRequest extends FormRequest
     {
         return ['files' => 'required|array|list|min:1|max:50', 'files.*' => ['required', 'file', 'max:10240'],
             'paths' => 'required|array|list|min:1|max:50', 'paths.*' => 'required|string|max:1500',
-            'source' => ['required', 'in:'.implode(',', Source::values())], 'folder_id' => 'nullable|uuid', 'classification' => 'required|in:Internal,Confidential,Restricted', 'submission_key' => 'required|string|max:100',
+            'source' => ['required', 'in:'.implode(',', Source::values($this->user()))], 'folder_id' => 'nullable|uuid', 'classification' => 'required|in:Internal,Confidential,Restricted', 'submission_key' => 'required|string|max:100',
             'confirm_duplicate' => 'sometimes|boolean'];
     }
 

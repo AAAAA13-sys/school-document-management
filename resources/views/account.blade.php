@@ -31,7 +31,7 @@
                 </div>
                 <div>
                     <dt>Workspace access</dt>
-                    <dd>{{ $super?'All four ERP sources · read-only oversight':implode(' · ', $person->sources()) }}</dd>
+                    <dd>{{ $super?'All registered workspaces within your school and campus':implode(' · ', $person->sources()) }}</dd>
                 </div>
                 <div>
                     <dt>Account status</dt>

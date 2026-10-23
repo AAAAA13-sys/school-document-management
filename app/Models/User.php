@@ -75,25 +75,7 @@ class User extends Authenticatable
      */
     public function sources(): array
     {
-        if ($this->isSuperAdmin()) {
-            return Source::values();
-        }
-
-        if ($this->isAdmin()) {
-            $source = $this->sourceCode();
-
-            // Legacy admins had no source and retain school-wide access.
-            return $source ? [$source] : Source::values();
-        }
-
-        // Legacy registrar accounts covered both enrollment and admissions.
-        if ($this->role === 'registrar') {
-            return [Source::ES->value, Source::OAS->value];
-        }
-
-        $source = $this->sourceCode();
-
-        return $source ? [$source] : [];
+        return \App\Services\WorkspaceRegistry::codes($this);
     }
 
     public function primarySource(): ?string

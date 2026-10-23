@@ -1,10 +1,10 @@
 @extends ('layout')
 @php $viewer=$viewer??auth()->user(); @endphp
-@section ('title',config('dms.sources.'.$source).' · '.ucfirst($section))
+@section ('title',(($workspaceLabels ?? App\Services\WorkspaceRegistry::labels($viewer))[$source] ?? $source).' · '.ucfirst($section))
 @section ('content')
     @php
     $root='/workspaces/'.strtolower($source);
-    $readOnly=$viewer->isSuperAdmin();
+    $readOnly=false;
     $canWrite=$viewer->can('documents.write');
     $canManageFolders=$viewer->can('folders.manage');
     $view=$view??'all';
@@ -115,9 +115,7 @@
                     <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" data-bs-toggle="modal" data-bs-target="#folder-edit-modal">
                         Edit folder
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary ms-2" data-bs-toggle="modal" data-bs-target="#folder-share-modal">
-                        Share folder
-                    </button>
+
                 @endif
             </div>
         @endif
@@ -294,7 +292,7 @@
                 </div>
             </div>
             @if ($folder)
-                @include ('partials.folder-share')
+                
                 <div class="modal fade" id="folder-edit-modal" tabindex="-1" aria-labelledby="folder-edit-title" aria-hidden="true">
                     <div class="modal-dialog modal-dialog-centered">
                         <div class="modal-content">

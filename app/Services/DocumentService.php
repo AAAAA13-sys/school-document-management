@@ -45,6 +45,9 @@ class DocumentService
                     }
                 }
                 $source = $actor instanceof User ? $input['source'] : $actor->source;
+                if (! ($actor instanceof User) && in_array($source, ['OAS', 'ES'], true)) {
+                    abort_if(preg_match('/medical|health|clinical|diagnos|vaccin/i', $input['category'] ?? ''), 422, 'Medical intake requires separately agreed access rules.');
+                }
                 if ($id) {
                     $doc = DB::table('documents')->where('id', $id)->lockForUpdate()->first() ?? abort(404);
                     $this->authorize($actor, $doc, true);
@@ -143,6 +146,13 @@ class DocumentService
         $doc = DB::table('documents')->where('id', $version->document_id)->first() ?? abort(404);
         $this->authorize($actor, $doc);
         abort_if($doc->trashed_at, 404);
+        if ($actor instanceof User) {
+            $pin = MemoService::circulatedVersion($actor, $doc);
+            abort_if($pin && $pin !== $versionId, 403, 'This memo version has not been released.');
+        } else {
+            $pin = DB::table('memo_publications')->where('document_id', $doc->id)->value('version_id');
+            abort_if($pin && $pin !== $versionId, 403, 'This memo version has not been released.');
+        }
         if ($actor instanceof User && $doc->owner_id !== $actor->id
             && ! Gate::forUser($actor)->allows('document.all-versions', $doc)) {
             $grant = Access::grant($actor, $doc);

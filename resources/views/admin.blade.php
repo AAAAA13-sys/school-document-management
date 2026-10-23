@@ -4,7 +4,7 @@
 @section ('content')
     @php
     $titles=['overview'=>'A connected campus, at a glance.','repository'=>'School repository','accounts'=>'Staff accounts','connectors'=>'ERP connectors','scans'=>'File security','audit'=>'Audit trail'];
-    $subtitles=['overview'=>'Manage the people, documents, and connections across your school.','repository'=>'Browse documents across your school and all four ERP sources.','accounts'=>'Manage authorized school staff and their workspace access.','connectors'=>'Give each source system its own scoped connection to DMS.','scans'=>'Review file versions that remain blocked by scanning or integrity checks.','audit'=>'Trace sensitive actions to the staff account or source connector responsible.'];
+    $subtitles=['overview'=>'Manage the people, documents, and connections across your school.','repository'=>'Browse documents across your authorized workspaces.','accounts'=>'Manage authorized school staff and their workspace access.','connectors'=>'Give each source system its own scoped connection to DMS.','scans'=>'Review file versions that remain blocked by scanning or integrity checks.','audit'=>'Trace sensitive actions to the staff account or source connector responsible.'];
 @endphp
     <div class="page-heading">
         <div>
@@ -13,7 +13,7 @@
             <p>{{ $subtitles[$section] }}</p>
         </div>
         @if ($section==='accounts')
-            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#account-new">Create account</button>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#account-new">Invite staff</button>
         @elseif ($section==='connectors')
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#connector-new">Add connector</button>
         @endif
@@ -22,10 +22,10 @@
         @include ('partials.stats')
         <div class="section-heading">
             <h2>Your connected workspaces</h2>
-            <span>{{ $viewer->isSuperAdmin()?'Read-only oversight across all four repositories.':'Manage your assigned repository.' }}</span>
+            <span>{{ $viewer->isSuperAdmin()?'Manage repositories within your school and campus.':'Manage your assigned repository.' }}</span>
         </div>
         <div class="workspace-grid">
-            @foreach (array_intersect_key(config('dms.sources'),array_flip($viewer->sources())) as $code=>$name)
+            @foreach (($workspaceLabels ?? App\Services\WorkspaceRegistry::labels($viewer)) as $code=>$name)
                 <a class="workspace-card" href="/workspaces/{{ strtolower($code) }}"
                     ><span class="source-icon">{{ $code }}</span><span class="workspace-arrow"><x-figma-icon name="arrow-card" /></span>
                     <h3>{{ $name }}</h3>
@@ -60,7 +60,7 @@
                 <span class="eyebrow">SYSTEM CONNECTIONS</span>
                 <h2>{{ $connectors->where('active',true)->count()===4?'Every source, in sync.':'Your systems, connected.' }}</h2>
                 <p>Connect your ERP systems to receive documents and immutable history.</p>
-                @foreach (array_intersect_key(config('dms.sources'),array_flip($viewer->sources())) as $code=>$name)
+                @foreach (($workspaceLabels ?? App\Services\WorkspaceRegistry::labels($viewer)) as $code=>$name)
                     @php $connected=$connectors->where('source',$code)->where('active',true)->isNotEmpty(); @endphp
                     <div class="connection-line"><span>{{ $code }}</span><span>{{ $connected?'● Connected':'○ Not connected' }}</span></div>
                 @endforeach
@@ -210,7 +210,7 @@
             <label class="visually-hidden" for="repository-source">Source system</label
             ><select id="repository-source" name="source" class="form-select filter-select">
                 <option value="">All workspaces</option>
-                @foreach (config('dms.sources') as $code=>$label)
+                @foreach (($workspaceLabels ?? App\Services\WorkspaceRegistry::labels($viewer)) as $code=>$label)
                     <option value="{{ $code }}" @selected (request('source')===$code)>{{ $code }}</option>
                 @endforeach</select
             ><label class="visually-hidden" for="repository-class">Classification</label
@@ -319,7 +319,7 @@
             <label class="visually-hidden" for="audit-source">Source system</label
             ><select class="form-select filter-select" id="audit-source" name="source">
                 <option value="">All sources</option>
-                @foreach (array_intersect_key(config('dms.sources'),array_flip($viewer->sources())) as $code=>$name)
+                @foreach (($workspaceLabels ?? App\Services\WorkspaceRegistry::labels($viewer)) as $code=>$name)
                     <option>{{ $code }}</option>
                 @endforeach
             </select>
@@ -389,7 +389,7 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button
-                            ><button type="submit" class="btn btn-primary">Create account</button>
+                            ><button type="submit" class="btn btn-primary">Invite staff</button>
                         </div>
                     </form>
                 </div>
@@ -437,7 +437,7 @@
                                 required
                                 placeholder="e.g. EMS · Main campus" /><label for="connector-source" class="form-label">Source system</label
                             ><select id="connector-source" name="source" class="form-select mb-4">
-                                @foreach (config('dms.sources') as $code=>$label)
+                                @foreach (($workspaceLabels ?? App\Services\WorkspaceRegistry::labels($viewer)) as $code=>$label)
                                     <option value="{{ $code }}">{{ $code }} — {{ $label }}</option>
                                 @endforeach
                             </select>

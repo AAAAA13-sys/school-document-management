@@ -22,10 +22,8 @@ class BatchUploadController extends Controller
         Gate::forUser($actor)->authorize('document.create', $source);
         $parent = $input['folder_id'] ?? null;
         if ($parent) {
-            $folderQuery = Access::scope(DB::table('folders'), $actor)->where('id', $parent)->where('source', $source);
-            if ($actor->source) {
-                $folderQuery->where('source', $actor->source);
-            }
+            $folderQuery = Access::folders($actor)->where('id', $parent)->where('source', $source);
+
             abort_unless($folderQuery->exists(), 404);
         }
         $results = [];

@@ -12,33 +12,20 @@ enum Source: string
     /**
      * @return array<int, string>
      */
-    public static function values(): array
+    public static function values(?\App\Models\User $actor = null, bool $erpOnly = false): array
     {
-        return array_map(static fn (self $source): string => $source->value, self::cases());
+        return $actor ? \App\Services\WorkspaceRegistry::codes($actor, $erpOnly) : array_map(fn (self $source) => $source->value, self::cases());
     }
 
-    /**
-     * @return array<string, string>
-     */
-    public static function labels(): array
+    public static function labels(?\App\Models\User $actor = null, bool $erpOnly = false): array
     {
-        return [
-            self::EMS->value => 'Employee Management',
-            self::PMS->value => 'Payroll Management',
-            self::ES->value => 'Enrollment',
-            self::OAS->value => 'Online Admission',
-        ];
+        return $actor ? \App\Services\WorkspaceRegistry::labels($actor, $erpOnly) : ['EMS' => 'Employee Management', 'PMS' => 'Payroll Management', 'ES' => 'Enrollment', 'OAS' => 'Online Admission'];
     }
 
     public static function normalize(?string $value): ?string
     {
-        if (! is_string($value)) {
-            return null;
-        }
-
-        $value = strtoupper(trim($value));
-
-        return in_array($value, self::values(), true) ? $value : null;
+        $value = strtoupper(trim($value ?? ''));
+        return preg_match('/^[A-Z][A-Z0-9_-]{0,63}$/D', $value) ? $value : null;
     }
 
     /**

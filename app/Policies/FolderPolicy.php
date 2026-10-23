@@ -21,27 +21,28 @@ class FolderPolicy
             return true;
         }
 
-        return Access::folderGrant($actor, $folder->parent_id) !== null
-            || Access::folderGrant($actor, $folder->id) !== null;
+        return false;
     }
 
     public function create(User $actor, string $source): bool
     {
-        return $actor->isAdmin() && $actor->canAccessSource($source);
+        return ($actor->isSuperAdmin() || $actor->isAdmin() || $actor->isStaff()) && $actor->canAccessSource($source);
     }
 
     public function manageAny(User $actor): bool
     {
-        return $actor->isAdmin();
+        return $actor->isSuperAdmin() || $actor->isAdmin() || $actor->isStaff();
     }
 
     public function update(User $actor, object $folder): bool
     {
-        return $actor->isAdmin() && Access::managesFolder($actor, $folder);
+        return $actor->school_id === $folder->school_id && $actor->campus === $folder->campus
+            && $actor->canAccessSource($folder->source)
+            && (Access::managesFolder($actor, $folder) || ($actor->isStaff() && $folder->owner_id === $actor->id));
     }
 
     public function share(User $actor, object $folder): bool
     {
-        return $this->update($actor, $folder);
+        return false;
     }
 }

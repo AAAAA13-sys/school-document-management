@@ -18,10 +18,8 @@ class FolderController extends Controller
         DB::transaction(function () use ($user, $data) {
             DB::table('users')->where('id', $user->id)->lockForUpdate()->first();
             if (! empty($data['parent_id'])) {
-                $parent = Access::scope(DB::table('folders'), $user)->where('id', $data['parent_id'])->where('source', $data['source']);
-                if ($user->source) {
-                    $parent->where('source', $user->source);
-                }
+                $parent = Access::folders($user)->where('id', $data['parent_id'])->where('source', $data['source']);
+
                 abort_unless($parent->exists(), 404);
             }
             DB::table('folders')->insert($data + ['id' => (string) Str::uuid(), 'owner_id' => $user->id, 'school_id' => $user->school_id, 'campus' => $user->campus, 'revision' => 1, 'created_at' => now(), 'updated_at' => now()]);
@@ -36,10 +34,8 @@ class FolderController extends Controller
         DB::transaction(function () use ($request, $folder) {
             $user = $request->user();
             DB::table('users')->where('id', $user->id)->lockForUpdate()->first();
-            $rowQuery = Access::scope(DB::table('folders'), $user)->where('id', $folder);
-            if ($user->source) {
-                $rowQuery->where('source', $user->source);
-            }
+            $rowQuery = Access::folders($user)->where('id', $folder);
+
             $row = $rowQuery->lockForUpdate()->first() ?? abort(404);
             Gate::forUser($user)->authorize('folder.update', $row);
             abort_unless($row->revision === (int) $request->validated('revision'), 409, 'Folder changed. Reload and retry.');
@@ -48,10 +44,8 @@ class FolderController extends Controller
             while ($parent) {
                 abort_if(in_array($parent, $seen), 422, 'A folder cannot be moved into itself or its descendants.');
                 $seen[] = $parent;
-                $parentQuery = Access::scope(DB::table('folders'), $user)->where('source', $row->source)->where('id', $parent);
-                if ($user->source) {
-                    $parentQuery->where('source', $user->source);
-                }
+                $parentQuery = Access::folders($user)->where('source', $row->source)->where('id', $parent);
+
                 $p = $parentQuery->first() ?? abort(404);
                 $parent = $p->parent_id;
             }

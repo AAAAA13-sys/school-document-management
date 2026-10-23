@@ -19,15 +19,15 @@ class Access
     public static function administrationScope(Builder $query, object $actor, string $prefix = ''): Builder
     {
         return self::scope($query, $actor, $prefix)->when(
-            ($actor->role ?? null) === Role::Admin->value && ! empty($actor->source),
-            fn ($q) => $q->where($prefix.'source', $actor->source),
+            ($actor->role ?? null) === Role::Admin->value,
+            fn ($q) => $q->whereIn($prefix.'source', $actor instanceof User ? $actor->sources() : []),
         );
     }
 
     public static function manages(User $user, object $document): bool
     {
-        return $user->isAdmin() && $user->school_id === $document->school_id
-            && $user->campus === $document->campus && ($user->source === null || $user->source === $document->source);
+        return ($user->isSuperAdmin() || $user->isAdmin()) && $user->school_id === $document->school_id
+            && $user->campus === $document->campus && $user->canAccessSource($document->source);
     }
 
     public static function managesFolder(User $user, object $folder): bool
@@ -100,7 +100,14 @@ class Access
         return $query->where($prefix.'school_id', $actor->school_id)
             ->where($prefix.'campus', $actor->campus)
             ->where($prefix.'source', $actor->source)
-            ->whereIn($prefix.'classification', ['Internal', 'Confidential']);
+            ->whereIn($prefix.'classification', ['Internal', 'Confidential'])
+            ->when(in_array($actor->source, ['OAS', 'ES'], true), function ($q) use ($prefix) {
+                $q->where(function ($q) use ($prefix) {
+                    $q->whereNull($prefix.'category')->orWhere(function ($q) use ($prefix) {
+                        foreach (['medical', 'health', 'clinical', 'diagnos', 'vaccin'] as $term) $q->whereRaw('LOWER('.$prefix.'category) NOT LIKE ?', ['%'.$term.'%']);
+                    });
+                });
+            });
     }
 
     public static function documents(User $user): Builder
@@ -111,16 +118,15 @@ class Access
     public static function folders(User $user): Builder
     {
         $query = self::scope(DB::table('folders'), $user);
-        if ($user->isSuperAdmin() || ($user->isAdmin() && $user->source === null)) {
-            // Oversight of every repository; legacy admins retain their old school-wide view.
+        if ($user->isSuperAdmin()) {
             return $query;
         }
         $folders = self::inheritedFolderIds($user);
 
         return $query->where(function (Builder $q) use ($user, $folders) {
             $q->where('owner_id', $user->id);
-            if ($user->isAdmin() && $user->source) {
-                $q->orWhere('source', $user->source);
+            if ($user->isAdmin()) {
+                $q->orWhereIn('source', $user->sources());
             }
             if ($folders) {
                 $q->orWhereIn('id', $folders);

@@ -25,7 +25,7 @@ Do not start both a separate worker/scheduler and the development launcher unles
 
 Single files are limited to 10 MB. Folder batches contain at most 50 files and preserve safe relative paths, at most 11 folder levels. PHP and the front web server need a 512 MB request limit and max_file_uploads=50 for the largest batch; a lower host limit rejects the batch before Laravel can validate it. Files commit individually; retry the unchanged form/key after a partial failure.
 
-Public self-registration, student accounts and SSO/MFA are outside the agreed scope. An administrator can reset a staff password using the account edit form; staff can change their own password with their current password under My account. To recover a locked-out installation, an authorized server operator can provision a separate administrator with the CLI, then repair the original account through the audited UI.
+Public self-registration, student accounts and SSO/MFA are outside the agreed scope. Accounts are invitation-only; invitees set their own passwords. Configure a real outbound mail transport and trusted APP_URL before sending account links. Log/array mail is refused for these links. Staff can change their own password under My account or request a single-use recovery email. Admin account changes need Super Admin approval. To recover a locked-out installation, an authorized server operator can provision a separate administrator with the CLI, then repair the original account through the audited UI.
 
 `npm run preview` runs the synthetic read-only frontend at port 8012; it is not the app. `npm run dev` or `composer dev` starts only the real web server, so a scan worker and scheduler must also run.
 
@@ -34,3 +34,10 @@ Document previews use locally served PDF.js assets copied by `npm run build`. Ke
 ## Automated checks
 
 GitHub Actions runs the SQLite backend suite, the MySQL `dms_test` suite, frontend tests, asset verification and formatting/encoding checks on every push and pull request. After a merge it also runs a disposable-database smoke test against a live server. The real ClamAV integration test is a separate manual/weekly workflow because it installs the engine and downloads official signatures. See [Continuous integration](CI-CD.md) for the exact commands, isolated database rules and scanner prerequisites.
+
+
+The latest workspace registry, invitation, approval, memo and packet features require the new forward migrations. Preserve APP_KEY and existing data; do not reseed a live deployment. New Workspace registry, Invitations, Requests and approvals, and Account requests links are in the sidebar.
+
+Invitation lifetime and resend interval are configurable with DMS_INVITATION_EXPIRE_MINUTES and DMS_INVITATION_RESEND_SECONDS; the development defaults are 1440 minutes and 60 seconds. Confirm policy values before production. Delivery accepted by SMTP is not proof of receipt.
+
+Authenticated Super Admin health checks use GET /admin/health. Encrypted backup support is opt-in: DMS_BACKUP_ENABLED, DMS_BACKUP_DIRECTORY (private), DMS_BACKUP_PASSWORD (dedicated 32+ character secret), DMS_MYSQLDUMP_BINARY and DMS_MYSQL_DEFAULTS_FILE (private MySQL client option file). The application scheduler schedules enabled backups daily at 02:00 application time. Actual target-host scheduler supervision, backup storage/access and recovery rehearsals require operator configuration.

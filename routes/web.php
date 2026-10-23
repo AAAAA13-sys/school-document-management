@@ -6,11 +6,18 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BatchUploadController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\FolderController;
-use App\Http\Controllers\FolderShareController;
 use App\Http\Controllers\ShareController;
 use App\Http\Controllers\WorkspaceController;
 use Illuminate\Support\Facades\Route;
 
+Route::middleware('guest')->group(function () {
+    Route::get('/invitations/accept/{token}', [\App\Http\Controllers\InvitationController::class, 'form']);
+    Route::post('/invitations/accept/{token}', [\App\Http\Controllers\InvitationController::class, 'accept'])->middleware('throttle:6,1');
+    Route::get('/forgot-password', [\App\Http\Controllers\InvitationController::class, 'forgot']);
+    Route::post('/forgot-password', [\App\Http\Controllers\InvitationController::class, 'emailReset'])->middleware('throttle:6,1');
+    Route::get('/reset-password/{token}', [\App\Http\Controllers\InvitationController::class, 'resetForm'])->name('password.reset');
+    Route::post('/reset-password', [\App\Http\Controllers\InvitationController::class, 'reset'])->middleware('throttle:6,1');
+});
 Route::get('/login', fn () => view('login'))->middleware('guest')->name('login');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:signin');
 Route::middleware(['auth', 'active'])->group(function () {
@@ -20,8 +27,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/documents/{document}/scan-status', [WorkspaceController::class, 'scanStatus']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/workspaces/{source}/{section?}', [WorkspaceController::class, 'index'])
-        ->whereIn('source', ['ems', 'pms', 'es', 'oas'])
-        ->middleware('can:workspaces.access,source');
+        ->where('source', '[a-zA-Z0-9_-]+');
     Route::get('/documents/{document}', [WorkspaceController::class, 'show']);
 
     Route::post('/documents/batch', BatchUploadController::class)
@@ -53,12 +59,6 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::patch('/folders/{folder}', [FolderController::class, 'update'])
         ->name('folders.update')
         ->middleware('can:folders.manage');
-    Route::post('/folders/{folder}/shares', [FolderShareController::class, 'create'])
-        ->name('folder-shares.create')
-        ->middleware('can:folders.manage');
-    Route::delete('/folders/{folder}/shares/{share}', [FolderShareController::class, 'revoke'])
-        ->name('folder-shares.revoke')
-        ->middleware('can:folders.manage');
 
     Route::post('/documents/{document}/shares', [ShareController::class, 'create'])
         ->name('shares.create')
@@ -70,6 +70,21 @@ Route::middleware(['auth', 'active'])->group(function () {
         ->name('comments.create')
         ->middleware('can:documents.comment');
 
+    Route::get('/approvals', [\App\Http\Controllers\ApprovalController::class, 'index']);
+    Route::post('/approvals/{approval}', [\App\Http\Controllers\ApprovalController::class, 'decide']);
+    Route::post('/documents/{document}/publish', [\App\Http\Controllers\ApprovalController::class, 'publish']);
+    Route::get('/admin/health', \App\Http\Controllers\OperationsHealthController::class);
+    Route::get('/admin/account-requests', [\App\Http\Controllers\AccountChangeController::class, 'index']);
+    Route::post('/admin/account-requests/{change}/decide', [\App\Http\Controllers\AccountChangeController::class, 'decide']);
+    Route::get('/admin/invitations', [\App\Http\Controllers\InvitationController::class, 'index']);
+    Route::post('/admin/invitations', [\App\Http\Controllers\InvitationController::class, 'store']);
+    Route::post('/admin/invitations/{invitation}/review', [\App\Http\Controllers\InvitationController::class, 'review']);
+    Route::post('/admin/invitations/{invitation}/revoke', [\App\Http\Controllers\InvitationController::class, 'revoke']);
+    Route::post('/admin/invitations/{invitation}/send', [\App\Http\Controllers\InvitationController::class, 'send']);
+    Route::get('/admin/workspaces', [\App\Http\Controllers\WorkspaceRegistryController::class, 'index'])->name('workspaces.registry');
+    Route::post('/admin/workspaces', [\App\Http\Controllers\WorkspaceRegistryController::class, 'store'])->name('workspaces.registry.store');
+    Route::patch('/admin/workspaces/{workspace}', [\App\Http\Controllers\WorkspaceRegistryController::class, 'update'])->name('workspaces.registry.update');
+    Route::post('/admin/workspaces/{workspace}/membership', [\App\Http\Controllers\WorkspaceRegistryController::class, 'membership'])->name('workspaces.registry.membership');
     Route::get('/admin/{section?}', [AdminController::class, 'index'])
         ->middleware('can:admin.access');
     Route::post('/admin/accounts', [AdminController::class, 'account'])
