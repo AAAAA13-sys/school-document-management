@@ -1,8 +1,6 @@
 /* global jQuery, bootstrap */
 (function ($) {
   'use strict';
-  const preview = document.body.dataset.preview === 'true';
-  const stateKey = 'plp-dms-frontend-v1';
   const fileError = (file) =>
     !file
       ? 'Choose a file.'
@@ -49,7 +47,6 @@
   $(function () {
     const scanUrl = $('[data-scan-status-url]').attr('data-scan-status-url');
     if (
-      !preview &&
       scanUrl &&
       $('.version-row[data-status="Pending"],.version-row[data-status="Failed"]').length
     ) {
@@ -86,22 +83,12 @@
       }, 5000);
     }
     let state = {};
-    if (preview) {
-      try {
-        state = JSON.parse(sessionStorage.getItem(stateKey) || '{}');
-      } catch {
-        state = {};
+    function updateStarAria(starButton, id) {
+      if (starButton && id && state[id]) {
+        starButton.attr('aria-pressed', String(state[id].starred));
       }
     }
-    function save() {
-      if (preview) {
-        try {
-          sessionStorage.setItem(stateKey, JSON.stringify(state));
-        } catch {
-          /* Session state is optional in private browsing. */
-        }
-      }
-    }
+
     let toastTimer;
     function toast(message) {
       const box = document.getElementById('feedback-toast');
@@ -292,10 +279,6 @@
       }
       row.attr('data-moving', 'true');
       try {
-        if (preview) {
-          toast('Frontend preview: moving files requires the application.');
-          return false;
-        }
         const result = await $.ajax({
           url: '/documents/' + encodeURIComponent(row.attr('data-document-id')),
           method: 'PATCH',
@@ -632,12 +615,7 @@
         row.prop('hidden', !show);
       });
     }
-    $('[data-search-form]').on('submit', (event) => {
-      if (preview) {
-        event.preventDefault();
-        filter();
-      }
-    });
+
     // D-10: debounce the client-side filter. Filtering every keystroke re-scans
     // every row and re-reads location.search inside the loop, which is visibly
     // slow on long lists. Selects still fire immediately.
@@ -783,38 +761,6 @@
     }
     async function startUploads() {
       if (uploading) return;
-      if (preview) {
-        uploading = true;
-        renderUploads();
-        const pendingItems = uploads.filter((item) => item.status === 'pending');
-        for (const item of pendingItems) {
-          item.status = 'uploading';
-          renderUploads();
-          await new Promise((resolve) => setTimeout(resolve, 250));
-          item.status = 'saved';
-          item.error = '';
-          const newDoc = {
-            id: item.key,
-            title: item.file.name.replace(/\.[^/.]+$/, '').slice(0, 200),
-            size: item.file.size,
-            ext: (item.file.name.split('.').pop() || 'FILE').toUpperCase(),
-            classification: item.classification || $('#upload-class').val() || 'Confidential',
-            status: 'Pending',
-            date: 'Today',
-            datetime: new Date().toISOString(),
-          };
-          state._preview_docs = state._preview_docs || [];
-          state._preview_docs.unshift(newDoc);
-          save();
-          renderUploads();
-        }
-        uploading = false;
-        renderUploads();
-        injectPreviewDocs();
-        filter();
-        toast('Intake complete: ' + pendingItems.length + ' file(s) queued for security scan.');
-        return;
-      }
       uploading = true;
       renderUploads();
       const form = $('#upload-form')[0];
@@ -941,92 +887,8 @@
         toast('Select and copy the token.');
       }
     });
-    $('#preview-workspace').on('change', function () {
-      location.assign(this.value);
-    });
-    $('#reset-preview').on('click', () => {
-      sessionStorage.removeItem(stateKey);
-      location.reload();
-    });
-    $('[data-demo-download]').on('click', (event) => {
-      event.preventDefault();
-      toast('Frontend preview: no real files are stored or downloaded.');
-    });
-    if (preview) {
-      $('.document-row').each(function () {
-        const change = state[this.dataset.documentId];
-        if (change?.title) {
-          $(this).find('.document-title').text(change.title);
-          $(this).attr('data-title', change.title);
-        }
-      });
-      const detailId = $('form[data-demo-action="rename"]').attr('data-document-id');
-      if (detailId && state[detailId]?.title)
-        $('[data-detail-title],#rename').each(function () {
-          if (this.tagName === 'INPUT') this.value = state[detailId].title;
-          else $(this).text(state[detailId].title);
-        });
-    }
-    function injectPreviewDocs() {
-      if (!preview || !state._preview_docs?.length) return;
-      const items = $('#document-items');
-      if (!items.length) return;
-      state._preview_docs.forEach((doc) => {
-        if ($('.document-row[data-document-id="' + doc.id + '"]').length) return;
-        const sizeKb = (doc.size / 1024).toFixed(doc.size % 1024 === 0 ? 0 : 1);
-        const row = $(`
-          <article
-            class="document-row"
-            data-document-id="${doc.id}"
-            data-revision="1"
-            data-folder-id=""
-            data-can-move="true"
-            data-title="${$('<div>').text(doc.title).html()}"
-            data-reference=""
-            data-starred="false"
-            data-trashed="false"
-            data-status="Pending"
-            data-source="${document.body.dataset.source || 'EMS'}">
-            <div class="file-cell">
-              <span class="file-icon">${doc.ext}</span>
-              <div>
-                <a class="document-title" href="#!">${$('<div>').text(doc.title).html()}</a>
-                <small>${sizeKb} KB · Version 1</small>
-              </div>
-            </div>
-            <span class="classification class-${doc.classification.toLowerCase()}" data-class="${doc.classification}">${doc.classification}</span>
-            <time class="modified-date" datetime="${doc.datetime}">${doc.date}</time>
-            <span class="status-badge pending" data-status="Pending">Pending</span>
-            <div class="dropdown document-actions">
-              <button
-                class="icon-button document-menu-toggle"
-                type="button"
-                id="document-actions-${doc.id}"
-                data-bs-toggle="dropdown"
-                aria-expanded="false"
-                aria-label="Actions for ${$('<div>').text(doc.title).html()}">
-                <span class="menu-dots" aria-hidden="true">⋯</span>
-              </button>
-              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="document-actions-${doc.id}">
-                <li>
-                  <span class="dropdown-item text-muted">Preview document</span>
-                </li>
-              </ul>
-            </div>
-          </article>
-        `);
-        const headings = items.find('.document-column-headings');
-        if (headings.length) headings.after(row);
-        else items.prepend(row);
-      });
-      restripeDocuments();
-    }
     $('#folder-upload-form').on('submit', function (event) {
       event.preventDefault();
-      if (preview) {
-        toast('Frontend preview: folder uploads require the Laravel backend.');
-        return;
-      }
       const files = $('#folder-files')[0].files;
       const feedback = $('#folder-upload-feedback');
       if (!files.length || files.length > 50) {
@@ -1090,6 +952,67 @@
       $('#upload-confirm-duplicate').val('0');
       $('#upload-duplicates').prop('hidden', false);
     }
+    // Duplicate warning modal: intercept 409 Conflict, show title & owner, allow upload as new version or cancel
+    function showDuplicateWarningModal(existingDoc, onUploadNewVersion, onCancel) {
+      let modalEl = document.getElementById('duplicate-warning-modal');
+      if (!modalEl) {
+        const modalHtml = `
+          <div class="modal fade" id="duplicate-warning-modal" tabindex="-1" aria-labelledby="duplicate-warning-title" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h2 class="modal-title" id="duplicate-warning-title">Duplicate file detected</h2>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  <p class="modal-subtitle">An identical file already exists in a document you can access.</p>
+                  <div class="duplicate-info-card p-3 my-3 rounded" style="background: var(--canvas, #f8f9fa); border: 1px solid var(--line, #e2e8f0);">
+                    <p class="mb-2"><strong>Document Title:</strong> <span id="duplicate-modal-doc-title">—</span></p>
+                    <p class="mb-0"><strong>Document Owner:</strong> <span id="duplicate-modal-doc-owner">—</span></p>
+                  </div>
+                  <p class="text-muted small mb-0">You can upload this file as a new version of the existing document, or cancel the upload.</p>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="duplicate-modal-cancel">Cancel</button>
+                  <button type="button" class="btn btn-primary" id="duplicate-modal-upload-new-version">Upload as New Version</button>
+                </div>
+              </div>
+            </div>
+          </div>`;
+        $('body').append(modalHtml);
+        modalEl = document.getElementById('duplicate-warning-modal');
+      }
+
+      const title = existingDoc?.title || 'Untitled document';
+      const owner = existingDoc?.owner || existingDoc?.owner_name || existingDoc?.owner_email || (existingDoc?.owner_id ? ('User #' + existingDoc.owner_id) : 'Document owner');
+
+      $('#duplicate-modal-doc-title').text(title);
+      $('#duplicate-modal-doc-owner').text(owner);
+
+      const bsModal = typeof bootstrap !== 'undefined' && bootstrap.Modal
+        ? bootstrap.Modal.getOrCreateInstance(modalEl)
+        : null;
+
+      $('#duplicate-modal-upload-new-version').off('click').on('click', function () {
+        if (bsModal) bsModal.hide();
+        if (typeof onUploadNewVersion === 'function') {
+          onUploadNewVersion();
+        }
+      });
+
+      $('#duplicate-modal-cancel').off('click').on('click', function () {
+        if (bsModal) bsModal.hide();
+        if (typeof onCancel === 'function') {
+          onCancel();
+        }
+      });
+
+      if (bsModal) {
+        bsModal.show();
+      }
+    }
+    window.DmsDuplicateModal = { show: showDuplicateWarningModal };
+
     $('#upload-duplicate-confirm').on('click', () => {
       $('#upload-confirm-duplicate').val('1');
       $('#upload-form').trigger('submit');
@@ -1104,7 +1027,7 @@
         event.preventDefault();
         return;
       }
-      if (this.dataset.ajaxMove === 'true' && !preview) {
+      if (this.dataset.ajaxMove === 'true') {
         event.preventDefault();
         const send = (confirmed) => {
           const data = new FormData(this);
@@ -1132,198 +1055,112 @@
         send(false);
         return;
       }
-      if (!preview) {
-        if (this.id !== 'upload-form') return;
-        event.preventDefault();
-        const form = $(this);
-        const progress = form.find('.upload-progress');
-        progress.prop('hidden', false);
-        form.find('button[type="submit"]').prop('disabled', true);
-        $.ajax({
-          url: this.action,
-          method: 'POST',
-          data: new FormData(this),
-          processData: false,
-          contentType: false,
-          headers: { Accept: 'application/json' },
-          xhr: function () {
-            const xhr = $.ajaxSettings.xhr();
-            xhr.upload.addEventListener('progress', (e) => {
-              if (e.lengthComputable) {
-                const percent = Math.round((e.loaded / e.total) * 100);
-                progress.find('[role="progressbar"]').attr('aria-valuenow', percent);
-                progress.find('.progress-bar').css('width', percent + '%');
-                progress
-                  .find('small')
-                  .text(
-                    percent === 100
-                      ? 'Saving and queuing security scan…'
-                      : 'Uploading… ' + percent + '%'
-                  );
-              }
-            });
-            return xhr;
-          },
-        })
-          .done((result) => location.assign('/documents/' + encodeURIComponent(result.document_id)))
-          .fail((xhr) => {
-            if (xhr.status === 409 && xhr.responseJSON?.code === 'duplicate_file') {
-              showUploadDuplicates(xhr.responseJSON.duplicates || []);
-              progress.prop('hidden', true);
-              form.find('button[type="submit"]').prop('disabled', false);
-              return;
-            }
-            const errors = xhr.responseJSON?.errors;
-            const message = errors
-              ? Object.values(errors).flat().join(' ')
-              : xhr.responseJSON?.message ||
-                'Upload failed. Retry using this form; your submission key is preserved.';
-            progress.find('small').text(message);
-            form.find('button[type="submit"]').prop('disabled', false);
-          });
-        return;
-      }
+      if (this.id !== 'upload-form') return;
       event.preventDefault();
       const form = $(this);
-      const action = this.dataset.demoAction;
-      const data = new FormData(this);
-      const id = this.dataset.documentId;
-      if (!action) {
-        toast('Frontend preview: this change will be saved when the backend is connected.');
-        return;
-      }
-      if (action === 'logout') {
-        location.assign('/login');
-        return;
-      }
-      if (action === 'login') {
-        location.assign('/admin');
-        return;
-      }
-      if (['star', 'trash', 'restore', 'rename'].includes(action)) {
-        state[id] ||= {};
-        if (action === 'star') {
-          const row = $('.document-row').filter(function () {
-            return this.dataset.documentId === id;
+      const progress = form.find('.upload-progress');
+      progress.prop('hidden', false);
+      form.find('button[type="submit"]').prop('disabled', true);
+      $.ajax({
+        url: this.action,
+        method: 'POST',
+        data: new FormData(this),
+        processData: false,
+        contentType: false,
+        headers: { Accept: 'application/json' },
+        xhr: function () {
+          const xhr = $.ajaxSettings.xhr();
+          xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+              const percent = Math.round((e.loaded / e.total) * 100);
+              progress.find('[role="progressbar"]').attr('aria-valuenow', percent);
+              progress.find('.progress-bar').css('width', percent + '%');
+              progress
+                .find('small')
+                .text(
+                  percent === 100
+                    ? 'Saving and queuing security scan…'
+                    : 'Uploading… ' + percent + '%'
+                );
+            }
           });
-          state[id].starred = !(state[id].starred ?? row.attr('data-starred') === 'true');
-          // D-9: keep the accessible state in step with the visible label.
-          const starButton = form.find('button');
-          starButton.text(state[id].starred ? 'Remove star' : 'Star document');
-          starButton
-            .attr('aria-pressed', String(state[id].starred))
-            .attr(
-              'aria-label',
-              (state[id].starred ? 'Remove star from ' : 'Star ') +
-                (form.attr('data-document-title') || 'document')
+          return xhr;
+        },
+      })
+        .done((result) => location.assign('/documents/' + encodeURIComponent(result.document_id)))
+        .fail((xhr) => {
+          if (xhr.status === 409) {
+            progress.prop('hidden', true);
+            form.find('button[type="submit"]').prop('disabled', false);
+
+            const duplicateData = (xhr.responseJSON?.duplicates && xhr.responseJSON.duplicates[0])
+              || xhr.responseJSON?.existing_document
+              || xhr.responseJSON?.document
+              || {
+                title: xhr.responseJSON?.title || 'Existing document',
+                owner: xhr.responseJSON?.owner || xhr.responseJSON?.owner_name || 'Document owner',
+                document_id: xhr.responseJSON?.document_id
+              };
+
+            showDuplicateWarningModal(
+              duplicateData,
+              function () {
+                // "Upload as New Version" (sends force_new_version=true)
+                const formData = new FormData(form[0]);
+                formData.set('force_new_version', 'true');
+                if (duplicateData.document_id) {
+                  formData.set('document_id', duplicateData.document_id);
+                }
+                progress.prop('hidden', false);
+                form.find('button[type="submit"]').prop('disabled', true);
+
+                $.ajax({
+                  url: form[0].action,
+                  method: 'POST',
+                  data: formData,
+                  processData: false,
+                  contentType: false,
+                  headers: { Accept: 'application/json' },
+                  xhr: function () {
+                    const retryXhr = $.ajaxSettings.xhr();
+                    retryXhr.upload.addEventListener('progress', (e) => {
+                      if (e.lengthComputable) {
+                        const percent = Math.round((e.loaded / e.total) * 100);
+                        progress.find('[role="progressbar"]').attr('aria-valuenow', percent);
+                        progress.find('.progress-bar').css('width', percent + '%');
+                      }
+                    });
+                    return retryXhr;
+                  },
+                })
+                  .done((result) => location.assign('/documents/' + encodeURIComponent(result.document_id)))
+                  .fail((retryErr) => {
+                    const msg = retryErr.responseJSON?.message || 'Upload failed.';
+                    progress.find('small').text(msg);
+                    form.find('button[type="submit"]').prop('disabled', false);
+                  });
+              },
+              function () {
+                progress.prop('hidden', true);
+                form.find('button[type="submit"]').prop('disabled', false);
+              }
             );
-          toast(state[id].starred ? 'Starred in this preview.' : 'Star removed in this preview.');
-        }
-        if (action === 'trash' || action === 'restore') {
-          state[id].trashed = action === 'trash';
-          toast(
-            action === 'trash' ? 'Moved to trash in this preview.' : 'Restored in this preview.'
-          );
-        }
-        if (action === 'rename') {
-          state[id].title = data.get('title');
-          $('[data-detail-title]').text(data.get('title'));
-          toast('Document title updated in this preview.');
-        }
-        save();
-        closeModal(this);
-        filter();
-        return;
-      }
-      if (action === 'comment') {
-        $('#comments-list .comment-empty').remove();
-        $('<article class="comment">')
-          .append($('<strong>').text('You · Just now'), $('<p>').text(data.get('body')))
-          .prependTo('#comments-list');
-        this.reset();
-        $('#comment-count').text('0');
-        toast('Comment added in this preview.');
-        return;
-      }
-      if (action === 'share') {
-        const label = $('#share-recipient option:selected').text().split(' (')[0];
-        $('<div class="share-row">')
-          .append($('<span>').text(label + ' · ' + data.get('permission')))
-          .appendTo('#share-list');
-        closeModal(this);
-        toast('Access grant previewed. No real account permissions changed.');
-        return;
-      }
-      if (action === 'revoke-share') {
-        form.closest('.share-row').remove();
-        toast('Access grant removed in this preview.');
-        return;
-      }
-      if (action === 'revoke-connector') {
-        form
-          .closest('tr')
-          .find('.status-badge')
-          .removeClass('clean')
-          .addClass('neutral')
-          .text('Revoked');
-        form.remove();
-        toast('Connector revoked in this preview.');
-        return;
-      }
-      if (action === 'folder') {
-        const name = String(data.get('name'));
-        const link = $('<a class="folder-card" href="#">').append(
-          $('<span>').append($('<strong>').text(name), $('<small>').text('0 documents'))
-        );
-        link.on('click', (event) => {
-          event.preventDefault();
-          toast('This preview folder is empty.');
+
+            if (xhr.responseJSON?.code === 'duplicate_file') {
+              showUploadDuplicates(xhr.responseJSON.duplicates || []);
+            }
+            return;
+          }
+          const errors = xhr.responseJSON?.errors;
+          const message = errors
+            ? Object.values(errors).flat().join(' ')
+            : xhr.responseJSON?.message ||
+              'Upload failed. Retry using this form; your submission key is preserved.';
+          progress.find('small').text(message);
+          form.find('button[type="submit"]').prop('disabled', false);
         });
-        $('.folder-grid').first().append(link);
-        this.reset();
-        closeModal(this);
-        toast('Folder added in this preview.');
-        return;
-      }
-      if (action === 'upload') {
-        const file = $('#upload-file')[0]?.files[0];
-        if (fileError(file)) {
-          toast(fileError(file));
-          return;
-        }
-        closeModal(this);
-        toast(
-          'Upload preview: ' +
-            file.name +
-            ' would enter Pending status and scan automatically. No file bytes were uploaded or scanned.'
-        );
-        return;
-      }
-      if (action === 'account') {
-        const status = data.get('active') === '1' ? 'Active' : 'Inactive';
-        const row = $('<tr>').attr('data-staff-status', status.toLowerCase());
-        [
-          data.get('name'),
-          data.get('email'),
-          data.get('role'),
-          data.get('source'),
-          status,
-          'Preview only',
-        ].forEach((value) => $('<td>').text(value).appendTo(row));
-        $('#staff-table tbody').append(row);
-        this.reset();
-        closeModal(this);
-        toast('Sample staff row added. No account or password was saved.');
-        return;
-      }
-      closeModal(this);
-      toast(
-        action === 'connector'
-          ? 'Connector form validated. Real tokens will be generated by the backend.'
-          : 'Form validated in this frontend preview.'
-      );
+      return;
     });
-    injectPreviewDocs();
     filter();
   });
 })(jQuery);

@@ -4,10 +4,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 /**
- * Task 5: UI / Responsive Tests (Playwright)
+ * Task 5: UI / Responsive Tests (Playwright) against Live Authenticated Application
  *
  * Requirements:
- * - Screenshot at 375px, 768px, and 1280px.
+ * - Authenticate with actual account on http://127.0.0.1:8011
+ * - Screenshot at 375px, 768px, and 1280px viewports.
  * - Assert no horizontal scroll at each viewport.
  * - Assert the duplicate warning modal appears on a 409 response.
  */
@@ -55,9 +56,17 @@ test('responsive layout has no horizontal scroll at 375px, 768px, and 1280px vie
   ];
 
   try {
+    // Authenticate with actual Super Admin account on live application
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('http://127.0.0.1:8011/login', { waitUntil: 'networkidle' });
+    await page.fill('#email', 'dms.admin@plpasig.edu.ph');
+    await page.fill('#password', 'Password123!');
+    await page.click('button[type="submit"]');
+    await page.waitForURL('**/admin**', { waitUntil: 'networkidle' });
+
     for (const vp of viewports) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
-      await page.goto('http://127.0.0.1:8012/workspaces/oas', { waitUntil: 'networkidle' });
+      await page.goto('http://127.0.0.1:8011/admin', { waitUntil: 'networkidle' });
 
       // Assert no horizontal scroll: scrollWidth must be <= clientWidth
       const scrollInfo = await page.evaluate(() => {
@@ -107,17 +116,13 @@ test('duplicate warning modal appears on a 409 response', async () => {
   fs.writeFileSync(tempFilePath, 'Sample duplicate upload payload ' + Date.now());
 
   try {
-    // Intercept document HTML to ensure data-preview="false" so dms.js handles upload via AJAX
-    await page.route('**/documents/**', async (route) => {
-      if (route.request().resourceType() === 'document') {
-        const response = await route.fetch();
-        let body = await response.text();
-        body = body.replace('data-preview="true"', 'data-preview="false"');
-        await route.fulfill({ response, body });
-      } else {
-        await route.continue();
-      }
-    });
+    // Authenticate on real server
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('http://127.0.0.1:8011/login', { waitUntil: 'networkidle' });
+    await page.fill('#email', 'dms.admin@plpasig.edu.ph');
+    await page.fill('#password', 'Password123!');
+    await page.click('button[type="submit"]');
+    await page.waitForURL('**/admin**', { waitUntil: 'networkidle' });
 
     // Intercept upload request to simulate 409 Conflict with duplicate matches
     await page.route('**/documents/*/versions', (route) => {
@@ -129,9 +134,9 @@ test('duplicate warning modal appears on a 409 response', async () => {
           message: 'A document with this content already exists in this workspace.',
           duplicates: [
             {
-              document_id: '00000001-0000-4000-8000-000000000001',
-              title: 'Employee information form',
-              owner: 'Dean of Admissions (oas-admin@school.edu)',
+              document_id: '300953fc-61db-40d4-bdd8-e5810ae39b69',
+              title: '[QA] PMS browser acceptance',
+              owner: 'Super Admin (dms.admin@plpasig.edu.ph)',
               version_number: 1,
               can_add_version: true,
             },
@@ -140,8 +145,7 @@ test('duplicate warning modal appears on a 409 response', async () => {
       });
     });
 
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await page.goto('http://127.0.0.1:8012/documents/00000001-0000-4000-8000-000000000001', {
+    await page.goto('http://127.0.0.1:8011/documents/300953fc-61db-40d4-bdd8-e5810ae39b69', {
       waitUntil: 'networkidle',
     });
 
@@ -153,7 +157,11 @@ test('duplicate warning modal appears on a 409 response', async () => {
     await page.waitForSelector('#upload-modal.show', { state: 'visible' });
 
     // Attach file and submit upload form
-    await page.setInputFiles('#upload-file', tempFilePath);
+    await page.setInputFiles('#upload-file', {
+      name: 'temp_duplicate_test.txt',
+      mimeType: 'text/plain',
+      buffer: Buffer.from('Sample duplicate upload payload ' + Date.now()),
+    });
     await page.click('#upload-form button[type="submit"]');
 
     // Wait for the duplicate warning modal to appear upon receiving 409
@@ -168,14 +176,14 @@ test('duplicate warning modal appears on a 409 response', async () => {
     const docTitle = await page.locator('#duplicate-modal-doc-title').innerText();
     assert.match(
       docTitle,
-      /Employee information form/i,
+      /\[QA\] PMS browser acceptance/i,
       'Duplicate modal must display the existing document title'
     );
 
     const docOwner = await page.locator('#duplicate-modal-doc-owner').innerText();
     assert.match(
       docOwner,
-      /Dean of Admissions/i,
+      /Super Admin/i,
       'Duplicate modal must display the existing document owner'
     );
 

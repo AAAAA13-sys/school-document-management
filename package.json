@@ -5,7 +5,6 @@
     "dev": "php -d upload_max_filesize=10M -d post_max_size=512M -d max_file_uploads=50 artisan serve --host=127.0.0.1 --port=8011",
     "build": "node scripts/copy-pdfjs.mjs && node scripts/check-frontend.mjs",
     "test": "node --test tests/frontend/*.test.mjs",
-    "preview": "php -S 127.0.0.1:8012 -t public scripts/frontend-router.php",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

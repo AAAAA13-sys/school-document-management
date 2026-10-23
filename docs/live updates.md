@@ -119,3 +119,29 @@ The following application defects have been confirmed through manual Chrome test
 ### 6. BUG-005 (Severity: Low) — Stale Pagination & Count on Empty Search Results
 - **Location**: Document listing search filtering.
 - **Observed Behavior**: When a search query matches zero documents, the table renders blank rows while retaining stale pagination counts (e.g., "Showing 1 to 12 of 20").
+
+### 7. BUG-007 (Severity: High) — Modal ID Inconsistency on 409 Duplicate Conflict
+- **Location**: Document upload modal & JavaScript event handler.
+- **Observed Behavior**: Uploading a duplicate file returns HTTP 409 (`code: duplicate_file`), but the view template lacks the `#duplicate-warning-modal` element (which only exists in the staged frontend branch), leaving the user with an unstyled inline warning box.
+
+### 8. BUG-008 (Severity: Low) — Flash Toast Auto-Dismiss without Hover Pause
+- **Location**: `public/js/dms.js` toast notification system.
+- **Observed Behavior**: Flash alerts dismiss after 4 seconds regardless of whether the user is actively hovering or attempting to read error details.
+
+### 9. BUG-009 (Severity: Medium) — Missing Client-Side Upload Batch Size Guard
+- **Location**: `resources/views/partials/upload.blade.php`.
+- **Observed Behavior**: Multi-file dropzone allows queuing more than 50 files or over 500MB total without client-side prevention before transmission.
+
+### 10. BUG-010 (Severity: Critical) — SQL Crash on Missing `folder_inheritance` Column
+- **Location**: `app/Services/Access.php` & `WorkspaceController@index`.
+- **Observed Behavior**: Navigating to `/workspaces/{source}` crashes with `SQLSTATE[42S22]: Column not found: 1054 Unknown column 's.folder_inheritance' in 'where clause'`. `Access::query()` attempts to filter `shares` by `s.folder_inheritance = 1`, but `folder_inheritance` was never migrated to the MySQL `shares` table schema.
+
+---
+
+## Phase 5: UI/UX Pro Max & Manual Chrome Audit Pass
+
+A comprehensive manual audit document has been compiled in [docs/MANUAL-QA-UIUX-AUDIT.md](file:///c:/Users/PLP/Documents/3RD%20YEAR/Integ/DMS/sdm-qa/docs/MANUAL-QA-UIUX-AUDIT.md).
+- **Session Video**: [`manual_qa_chrome_1792760613950.webp`](file:///C:/Users/PLP/.gemini/antigravity-ide/brain/c7fda3d4-a0aa-410f-b90f-aca26da17587/manual_qa_chrome_1792760613950.webp)
+- **Responsive Viewport Evidence**: Zero horizontal scroll verified and screenshots captured across 375px, 768px, and 1280px in `docs/ui-evidence/responsive/` and `docs/ui-evidence/phase-1/screenshots/`.
+- **UI/UX Critique**: Cataloged 12 "Garbage UI" anti-patterns (typography scale, contrast failure on badges, raw SHA-256 strings, empty state illustration absence, mobile touch target violations).
+- **Missing Features**: Cataloged 12 enterprise features required by SDD v1.1 (bulk ZIP export, in-document full text search, PDF annotation canvas, TOTP MFA, notification drawer).

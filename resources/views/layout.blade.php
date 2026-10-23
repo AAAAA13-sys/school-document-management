@@ -65,7 +65,7 @@
     <script defer src="/vendor/bootstrap.bundle.min.js"></script>
     <script defer src="/js/dms.js"></script>
 </head>
-<body class="{{ $isSidebarCollapsed ? 'sidebar-collapsed' : '' }}" data-section="{{ $section }}" data-source="{{ $source }}" data-preview="{{ !empty($frontendPreview) ? 'true':'false' }}">
+<body class="{{ $isSidebarCollapsed ? 'sidebar-collapsed' : '' }}" data-section="{{ $section ?? 'workspaces' }}" data-source="{{ $source ?? 'ALL' }}">
     <a class="skip-link" href="#main">Skip to content</a>
     <aside class="sidebar" id="sidebar" aria-label="Primary navigation">
         <div class="sidebar-header">
@@ -122,7 +122,7 @@
             <div class="profile" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="right" title="{{ $viewer->name }} · {{ $roleName }}" aria-label="{{ $viewer->name }} · {{ $roleName }}">
                 <span class="avatar">{{ $initials }}</span>
                 <div class="profile-info"><strong>{{ $viewer->name }}</strong><small>{{ $roleName }}</small></div>
-                <form action="/logout" method="post" data-demo-action="logout">
+                <form action="/logout" method="post">
                     @csrf
                     <button type="submit" class="icon-button" aria-label="Sign out" data-bs-toggle="tooltip" data-bs-placement="right" title="Sign out">
                         <x-figma-icon name="logout" :size="18" />
@@ -190,18 +190,7 @@
         </main>
         <footer class="app-footer"><span>Pamantasan ng Lungsod ng Pasig</span><span>All files stored privately · {{ $viewer->campus }} campus</span></footer>
     </div>
-    @if (!empty($frontendPreview))
-        <div class="preview-bar">
-            <span>Frontend preview · Sample data</span><label class="visually-hidden" for="preview-workspace">Preview workspace</label
-            ><select id="preview-workspace" aria-label="Preview workspace">
-                <option value="/admin" @selected ($isAdmin)>Administration</option>
-                @foreach (($workspaceLabels ?? App\Services\WorkspaceRegistry::labels($viewer)) as $code=>$name)
-                    <option value="/workspaces/{{ strtolower($code) }}" @selected ($source===$code)>{{ $code }}</option>
-                @endforeach
-                <option value="/login">Sign-in screen</option></select
-            ><button type="button" class="btn btn-sm btn-light" id="reset-preview">Reset demo</button>
-        </div>
-    @endif
+
     <div class="toast-container position-fixed top-0 end-0 p-3" id="toast-container">
         <div class="toast" id="feedback-toast" role="status" aria-live="polite" aria-atomic="true">
             <div class="toast-header">

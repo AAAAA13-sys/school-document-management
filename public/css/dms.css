@@ -2144,40 +2144,7 @@ main#main {
   margin-left: 8px;
 }
 
-.preview-bar {
-  position: fixed;
-  bottom: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  box-shadow: 0 4px 24px #103c2e18;
-  padding: 7px 10px;
-  font-size: 12px;
-  line-height: 18px;
-  z-index: 1035;
-  max-width: calc(100vw - 20px);
-  white-space: nowrap;
-}
 
-.preview-bar select {
-  border: 1px solid var(--line);
-  padding: 3px 6px;
-  border-radius: 4px;
-  background: var(--canvas);
-  font-size: 13px;
-  max-width: 110px;
-}
-
-.preview-bar .btn {
-  min-height: 24px;
-  padding: 3px 7px;
-  font-size: 12px;
-}
 
 .toast-container {
   z-index: 1090;
@@ -2391,11 +2358,7 @@ body.login-page {
   top: 11px;
 }
 
-.preview-login-link {
-  display: block;
-  font-size: 13px;
-  margin-top: clamp(10px, 1.5vh, 16px);
-}
+
 
 @media (min-width: 1600px) {
   main#main {

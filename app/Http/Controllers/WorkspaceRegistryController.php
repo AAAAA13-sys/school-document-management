@@ -16,8 +16,9 @@ class WorkspaceRegistryController extends Controller
         abort_unless($request->user()->isSuperAdmin(), 403);
         $workspaces = WorkspaceRegistry::query($request->user(), false)->orderBy('name')->get();
         $users = Access::scope(DB::table('users'), $request->user())->where('active', true)->where('role', '!=', 'super_admin')->orderBy('name')->get();
+        // TODO(BackendAgent): Ensure $memberships query is maintained for the workspace registry view
         $memberships = DB::table('workspace_memberships')->whereIn('workspace_id', $workspaces->pluck('id'))->get()->groupBy('workspace_id');
-        return view('workspaces-registry', compact('workspaces', 'users', 'memberships'));
+        return view('workspaces-registry', compact('workspaces', 'users', 'memberships') + ['section' => 'workspaces', 'source' => 'ALL']);
     }
 
     public function store(Request $request)

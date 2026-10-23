@@ -48,8 +48,7 @@
                     method="post"
                     action="{{ isset($doc)?'/documents/'.$doc->id.'/versions':'/documents' }}"
                     enctype="multipart/form-data"
-                    id="upload-form"
-                    data-demo-action="upload">
+                    id="upload-form">
                     @csrf
                     <input type="hidden" name="submission_key" value="{{ (string) Illuminate\Support\Str::uuid() }}" /><input
                         type="hidden"

@@ -110,7 +110,7 @@ class FrontendViewTest extends TestCase
         $session->start();
         $request->setLaravelSession($session);
         View::share('errors', new ViewErrorBag);
-        $html = view('login', ['frontendPreview' => true])->render();
+        $html = view('login')->render();
         $this->assertStringContainsString('A home for every', $html);
         $this->assertStringContainsString('autocomplete="current-password"', $html);
         $this->assertValidMarkup($html);
