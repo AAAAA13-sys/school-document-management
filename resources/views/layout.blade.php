@@ -1,24 +1,6 @@
-<!doctype html>
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="csrf-token" content="{{ csrf_token() }}" />
-    <meta name="color-scheme" content="light" />
-    <title>
-        @yield ('title', 'Workspace')
-        · PLP Documents
-    </title>
-    <link rel="stylesheet" href="/vendor/bootstrap.min.css" />
-    <link rel="stylesheet" href="/vendor/jquery-ui.min.css" />
-    <link rel="stylesheet" href="/css/dms.css" />
-    <script defer src="/vendor/jquery.min.js"></script>
-    <script defer src="/vendor/jquery-ui.min.js"></script>
-    <script defer src="/vendor/bootstrap.bundle.min.js"></script>
-    <script defer src="/js/dms.js"></script>
-</head>
 @php
     $viewer = $viewer ?? auth()->user();
+    $isSidebarCollapsed = request()->cookie('dms_sidebar_collapsed') === 'true';
     $isAdmin = $isAdmin ?? (request()->is('admin') || request()->is('admin/*') || ($section === 'account' && ($viewer->isSuperAdmin() || $viewer->isAdmin())));
     $sources = $viewer->sources();
     $navSource = in_array($source ?? null, $sources, true) ? $source : ($sources[0] ?? $viewer->source ?? 'EMS');
@@ -35,14 +17,62 @@
         ? ['all'=>['file','All documents'],'trash'=>['trash','Trash']]
         : ['mine'=>['folder','My documents'],'shared'=>['users','Shared with me'],'starred'=>['star','Starred'],'trash'=>['trash','Trash']];
 @endphp
-<body data-section="{{ $section }}" data-source="{{ $source }}" data-preview="{{ !empty($frontendPreview) ? 'true':'false' }}">
+<!doctype html>
+<html lang="en" class="{{ $isSidebarCollapsed ? 'sidebar-collapsed' : '' }}">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content="{{ csrf_token() }}" />
+    <meta name="color-scheme" content="light" />
+    <title>
+        @yield ('title', 'Workspace')
+        · PLP Documents
+    </title>
+    <script>
+        (function () {
+            try {
+                document.documentElement.classList.add('sidebar-no-transition');
+                var saved = localStorage.getItem('dms_sidebar_collapsed');
+                var isTablet = window.innerWidth >= 768 && window.innerWidth < 1200;
+                var collapsed = saved === 'true' || (saved === null && isTablet);
+                if (collapsed) {
+                    document.documentElement.classList.add('sidebar-collapsed');
+                } else if (saved === 'false') {
+                    document.documentElement.classList.remove('sidebar-collapsed');
+                }
+                window.addEventListener('DOMContentLoaded', function () {
+                    if (document.body) {
+                        if (document.documentElement.classList.contains('sidebar-collapsed')) {
+                            document.body.classList.add('sidebar-collapsed');
+                        } else {
+                            document.body.classList.remove('sidebar-collapsed');
+                        }
+                    }
+                    requestAnimationFrame(function () {
+                        setTimeout(function () {
+                            document.documentElement.classList.remove('sidebar-no-transition');
+                        }, 50);
+                    });
+                });
+            } catch (e) {}
+        })();
+    </script>
+    <link rel="stylesheet" href="/vendor/bootstrap.min.css" />
+    <link rel="stylesheet" href="/vendor/jquery-ui.min.css" />
+    <link rel="stylesheet" href="/css/dms.css" />
+    <script defer src="/vendor/jquery.min.js"></script>
+    <script defer src="/vendor/jquery-ui.min.js"></script>
+    <script defer src="/vendor/bootstrap.bundle.min.js"></script>
+    <script defer src="/js/dms.js"></script>
+</head>
+<body class="{{ $isSidebarCollapsed ? 'sidebar-collapsed' : '' }}" data-section="{{ $section }}" data-source="{{ $source }}" data-preview="{{ !empty($frontendPreview) ? 'true':'false' }}">
     <a class="skip-link" href="#main">Skip to content</a>
     <aside class="sidebar" id="sidebar" aria-label="Primary navigation">
         <div class="sidebar-header">
-            <a class="brand" href="/" data-bs-toggle="tooltip" data-bs-placement="right" title="PLP Documents · Document Management"
+            <a class="brand" href="/" data-bs-toggle="tooltip" data-bs-placement="right" title="{{ $isSidebarCollapsed ? 'Expand navigation (Ctrl+B)' : 'PLP Documents · Document Management' }}" id="brand-link"
                 ><span class="brand-mark">d.</span><span class="brand-text">PLP Documents<small>DOCUMENT MANAGEMENT</small></span></a
             >
-            <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-label="Collapse navigation sidebar" aria-controls="sidebar" aria-expanded="true" data-bs-toggle="tooltip" data-bs-placement="right" title="Collapse navigation (Ctrl+B)">
+            <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-label="Collapse navigation sidebar" aria-controls="sidebar" aria-expanded="{{ $isSidebarCollapsed ? 'false' : 'true' }}" data-bs-toggle="tooltip" data-bs-placement="right" title="Collapse navigation (Ctrl+B)">
                 <span class="sidebar-toggle-icon" aria-hidden="true">«</span>
             </button>
         </div>

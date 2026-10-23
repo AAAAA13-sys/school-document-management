@@ -173,6 +173,7 @@
     }
 
     function setSidebarCollapsed(collapsed, userInitiated = false) {
+      $('html').toggleClass('sidebar-collapsed', collapsed);
       $('body').toggleClass('sidebar-collapsed', collapsed);
       $('#sidebar').toggleClass('is-collapsed', collapsed);
       const label = collapsed ? 'Expand navigation sidebar' : 'Collapse navigation sidebar';
@@ -183,9 +184,26 @@
         'title': tooltipTitle,
       });
       sidebarToggle.find('.sidebar-toggle-icon').text(collapsed ? '»' : '«');
+
+      // Update .brand (PLP Documents icon) behavior: acts as sidebar toggle when collapsed (Gemini-style)
+      const brand = $('.brand');
+      if (collapsed) {
+        brand.attr({
+          'title': 'Expand navigation (Ctrl+B)',
+          'aria-label': 'Expand navigation sidebar',
+          'role': 'button',
+        });
+      } else {
+        brand.attr({
+          'title': 'PLP Documents · Document Management',
+          'aria-label': 'PLP Documents home',
+        }).removeAttr('role');
+      }
+
       if (userInitiated) {
         try {
           localStorage.setItem('dms_sidebar_collapsed', collapsed ? 'true' : 'false');
+          document.cookie = 'dms_sidebar_collapsed=' + (collapsed ? 'true' : 'false') + ';path=/;max-age=31536000;SameSite=Lax';
         } catch (_e) {}
       }
       updateSidebarTooltips(collapsed);
@@ -198,14 +216,25 @@
           setSidebarCollapsed(saved === 'true');
         } else if (isTabletViewport()) {
           setSidebarCollapsed(true);
+        } else {
+          setSidebarCollapsed($('html').hasClass('sidebar-collapsed'));
         }
       } catch (_e) {
         if (isTabletViewport()) setSidebarCollapsed(true);
       }
     }
 
+    // PLP Documents icon: when collapsed, clicking it expands the sidebar (like Gemini website)
+    $('.brand').on('click', function (event) {
+      const isCollapsed = $('html').hasClass('sidebar-collapsed') || $('body').hasClass('sidebar-collapsed');
+      if (isCollapsed) {
+        event.preventDefault();
+        setSidebarCollapsed(false, true);
+      }
+    });
+
     sidebarToggle.on('click', () => {
-      const isCurrentlyCollapsed = $('body').hasClass('sidebar-collapsed');
+      const isCurrentlyCollapsed = $('html').hasClass('sidebar-collapsed') || $('body').hasClass('sidebar-collapsed');
       setSidebarCollapsed(!isCurrentlyCollapsed, true);
     });
 
@@ -213,7 +242,8 @@
       if ((event.ctrlKey || event.metaKey || event.altKey) && (event.key === 'b' || event.key === 'B')) {
         if (!$(event.target).is('input, textarea, select')) {
           event.preventDefault();
-          sidebarToggle.trigger('click');
+          const isCurrentlyCollapsed = $('html').hasClass('sidebar-collapsed') || $('body').hasClass('sidebar-collapsed');
+          setSidebarCollapsed(!isCurrentlyCollapsed, true);
         }
       }
     });
