@@ -1,0 +1,70 @@
+name: Special checks
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: special-checks-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  real-clamav:
+    name: Real ClamAV integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: ctype, curl, dom, fileinfo, mbstring, openssl, pdo_sqlite, sqlite3, tokenizer, xml, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Install ClamAV and official signatures
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clamav
+          sudo systemctl stop clamav-freshclam || true
+          for attempt in 1 2 3; do
+            if sudo freshclam; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "FreshClam could not update the signature database."
+              exit 1
+            fi
+            sleep 15
+          done
+          clamscan --version
+          sudo ls -l /var/lib/clamav
+
+      - name: Prepare application environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Run real-engine ClamAV test
+        env:
+          DMS_REAL_CLAMAV_TESTS: "1"
+          CLAMAV_BINARY: /usr/bin/clamscan
+        run: php artisan test --filter=ClamAvIntegrationTest --compact

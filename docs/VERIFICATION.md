@@ -19,4 +19,13 @@ The completed browser acceptance run used only synthetic users/files in dms_test
 
 The four ERP teams' adapters/endpoints/credentials were not supplied, so the common contract and all four source scopes are tested, while live ERP deployments are not connected. The actual local database engine tested was MariaDB; validate the chosen production MySQL version, web server, process supervisor and load on its target host. Hosting, retention, client preview-format approval, SSO/MFA and security/privacy sign-off remain open SDD decisions.
 
-No production deployment or real school data import was performed. There is no Git repository in this project folder, so a Git diff check was unavailable; encoding, formatting, compilation and executable tests were used directly. Original external project documents were moved into docs; the original guide is preserved there and the root AGENTS.md points to it.
+No production deployment or real school data import was performed. The original verification pass predates the Git repository; encoding, formatting, compilation and executable tests were used directly. Current automated pull-request, post-merge smoke and scheduled real-ClamAV checks are documented in [Continuous integration](CI-CD.md).
+
+## CI baseline — 2026-10-23
+
+The workflow setup was checked locally with the same commands used by GitHub Actions:
+
+- `php artisan test --compact`: **65 passed, 4 skipped** (MySQL concurrency, native MySQL restore and opt-in real ClamAV checks).
+- `npm test`: **20 passed**; `npm run build` and `npm run format:check` passed; `php scripts/check-encoding.php` and `composer validate --strict` passed.
+- A disposable SQLite smoke run applied all migrations, compiled views, served the application and returned 200 from `/up`, 200 from `/login` and 401 from an unauthenticated `/api/v1/documents`.
+- The isolated MySQL run and real-engine ClamAV run require the GitHub Actions service/signature setup or an equivalent local host. They are not claimed as passed by the SQLite smoke run.

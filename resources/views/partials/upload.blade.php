@@ -113,7 +113,8 @@
                         </div>
                         <div id="upload-duplicates" class="alert alert-warning mt-3" role="alert" hidden>
                             <p class="mb-2">
-                                <strong>This file looks like one you already have.</strong> Only documents you can already open are listed. Open the existing document, or keep a separate copy.
+                                <strong>This file looks like one you already have.</strong> Only documents you can already open are listed. Open the existing
+                                document, or keep a separate copy.
                             </p>
                             <ul id="upload-duplicate-list" class="mb-2"></ul>
                             <button type="button" class="btn btn-outline-primary btn-sm" id="upload-duplicate-confirm">Upload as a separate copy</button>
