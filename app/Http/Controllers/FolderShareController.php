@@ -20,7 +20,8 @@ class FolderShareController extends Controller
             $recipient = User::where('school_id', $user->school_id)->where('campus', $user->campus)
                 ->where('id', $data['recipient_id'])->where('active', true)->first();
             abort_unless($recipient, 422, 'Recipient is outside your scope or inactive.');
-            abort_unless($row->source === 'DMS' || in_array($row->source, $recipient->sources()), 422, 'Recipient cannot open this workspace.');
+            // Named shares are the documented exception to ERP source isolation.
+            // The recipient must still share the school/campus scope above.
             DB::table('folder_shares')->updateOrInsert(
                 ['folder_id' => $folder, 'recipient_id' => $data['recipient_id']],
                 ['permission' => $data['permission'], 'expires_at' => $data['expires_at'] ?? null, 'revoked_at' => null, 'created_at' => now(), 'updated_at' => now()],

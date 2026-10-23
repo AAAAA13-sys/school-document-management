@@ -100,8 +100,8 @@
                             <tr data-staff-status="{{ $person->active?'active':'inactive' }}">
                                 <td><strong>{{ $person->name }}</strong></td>
                                 <td>{{ $person->email }}</td>
-                                <td>{{ config('dms.role_labels.'.$person->role) }}</td>
-                                <td>{{ $person->role==='super_admin'?'DMS':$person->source }}</td>
+                                <td>{{ config('dms.role_labels.'.$person->role, ucfirst(str_replace('_',' ',$person->role))) }}</td>
+                                <td>{{ $person->role==='super_admin'||!$person->source?'All sources':$person->source }}</td>
                                 <td>
                                     <span class="status-badge {{ $person->active?'clean':'neutral' }}">{{ $person->active?'Active':'Inactive' }}</span>
                                 </td>

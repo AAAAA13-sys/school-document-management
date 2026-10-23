@@ -14,7 +14,7 @@ School offices need a controlled place to store supporting files, preserve earli
 | ---- | ------------------- | --------------------------------------------------------------------------------------- |
 | EMS  | Employee Management | Receive and organize approved personnel-related document categories and source history. |
 | PMS  | Payroll Management  | Receive and organize approved payroll-related supporting files and source history.      |
-| ES   | Enrollment System   | Receive and organize approved enrollment-related supporting files and source history.   |
+| ES   | Enrollment          | Receive and organize approved enrollment-related supporting files and source history.   |
 | OAS  | Online Admission    | Receive and organize approved admission-related supporting files and source history.    |
 
 The actual document categories still need confirmation. These descriptions identify integration areas, not an approved inventory of files to collect. The DMS does not recalculate payroll, decide admissions, process enrollment or replace an ERP’s existing record screens.

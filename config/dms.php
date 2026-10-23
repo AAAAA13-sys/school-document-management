@@ -1,9 +1,14 @@
 <?php
 
+use App\Enums\Role;
+use App\Enums\Source;
+
 return [
-    'sources' => ['EMS' => 'Employee Management', 'PMS' => 'Payroll Management', 'ES' => 'Enrollment System', 'OAS' => 'Online Admission'],
-    'roles' => ['super_admin', 'admin', 'staff'],
-    'role_labels' => ['super_admin'=>'Super Admin', 'admin'=>'Admin', 'staff'=>'Staff'],
+    'sources' => Source::labels(),
+    'roles' => Role::values(),
+    'role_labels' => Role::labels(),
+    // Demo accounts are seeded through DatabaseSeeder; never commit the actual password.
+    'demo_password' => env('DMS_DEMO_PASSWORD'),
     // Advisory duplicate warning; intentional copies may confirm and continue.
     'duplicate_detection' => env('DMS_DUPLICATE_DETECTION', true),
     // Folder grants are inherited down the tree; depth guard for corrupted parent chains.

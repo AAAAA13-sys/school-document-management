@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\Role;
 use App\Models\User;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
@@ -17,13 +18,16 @@ class Access
 
     public static function administrationScope(Builder $query, object $actor, string $prefix = ''): Builder
     {
-        return self::scope($query, $actor, $prefix)->when($actor->role === 'admin', fn ($q) => $q->where($prefix.'source', $actor->source));
+        return self::scope($query, $actor, $prefix)->when(
+            ($actor->role ?? null) === Role::Admin->value && ! empty($actor->source),
+            fn ($q) => $q->where($prefix.'source', $actor->source),
+        );
     }
 
     public static function manages(User $user, object $document): bool
     {
-        return $user->role === 'admin' && $user->school_id === $document->school_id
-            && $user->campus === $document->campus && $user->source === $document->source;
+        return $user->isAdmin() && $user->school_id === $document->school_id
+            && $user->campus === $document->campus && ($user->source === null || $user->source === $document->source);
     }
 
     public static function managesFolder(User $user, object $folder): bool
@@ -35,7 +39,7 @@ class Access
     {
         return self::scope(DB::table('documents'), $user)->where(function (Builder $q) use ($user) {
             $q->where('owner_id', $user->id);
-            if ($user->role !== 'staff') {
+            if (! $user->isStaff()) {
                 $q->orWhereIn('source', $user->sources());
             }
             $q->orWhereIn('id', DB::table('shares')->select('document_id')->where('recipient_id', $user->id)
@@ -51,15 +55,15 @@ class Access
     public static function folders(User $user): Builder
     {
         $query = self::scope(DB::table('folders'), $user);
-        if ($user->role === 'super_admin') {
-            // Oversight of every repository, still read-only outside the personal DMS space.
+        if ($user->isSuperAdmin() || ($user->isAdmin() && $user->source === null)) {
+            // Oversight of every repository; legacy admins retain their old school-wide view.
             return $query;
         }
         $folders = self::inheritedFolderIds($user);
 
         return $query->where(function (Builder $q) use ($user, $folders) {
             $q->where('owner_id', $user->id);
-            if ($user->role === 'admin') {
+            if ($user->isAdmin() && $user->source) {
                 $q->orWhere('source', $user->source);
             }
             if ($folders) {

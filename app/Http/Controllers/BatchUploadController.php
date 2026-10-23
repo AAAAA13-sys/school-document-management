@@ -18,10 +18,16 @@ class BatchUploadController extends Controller
         $actor = $request->user();
         $input = $request->validated();
         $source = $input['source'];
-        abort_unless($actor->role === 'super_admin' ? $source === 'DMS' : in_array($source, $actor->sources()), 403);
+        abort_unless($actor->isSuperAdmin() ? $source === 'DMS' : $actor->canAccessSource($source), 403);
         $parent = $input['folder_id'] ?? null;
         if ($parent) {
-            abort_unless(Access::scope(DB::table('folders'), $actor)->where('id', $parent)->when($actor->role !== 'admin', fn ($q) => $q->where('owner_id', $actor->id))->where('source', $source)->exists(), 403);
+            $folderQuery = Access::scope(DB::table('folders'), $actor)->where('id', $parent)->where('source', $source);
+            if ($actor->isAdmin() && $actor->source) {
+                $folderQuery->where('source', $actor->source);
+            } elseif (! $actor->isAdmin()) {
+                $folderQuery->where('owner_id', $actor->id);
+            }
+            abort_unless($folderQuery->exists(), 403);
         }
         $results = [];
         // Each file commits separately; replay the same batch key to resume without duplicate versions.

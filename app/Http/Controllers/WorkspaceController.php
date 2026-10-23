@@ -11,7 +11,7 @@ class WorkspaceController extends Controller
 {
     public function personal(ReadRequest $request, string $section = 'overview')
     {
-        abort_unless($request->user()->role === 'super_admin', 403);
+        abort_unless($request->user()->isSuperAdmin(), 403);
         abort_unless(in_array($section, ['overview', 'documents']), 404);
 
         return $this->index($request, 'DMS', $section);
@@ -21,9 +21,9 @@ class WorkspaceController extends Controller
     {
         $source = strtoupper($source);
         $user = $request->user();
-        abort_unless(in_array($source, $user->sources()) || ($source === 'DMS' && $user->role === 'super_admin'), 403);
+        abort_unless($user->canAccessSource($source) || ($source === 'DMS' && $user->isSuperAdmin()), 403);
         abort_unless(in_array($section, ['overview', 'documents', 'history', 'snapshots']), 404);
-        abort_if($user->role === 'staff' && in_array($section, ['history', 'snapshots']), 403);
+        abort_if($user->isStaff() && in_array($section, ['history', 'snapshots']), 403);
         $view = $request->input('view') ?: 'all';
         $base = Access::documents($user);
         if ($view !== 'shared' || $source === 'DMS') {
@@ -33,7 +33,7 @@ class WorkspaceController extends Controller
         $stats = ['documents' => (clone $base)->whereNull('trashed_at')->count(),
             'blocked' => DB::table('document_versions')->whereIn('document_id', (clone $base)->select('id'))->where('scan_status', '!=', 'Clean')->count(),
             'shared' => (clone $base)->where(fn ($q) => $q->whereIn('id', DB::table('shares')->select('document_id')->whereNull('revoked_at')->where(fn ($s) => $s->whereNull('expires_at')->orWhere('expires_at', '>', now())))->orWhereIn('folder_id', $foldersForSharing))->count(),
-            'history' => $user->role === 'staff' ? null : Access::scope(DB::table('history_receipts'), $user)->where('source', $source)->count()];
+            'history' => $user->isStaff() ? null : Access::scope(DB::table('history_receipts'), $user)->where('source', $source)->count()];
 
         if ($view === 'trash') {
             $base->whereNotNull('trashed_at');
@@ -56,7 +56,7 @@ class WorkspaceController extends Controller
         $parentFolder = null;
         if ($request->filled('folder')) {
             $folder = Access::folders($user)->where('id', $request->input('folder'))
-                ->when($user->role === 'super_admin' && $source === 'DMS', fn ($q) => $q->where('owner_id', $user->id))
+                ->when($user->isSuperAdmin() && $source === 'DMS', fn ($q) => $q->where('owner_id', $user->id))
                 ->where('source', $source)->first() ?? abort(404);
             $base->where('folder_id', $folder->id);
             if ($folder->parent_id) {
@@ -70,7 +70,7 @@ class WorkspaceController extends Controller
             $folderShares = DB::table('folder_shares')->join('users', 'users.id', '=', 'folder_shares.recipient_id')
                 ->where('folder_id', $folder->id)->select('folder_shares.*', 'users.name', 'users.email')->orderByDesc('folder_shares.id')->get();
             $folderRecipients = Access::scope(DB::table('users'), $user)->where('active', true)->where('id', '!=', $user->id)
-                ->when($folder->source !== 'DMS', fn ($q) => $q->where(fn ($r) => $r->where('source', $folder->source)->orWhere('role', 'super_admin')))
+                // Named shares are the documented exception to ERP source isolation.
                 ->orderBy('name')->get(['id', 'name', 'email']);
         }
         if ($section === 'documents' && !$folder && !$request->filled('q') && in_array($view, ['all','mine'])) {
@@ -79,7 +79,7 @@ class WorkspaceController extends Controller
         $documents = $base->orderByDesc('updated_at')->paginate(12)->withQueryString();
         $versions = DB::table('document_versions')->whereIn('document_id', $documents->pluck('id'))->orderBy('number')->get()->keyBy('document_id');
         foreach ($documents as $item) {
-            if ($item->owner_id === $user->id || ($user->role !== 'staff' && in_array($item->source, $user->sources()))) {
+            if ($item->owner_id === $user->id || (! $user->isStaff() && $user->canAccessSource($item->source))) {
                 continue;
             }
             $grant = Access::grant($user, $item);
@@ -89,7 +89,7 @@ class WorkspaceController extends Controller
         }
         $starred = DB::table('stars')->where('user_id', $user->id)->pluck('document_id')->all();
         $folders = Access::folders($user)->where('source', $source)
-            ->when($user->role === 'super_admin' && $source === 'DMS', fn ($q) => $q->where('owner_id', $user->id))
+            ->when($user->isSuperAdmin() && $source === 'DMS', fn ($q) => $q->where('owner_id', $user->id))
             ->select('folders.*')->selectSub(Access::documents($user)->whereColumn('folder_id', 'folders.id')->whereNull('trashed_at')->selectRaw('COUNT(*)'), 'document_count')
             ->orderBy('name')->get();
         $stats['folders'] = $folders->count();
@@ -113,7 +113,7 @@ class WorkspaceController extends Controller
         $versions = DB::table('document_versions')->where('document_id', $document)->orderByDesc('number')->get();
         $user = $request->user();
         $grant = Access::effectiveGrant($user, $doc);
-        if ($grant?->version_id && $doc->owner_id !== $user->id && ($user->role === 'staff' || ! in_array($source, $user->sources()))) {
+        if ($grant?->version_id && $doc->owner_id !== $user->id && ($user->isStaff() || ! $user->canAccessSource($source))) {
             $versions = $versions->where('id', $grant->version_id);
         }
         $comments = DB::table('comments')->join('users', 'users.id', '=', 'comments.user_id')->where('document_id', $document)->select('comments.*', 'users.name')->orderByDesc('comments.id')->get();
@@ -125,10 +125,10 @@ class WorkspaceController extends Controller
         }
         $editor = $owner || ($grant?->permission === 'Editor' && ! $grant?->version_id);
         $commenter = $owner || in_array($grant?->permission, ['Commenter', 'Editor']);
-        if ($user->role === 'super_admin' && $source !== 'DMS') {
+        if ($user->isSuperAdmin() && $source !== 'DMS') {
             $owner = $editor = $commenter = false;
         }
-        $folders = Access::scope(DB::table('folders'), $user)->where('source', $source)->when(!in_array($user->role, ['super_admin','admin']) || $source === 'DMS', fn ($q) => $q->where('owner_id', $user->id))->get();
+        $folders = Access::scope(DB::table('folders'), $user)->where('source', $source)->when(! ($user->isSuperAdmin() || $user->isAdmin()) || $source === 'DMS', fn ($q) => $q->where('owner_id', $user->id))->get();
         $activity = Access::scope(DB::table('audit_entries'), $user)->where('document_id', $document)->orderByDesc('id')->limit(20)->get();
 
         return view('document', compact('doc', 'source', 'section', 'versions', 'comments', 'shares', 'recipients', 'owner', 'editor', 'commenter', 'folders', 'activity'));
@@ -139,7 +139,7 @@ class WorkspaceController extends Controller
         $user = $request->user();
         $doc = Access::document($user, $document);
         $query = DB::table('document_versions')->where('document_id', $document);
-        if ($doc->owner_id !== $user->id && $user->role !== 'super_admin' && ! ($user->role !== 'staff' && in_array($doc->source, $user->sources()))) {
+        if ($doc->owner_id !== $user->id && ! $user->isSuperAdmin() && ! (! $user->isStaff() && $user->canAccessSource($doc->source))) {
             $grant = Access::grant($user, $doc);
             if ($grant?->version_id) {
                 $query->where('id', $grant->version_id);

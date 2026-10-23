@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\Source;
 use App\Jobs\ScanDocumentVersion;
 use App\Models\User;
 use App\Services\Scanner;
@@ -492,9 +493,9 @@ class DmsTest extends TestCase
         $data=['name'=>'New Admin','email'=>'new.admin@example.test','password'=>'SyntheticAdmin!2026','role'=>'super_admin','source'=>'EMS','active'=>1];
         $this->actingAs($admin)->post('/admin/accounts',$data)->assertRedirect()->assertSessionHasNoErrors();
         $created=User::where('email',$data['email'])->firstOrFail();
-        $this->assertSame('DMS',$created->source);
+        $this->assertNull($created->source);
         $this->assertSame(['EMS','PMS','ES','OAS'],$created->sources());
-        $this->actingAs($created)->get('/account')->assertOk()->assertSee('DMS ADMINISTRATION')->assertSee('Personal DMS workspace + read-only ERP oversight')->assertSee('account-grid',false);
+        $this->actingAs($created)->get('/account')->assertOk()->assertSee('DMS ADMINISTRATION')->assertSee('All four ERP sources · read-only oversight')->assertSee('account-grid',false);
         foreach (['ems','pms','es','oas'] as $source) $this->get('/workspaces/'.$source)->assertOk();
         $data['email']='employee@example.test';$data['role']='staff';$data['source']='DMS';
         $this->post('/admin/accounts',$data)->assertSessionHasErrors('source');
@@ -834,7 +835,7 @@ $this->get('/documents/'.$id)->assertOk()->assertSee('data-global-back',false);
         $this->get('/documents/'.$childDoc)->assertOk();
     }
 
-    public function test_folder_grant_management_is_restricted_and_cross_scope_is_rejected(): void
+    public function test_folder_grant_management_rejects_non_owners_but_allows_named_cross_source_shares(): void
     {
         $owner = $this->staff();
         $staff = $this->staff(['role' => 'staff']);
@@ -846,9 +847,11 @@ $this->get('/documents/'.$id)->assertOk()->assertSee('data-global-back',false);
         $this->actingAs($staff)->post('/folders/'.$folder.'/shares', ['recipient_id' => $staff->id, 'permission' => 'Viewer'])->assertForbidden();
         $this->actingAs($foreignSource)->post('/folders/'.$folder.'/shares', ['recipient_id' => $foreignSource->id, 'permission' => 'Viewer'])->assertForbidden();
         $this->actingAs($owner)->post('/folders/'.$folder.'/shares', ['recipient_id' => $otherCampus->id, 'permission' => 'Viewer'])->assertStatus(422);
-        $this->post('/folders/'.$folder.'/shares', ['recipient_id' => $foreignSource->id, 'permission' => 'Viewer'])->assertStatus(422);
+        // Named shares are the documented exception to ERP source isolation.
+        $this->post('/folders/'.$folder.'/shares', ['recipient_id' => $foreignSource->id, 'permission' => 'Viewer'])->assertRedirect();
         $this->post('/folders/'.$folder.'/shares', ['recipient_id' => $owner->id, 'permission' => 'Viewer'])->assertStatus(422);
-        $this->assertDatabaseCount('folder_shares', 0);
+        $this->assertDatabaseHas('folder_shares', ['folder_id' => $folder, 'recipient_id' => $foreignSource->id, 'permission' => 'Viewer']);
+        $this->assertDatabaseCount('folder_shares', 1);
     }
 
     public function test_expired_folder_grant_grants_nothing(): void
@@ -1015,5 +1018,79 @@ $this->get('/documents/'.$id)->assertOk()->assertSee('data-global-back',false);
         }
         $this->assertDatabaseHas('audit_entries', ['action' => 'folder.shared']);
         $this->assertDatabaseHas('audit_entries', ['action' => 'folder.revoked']);
+    }
+
+    public function test_demo_seeder_creates_one_super_admin_admin_and_staff_per_source(): void
+    {
+        config(['dms.demo_password' => 'SyntheticDemo!2026']);
+        $this->seed();
+
+        $this->assertSame(['EMS' => 'Employee Management', 'PMS' => 'Payroll Management', 'ES' => 'Enrollment', 'OAS' => 'Online Admission'], config('dms.sources'));
+        $this->assertSame(1, User::where('role', 'super_admin')->count());
+        $this->assertNull(User::where('role', 'super_admin')->value('source'));
+        $this->assertSame(0, User::where('source', 'DMS')->count());
+        $this->assertSame(0, User::whereNotIn('source', Source::values())->whereNotNull('source')->count());
+
+        foreach (Source::values() as $source) {
+            $this->assertSame(1, User::where('role', 'admin')->where('source', $source)->count(), $source.' admin');
+            $this->assertSame(1, User::where('role', 'staff')->where('source', $source)->count(), $source.' staff');
+            $this->assertSame(2, User::where('source', $source)->count(), $source.' accounts');
+        }
+
+        $this->assertSame(1, User::where('role', 'super_admin')->where('school_id', 'PLP')->where('campus', 'Main')->count());
+        $this->assertTrue(Hash::check('SyntheticDemo!2026', User::where('email', 'ems@plpasig.edu.ph')->value('password')));
+    }
+
+    public function test_super_admin_is_source_less_and_legacy_roles_map_to_staff_sources(): void
+    {
+        $super = $this->staff(['role' => 'super_admin', 'source' => 'DMS']);
+        $this->assertNull($super->fresh()->source);
+        $this->assertSame(['EMS', 'PMS', 'ES', 'OAS'], $super->sources());
+        $this->assertTrue($super->canAccessSource('OAS'));
+        $this->assertSame('/admin', $super->homePath());
+
+        foreach ([['employee', 'EMS'], ['teacher', 'EMS'], ['hr', 'EMS'], ['payroll', 'PMS']] as [$role, $source]) {
+            $legacy = new User(['role' => $role]);
+            $this->assertTrue($legacy->isStaff(), $role);
+            $this->assertSame([$source], $legacy->sources(), $role);
+            $this->assertSame('/workspaces/'.strtolower($source), $legacy->homePath(), $role);
+        }
+
+        $legacyAdmin = new User(['role' => 'admin']);
+        $this->assertTrue($legacyAdmin->isAdmin());
+        $this->assertFalse($legacyAdmin->isStaff());
+        $this->assertSame(['EMS', 'PMS', 'ES', 'OAS'], $legacyAdmin->sources());
+
+        $registrar = new User(['role' => 'registrar']);
+        $this->assertFalse($registrar->isStaff());
+        $this->assertSame(['ES', 'OAS'], $registrar->sources());
+        $this->assertSame('/workspaces/es', $registrar->homePath());
+    }
+
+    public function test_connector_ids_never_match_user_folder_owners_or_grants(): void
+    {
+        // The test connector has id 1; the EMS admin also gets id 1 accidentally,
+        // which is exactly the fixture needed to regression-test the collision.
+        $emsAdmin = $this->staff(['role' => 'admin', 'source' => 'EMS']);
+        $this->actingAs($emsAdmin)->post('/folders', ['source' => 'EMS', 'name' => 'EMS shared'])->assertRedirect();
+        $emsFolder = DB::table('folders')->where('name', 'EMS shared')->value('id');
+
+        // An integration connector never owns a user folder, even when its id matches.
+        $this->withToken($this->token)->withHeader('Idempotency-Key', 'connector-folder-collision')
+            ->postJson('/api/v1/documents', ['title' => 'Collision upload', 'classification' => 'Internal', 'folder_id' => $emsFolder, 'file' => $this->file()])
+            ->assertForbidden();
+        $this->assertDatabaseCount('documents', 0);
+
+        // A user's folder grant is not inherited by a connector with the same id.
+        $pmsAdmin = $this->staff(['role' => 'admin', 'source' => 'PMS']);
+        $this->actingAs($pmsAdmin)->post('/folders', ['source' => 'PMS', 'name' => 'PMS granted'])->assertRedirect();
+        $pmsFolder = DB::table('folders')->where('name', 'PMS granted')->value('id');
+        $document = $this->upload($pmsAdmin, ['source' => 'PMS', 'folder_id' => $pmsFolder, 'title' => 'PMS private file']);
+        $version = DB::table('document_versions')->where('document_id', $document)->first();
+        $recipient = $this->staff(['role' => 'staff', 'source' => 'EMS']);
+        $this->actingAs($pmsAdmin)->post('/folders/'.$pmsFolder.'/shares', ['recipient_id' => $recipient->id, 'permission' => 'Viewer'])->assertRedirect();
+        DB::table('connectors')->where('id', 1)->update(['id' => $recipient->id]);
+
+        $this->withToken($this->token)->get('/api/v1/files/'.$version->id)->assertNotFound();
     }
 }

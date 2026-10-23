@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/login', fn () => view('login'))->middleware('guest')->name('login');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:signin');
 Route::middleware(['auth', 'active', \App\Http\Middleware\RepositoryReadOnly::class])->group(function () {
-    Route::get('/', fn () => redirect(in_array(auth()->user()->role, ['super_admin', 'admin']) ? '/admin' : '/workspaces/'.strtolower(auth()->user()->source)));
+    Route::get('/', fn () => redirect(auth()->user()->homePath()));
     Route::get('/my-workspace/{section?}', [WorkspaceController::class, 'personal']);
     Route::get('/account', [AccountController::class, 'show']);
     Route::put('/account/password', [AccountController::class, 'password'])->middleware('throttle:6,1');

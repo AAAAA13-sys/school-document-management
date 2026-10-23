@@ -235,3 +235,9 @@ Reviewer sign-off per the Reviewer table (SDD pages 1–2).
 Client clarification (2026-10-17): Super admins manage their own DMS-source documents and folders in /my-workspace, and oversee EMS/PMS/ES/OAS repositories read-only, including ERP files they previously owned. Enforce this distinction server-side. Account and connector administration remains available. DMS is a personal document source, not a fifth ERP connector.
 
 Role hierarchy (client-approved 2026-10-17): super_admin manages system accounts/connectors, sees all ERP repositories read-only, and can write its own DMS personal workspace. admin manages Staff accounts and document/folder content only in its assigned ERP source, and sees source-scoped audit entries. staff works with owned/shared documents and cannot manage users, folders or share permissions. New approval, backup, SSO/2FA and notification modules are outside this implementation pass.
+
+Phase 2 clarification (2026-10-23): `users.source` stores only `EMS`, `PMS`, `ES` or `OAS`. Super Admin has `source = null` and sees all four. DMS is the application and is not offered as an account source or a fifth ERP source. The existing Super Admin `/my-workspace` is retained for now and is a follow-up to reconcile with the "DMS is not a document source" decision.
+
+Named document shares and folder grants may cross ERP source boundaries as a deliberate, documented exception. School/campus scope and recipient validity still apply; source isolation still applies to ordinary workspace/repository access.
+
+Legacy role handling: `employee`, `teacher` and `hr` map to `staff` + `EMS`; `payroll` maps to `staff` + `PMS`. Legacy `registrar` and legacy `admin` are not auto-migrated and remain follow-ups.

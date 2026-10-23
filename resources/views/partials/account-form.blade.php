@@ -36,11 +36,11 @@
     <div class="col-sm-6">
         <label for="source-{{ $suffix }}" class="form-label">Primary workspace</label
         ><select id="source-{{ $suffix }}" name="source" class="form-select" data-account-source>
-            <option value="DMS" @selected (($account->role??'')==='super_admin')>DMS Administration</option>
             @foreach (($viewer->role==='admin'?array_intersect_key(config('dms.sources'),array_flip($viewer->sources())):config('dms.sources')) as $code=>$label)
-                <option value="{{ $code }}" @selected (($account->source??'EMS')===$code)>{{ $code }}</option>
+                <option value="{{ $code }}" @selected (($account->source??'EMS')===$code)>{{ $code }} - {{ $label }}</option>
             @endforeach
         </select>
+        <small class="input-help">Super Admin has no primary source and oversees all four.</small>
     </div>
 </div>
 <div class="mb-4">

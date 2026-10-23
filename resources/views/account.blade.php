@@ -31,7 +31,7 @@
                 </div>
                 <div>
                     <dt>Workspace access</dt>
-                    <dd>{{ $super?'Personal DMS workspace + read-only ERP oversight':implode(' · ', $person->sources()) }}</dd>
+                    <dd>{{ $super?'All four ERP sources · read-only oversight':implode(' · ', $person->sources()) }}</dd>
                 </div>
                 <div>
                     <dt>Account status</dt>

@@ -43,9 +43,12 @@ class DocumentController extends Controller
             if ($moved) {
                 Access::owner($user, $doc);
                 if ($folder) {
-                    $destination = Access::scope(DB::table('folders'), $user)->where('id', $folder)
-                        ->when($user->role !== 'admin', fn ($q) => $q->where('owner_id', $user->id))
-                        ->where('source', $doc->source)->first();
+                    $destinationQuery = Access::scope(DB::table('folders'), $user)->where('id', $folder)
+                        ->where('source', $doc->source);
+                    if (! $user->isAdmin()) {
+                        $destinationQuery->where('owner_id', $user->id);
+                    }
+                    $destination = $destinationQuery->first();
                     abort_unless($destination, 403);
                 }
                 // A move silently re-scopes inherited access; warn before broadening it.

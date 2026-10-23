@@ -12,8 +12,8 @@ class RepositoryReadOnly
     public function handle(Request $request, Closure $next)
     {
         $user = $request->user();
-        abort_if($user?->role === 'staff' && !$request->isMethodSafe() && ($request->is('folders', 'folders/*', 'documents/batch') || $request->is('documents/*/shares', 'documents/*/shares/*')), 403, 'Staff cannot manage folders or access permissions.');
-        if ($user?->role === 'admin' && !$request->isMethodSafe()
+        abort_if($user?->isStaff() && !$request->isMethodSafe() && ($request->is('folders', 'folders/*', 'documents/batch') || $request->is('documents/*/shares', 'documents/*/shares/*')), 403, 'Staff cannot manage folders or access permissions.');
+        if ($user?->isAdmin() && $user->source && !$request->isMethodSafe()
             && $request->is('documents', 'documents/*', 'folders', 'folders/*')) {
             $document=$request->route('document');
             $folder=$request->route('folder');
@@ -22,7 +22,7 @@ class RepositoryReadOnly
                 : $request->input('source') === $user->source;
             abort_unless($allowed,403,'Admins manage content only in their assigned workspace.');
         }
-        if ($user?->role === 'super_admin' && ! $request->isMethodSafe()
+        if ($user?->isSuperAdmin() && ! $request->isMethodSafe()
             && $request->is('documents', 'documents/*', 'folders', 'folders/*')) {
             $document = $request->route('document');
             $folder = $request->route('folder');

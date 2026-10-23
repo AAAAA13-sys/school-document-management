@@ -2,83 +2,59 @@
 
 namespace Database\Seeders;
 
+use App\Enums\Role;
+use App\Enums\Source;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use RuntimeException;
 
 class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        $accounts = [
-            [
-                'email' => 'dms.admin@plpasig.edu.ph',
-                'name' => 'DMS Administrator',
-                'password' => 'DMS2026!',
-                'role' => 'super_admin',
-                'source' => 'DMS',
-                'school_id' => 'PLP',
-                'campus' => 'Main',
-                'active' => true,
-            ],
-            [
-                'email' => 'ems@plpasig.edu.ph',
-                'name' => 'EMS Office',
-                'password' => 'ERP2026!',
-                'role' => 'admin',
-                'source' => 'EMS',
-                'school_id' => 'PLP',
-                'campus' => 'Main',
-                'active' => true,
-            ],
-            [
-                'email' => 'pms@plpasig.edu.ph',
-                'name' => 'PMS Office',
-                'password' => 'ERP2026!',
-                'role' => 'admin',
-                'source' => 'PMS',
-                'school_id' => 'PLP',
-                'campus' => 'Main',
-                'active' => true,
-            ],
-            [
-                'email' => 'es@plpasig.edu.ph',
-                'name' => 'ES Office',
-                'password' => 'ERP2026!',
-                'role' => 'admin',
-                'source' => 'ES',
-                'school_id' => 'PLP',
-                'campus' => 'Main',
-                'active' => true,
-            ],
-            [
-                'email' => 'oas@plpasig.edu.ph',
-                'name' => 'OAS Office',
-                'password' => 'ERP2026!',
-                'role' => 'admin',
-                'source' => 'OAS',
-                'school_id' => 'PLP',
-                'campus' => 'Main',
-                'active' => true,
-            ],
-            [
-                'email' => 'employee@plpasig.edu.ph',
-                'name' => 'General Employee',
-                'password' => 'ERP2026!',
-                'role' => 'staff',
-                'source' => 'EMS',
-                'school_id' => 'PLP',
-                'campus' => 'Main',
-                'active' => true,
-            ],
-        ];
+        $password = (string) config('dms.demo_password');
+        if ($password === '') {
+            throw new RuntimeException('Set DMS_DEMO_PASSWORD before running the demo seeder.');
+        }
 
-        foreach ($accounts as $data) {
+        $school = 'PLP';
+        $campus = 'Main';
+        $accounts = [[
+            'email' => 'dms.admin@plpasig.edu.ph',
+            'name' => 'DMS Administrator',
+            'role' => Role::SuperAdmin->value,
+            // Super Admin has no primary source and can open every ERP source.
+            'source' => null,
+        ]];
+
+        foreach (Source::cases() as $source) {
+            $code = $source->value;
+            $accounts[] = [
+                'email' => strtolower($code).'@plpasig.edu.ph',
+                'name' => $code.' Office',
+                'role' => Role::Admin->value,
+                'source' => $code,
+            ];
+            $accounts[] = [
+                'email' => $code === Source::EMS->value ? 'employee@plpasig.edu.ph' : strtolower($code).'.staff@plpasig.edu.ph',
+                'name' => $code.' Staff',
+                'role' => Role::Staff->value,
+                'source' => $code,
+            ];
+        }
+
+        foreach ($accounts as $account) {
             User::updateOrCreate(
-                ['email' => $data['email']],
-                $data
+                ['email' => $account['email']],
+                $account + [
+                    'password' => $password,
+                    'school_id' => $school,
+                    'campus' => $campus,
+                    'active' => true,
+                ],
             );
         }
 
-        $this->command?->info('PLP ERP and DMS Admin accounts seeded successfully.');
+        $this->command?->info('Seeded one Super Admin plus one Admin and one Staff per ERP source.');
     }
 }

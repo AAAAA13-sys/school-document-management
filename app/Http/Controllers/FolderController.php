@@ -13,11 +13,17 @@ class FolderController extends Controller
     {
         $user = $request->user();
         $data = $request->validated();
-        abort_unless($user->role === 'super_admin' ? $data['source'] === 'DMS' : in_array($data['source'], $user->sources()), 403);
+        abort_unless($user->isSuperAdmin() ? $data['source'] === 'DMS' : $user->canAccessSource($data['source']), 403);
         DB::transaction(function () use ($user, $data) {
             DB::table('users')->where('id', $user->id)->lockForUpdate()->first();
             if (! empty($data['parent_id'])) {
-                abort_unless(Access::scope(DB::table('folders'), $user)->where('id', $data['parent_id'])->when($user->role !== 'admin', fn ($q) => $q->where('owner_id', $user->id))->where('source', $data['source'])->exists(), 403);
+                $parent = Access::scope(DB::table('folders'), $user)->where('id', $data['parent_id'])->where('source', $data['source']);
+                if ($user->isAdmin() && $user->source) {
+                    $parent->where('source', $user->source);
+                } elseif (! $user->isAdmin()) {
+                    $parent->where('owner_id', $user->id);
+                }
+                abort_unless($parent->exists(), 403);
             }
             DB::table('folders')->insert($data + ['id' => (string) Str::uuid(), 'owner_id' => $user->id, 'school_id' => $user->school_id, 'campus' => $user->campus, 'revision' => 1, 'created_at' => now(), 'updated_at' => now()]);
             Access::audit($user, 'folder.created');
@@ -31,14 +37,24 @@ class FolderController extends Controller
         DB::transaction(function () use ($request, $folder) {
             $user = $request->user();
             DB::table('users')->where('id', $user->id)->lockForUpdate()->first();
-            $row = Access::scope(DB::table('folders'), $user)->when($user->role === 'admin', fn ($q) => $q->where('source', $user->source), fn ($q) => $q->where('owner_id', $user->id))->where('id', $folder)->lockForUpdate()->first() ?? abort(404);
+            $rowQuery = Access::scope(DB::table('folders'), $user)->where('id', $folder);
+            if ($user->isAdmin() && $user->source) {
+                $rowQuery->where('source', $user->source);
+            } elseif (! $user->isAdmin()) {
+                $rowQuery->where('owner_id', $user->id);
+            }
+            $row = $rowQuery->lockForUpdate()->first() ?? abort(404);
             abort_unless($row->revision === (int) $request->validated('revision'), 409, 'Folder changed. Reload and retry.');
             $parent = $request->validated('parent_id');
             $seen = [$folder];
             while ($parent) {
                 abort_if(in_array($parent, $seen), 422, 'A folder cannot be moved into itself or its descendants.');
                 $seen[] = $parent;
-                $p = Access::scope(DB::table('folders'), $user)->when($user->role !== 'admin', fn ($q) => $q->where('owner_id', $user->id))->where('source', $row->source)->where('id', $parent)->first() ?? abort(404);
+                $parentQuery = Access::scope(DB::table('folders'), $user)->where('source', $row->source)->where('id', $parent);
+                if (! $user->isAdmin()) {
+                    $parentQuery->where('owner_id', $user->id);
+                }
+                $p = $parentQuery->first() ?? abort(404);
                 $parent = $p->parent_id;
             }
             DB::table('folders')->where('id', $folder)->update($request->safe()->only(['name', 'parent_id']) + ['revision' => $row->revision + 1, 'updated_at' => now()]);
