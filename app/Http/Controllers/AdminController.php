@@ -66,6 +66,19 @@ class AdminController extends Controller
             ->select('document_versions.*', 'documents.title', 'documents.source')
             ->orderByDesc('document_versions.created_at')->paginate(20)->withQueryString();
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'section' => $section,
+                'stats' => $stats,
+                'workspace_counts' => $workspaceCounts,
+                'accounts' => $section === 'accounts' || $section === 'overview' ? $accounts : null,
+                'connectors' => $section === 'connectors' || $section === 'overview' ? $connectors : null,
+                'audits' => $section === 'audit' ? $audits : null,
+                'documents' => $section === 'repository' ? $documents : null,
+                'scans' => $section === 'scans' ? $scans : null,
+            ]);
+        }
+
         return view('admin', compact('workspaceCounts', 'source', 'section', 'stats', 'accounts', 'connectors', 'audits', 'documents', 'scans'));
     }
 
@@ -78,12 +91,27 @@ class AdminController extends Controller
         if ($account) {
             $status = app(AccountChangeService::class)->submit($actor, $account, $data);
 
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'status' => $status,
+                    'message' => $status === 'pending' ? 'Account change submitted for Super Admin approval.' : 'Account updated.',
+                ]);
+            }
+
             return back()->with('status', $status === 'pending' ? 'Account change submitted for Super Admin approval.' : 'Account updated.');
         }
         $service = app(InvitationService::class);
         $id = $service->request($actor, $data);
         if ($actor->isSuperAdmin()) {
             $service->deliver($actor, $id);
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'id' => $id,
+                'status' => $actor->isSuperAdmin() ? 'delivered' : 'pending',
+                'message' => $actor->isSuperAdmin() ? 'Invitation email sent.' : 'Staff invitation submitted for Super Admin approval.',
+            ], 201);
         }
 
         return back()->with('status', $actor->isSuperAdmin() ? 'Invitation email sent.' : 'Staff invitation submitted for Super Admin approval.');
@@ -95,10 +123,19 @@ class AdminController extends Controller
         Gate::forUser($user)->authorize('connectors.manage');
         abort_unless(in_array($request->validated('source'), \App\Services\WorkspaceRegistry::codes($user, true), true), 422, 'Choose an active ERP workspace.');
         $token = Str::random(64);
-        DB::transaction(function () use ($user, $request, $token) {
+        $id = null;
+        DB::transaction(function () use ($user, $request, $token, &$id) {
             $id = DB::table('connectors')->insertGetId($request->validated() + ['school_id' => $user->school_id, 'campus' => $user->campus, 'token_hash' => hash('sha256', $token), 'active' => true, 'created_at' => now(), 'updated_at' => now()]);
             Access::audit($user, 'connector.created', details: ['connector_id' => $id]);
         });
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Connector created. Copy its token now; it will not be shown again.',
+                'connector_token' => $token,
+                'connector_id' => $id,
+            ], 201);
+        }
 
         return back()->with('connector_token', $token)->with('status', 'Connector created. Copy its token now; it will not be shown again.');
     }
@@ -113,6 +150,88 @@ class AdminController extends Controller
             Access::audit($user, 'connector.revoked', details: ['connector_id' => $row->id]);
         });
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Connector revoked.',
+                'status' => 'revoked',
+            ]);
+        }
+
         return back()->with('status', 'Connector revoked.');
+    }
+
+    public function legalHolds(\Illuminate\Http\Request $request)
+    {
+        $actor = $request->user();
+        abort_unless($actor->isSuperAdmin(), 403, 'Legal holds require Super Admin authority.');
+        $holds = \App\Models\AuditLegalHold::where('school_id', $actor->school_id)
+            ->where('campus', $actor->campus)
+            ->with('actor:id,name,email')
+            ->orderByDesc('created_at')
+            ->paginate(30);
+
+        if ($request->expectsJson()) {
+            return response()->json($holds);
+        }
+
+        return view('admin-legal-holds', compact('holds'));
+    }
+
+    public function storeLegalHold(\Illuminate\Http\Request $request)
+    {
+        $actor = $request->user();
+        abort_unless($actor->isSuperAdmin(), 403, 'Legal holds require Super Admin authority.');
+        $data = $request->validate([
+            'reason' => 'required|string|min:1|max:2000',
+        ]);
+
+        $hold = DB::transaction(function () use ($actor, $data) {
+            $id = DB::table('audit_legal_holds')->insertGetId([
+                'school_id' => $actor->school_id,
+                'campus' => $actor->campus,
+                'actor_id' => $actor->id,
+                'reason' => trim($data['reason']),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            Access::audit($actor, 'audit.legal_hold.created', null, ['hold_id' => $id, 'reason' => $data['reason']]);
+            return DB::table('audit_legal_holds')->where('id', $id)->first();
+        });
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Legal hold recorded. Audit history is retained; disposal suspended.',
+                'legal_hold' => $hold,
+            ], 201);
+        }
+
+        return back()->with('status', 'Legal hold recorded.');
+    }
+
+    public function releaseLegalHold(\Illuminate\Http\Request $request, int $hold)
+    {
+        $actor = $request->user();
+        abort_unless($actor->isSuperAdmin(), 403, 'Legal holds require Super Admin authority.');
+        $data = $request->validate([
+            'reason' => 'required|string|min:1|max:2000',
+        ]);
+
+        DB::transaction(function () use ($actor, $hold, $data) {
+            $row = Access::scope(DB::table('audit_legal_holds'), $actor)->where('id', $hold)->whereNull('released_at')->lockForUpdate()->first() ?? abort(404);
+            DB::table('audit_legal_holds')->where('id', $row->id)->update([
+                'released_at' => now(),
+                'updated_at' => now(),
+            ]);
+            Access::audit($actor, 'audit.legal_hold.released', null, ['hold_id' => $row->id, 'reason' => $data['reason']]);
+        });
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Legal hold released.',
+                'status' => 'released',
+            ]);
+        }
+
+        return back()->with('status', 'Legal hold released.');
     }
 }

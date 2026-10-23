@@ -17,6 +17,10 @@ class AccountChangeController extends Controller
             ->when(! $actor->isSuperAdmin(), fn ($q) => $q->where('c.requester_id', $actor->id))
             ->select('c.*', 'u.email')->orderByDesc('c.created_at')->paginate(30);
 
+        if ($request->expectsJson()) {
+            return response()->json($changes);
+        }
+
         return view('account-requests', compact('changes'));
     }
 
@@ -24,6 +28,13 @@ class AccountChangeController extends Controller
     {
         $data = $request->validate(['approve' => 'required|boolean', 'reason' => 'required|string|max:2000']);
         $service->decide($request->user(), $change, (bool) $data['approve'], $data['reason']);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => (bool) $data['approve'] ? 'approved' : 'rejected',
+                'message' => 'Account decision recorded.',
+            ]);
+        }
 
         return back()->with('status', 'Account decision recorded.');
     }

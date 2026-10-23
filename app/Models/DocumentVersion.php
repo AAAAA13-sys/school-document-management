@@ -16,6 +16,15 @@ class DocumentVersion extends Model
     protected $keyType = 'string';
     public $timestamps = false;
 
+    protected static function booted(): void
+    {
+        static::creating(function (DocumentVersion $version): void {
+            if (! $version->created_at) {
+                $version->created_at = now();
+            }
+        });
+    }
+
     protected $fillable = [
         'id',
         'document_id',

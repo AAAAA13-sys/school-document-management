@@ -150,5 +150,40 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Workspace::class, 'workspace_memberships');
     }
+
+    public function sensitiveChangesRequested(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(SensitiveChange::class, 'requester_id');
+    }
+
+    public function sensitiveChangesReviewed(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(SensitiveChange::class, 'reviewer_id');
+    }
+
+    public function accountInvitationsRequested(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(AccountInvitation::class, 'requested_by');
+    }
+
+    public function accountInvitationsReviewed(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(AccountInvitation::class, 'reviewed_by');
+    }
+
+    public function accountChangesRequested(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(AccountChange::class, 'requester_id');
+    }
+
+    public function accountChangesReviewed(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(AccountChange::class, 'reviewer_id');
+    }
+
+    public function legalHolds(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(AuditLegalHold::class, 'actor_id');
+    }
 }
 
