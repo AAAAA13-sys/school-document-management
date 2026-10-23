@@ -27,7 +27,7 @@ Single files are limited to 10 MB. Folder batches contain at most 50 files and p
 
 Public self-registration, student accounts and SSO/MFA are outside the agreed scope. Accounts are invitation-only; invitees set their own passwords. Configure a real outbound mail transport and trusted APP_URL before sending account links. Log/array mail is refused for these links. Staff can change their own password under My account or request a single-use recovery email. Admin account changes need Super Admin approval. To recover a locked-out installation, an authorized server operator can provision a separate administrator with the CLI, then repair the original account through the audited UI.
 
-`npm run preview` runs the synthetic read-only frontend at port 8012; it is not the app. `npm run dev` or `composer dev` starts only the real web server, so a scan worker and scheduler must also run.
+`npm run dev` or `composer dev` starts the live web server, alongside which a scan worker and scheduler should run. The deprecated synthetic frontend preview has been removed so that all verification and QA testing occur against live, authenticated accounts.
 
 Document previews use locally served PDF.js assets copied by `npm run build`. Keep `public/pdf-viewer.html`, `public/js/pdf-viewer.mjs` and `public/vendor/pdfjs/` in deployments. `DMS_PREVIEW_MIMES` enables the supported PDF/image/text MIME types; files must be Clean and pass the same access/checksum rules as downloads. Office files and archives have no in-app renderer.
 

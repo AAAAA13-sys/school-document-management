@@ -5,8 +5,8 @@ exists, the code that implements it, and a URL that shows it running.
 
 **Stack** — Laravel 12 · PHP 8.2 · Blade · Bootstrap 5.3.3 · jQuery 3.7.1 · jQuery UI 1.14.1 · PDF.js 6.4.299
 
-**Live preview:** `http://127.0.0.1:8012`
-Restart with `php -S 127.0.0.1:8012 -t public scripts/frontend-router.php`.
+**Live Application (Live QA & Accounts):** `http://127.0.0.1:8011`
+Start with `php artisan serve --port=8011` or `npm run dev`.
 
 Code links are relative to the repo root. `↗ View` opens the screen in the
 running preview; `Do` is the click or keystroke that demonstrates the feature.

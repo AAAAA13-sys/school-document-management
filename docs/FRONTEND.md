@@ -4,17 +4,19 @@ The frontend follows the editable Figma file `n44HHt77BnanifVreeSP7S`, including
 
 Stack: Blade, Bootstrap **5.3.3**, jQuery **3.7.1**, jQuery UI **1.14.1**. All runtime CSS, JS, Inter fonts and Figma SVGs are stored locally. No React or Tailwind is used.
 
-## Preview without a database
+## Live Testing with Authenticated Accounts
 
-From the application root (`DMS`):
+To preserve authentic QA testing and avoid synthetic discrepancies, the application UI is tested directly against the running Laravel web server using real authenticated accounts (Super Admin, Scoped Admin, Staff) rather than a synthetic standalone preview router.
+
+Start the server:
 
 ```powershell
-npm run preview
+php artisan serve --port=8011
 ```
 
-Open `http://127.0.0.1:8012/admin`. The bottom preview switcher opens EMS, PMS, ES, OAS or sign-in. The preview runs only under local/testing and only accepts GET. It renders the **same Blade templates** used by the application, with synthetic fixtures from `resources/preview/data.php`. It does not bypass production routes or authenticate anyone.
+Open `http://127.0.0.1:8011/login` and authenticate with test credentials (e.g. `dms.admin@plpasig.edu.ph`).
 
-Search/filter, list/grid, nested-folder navigation, menus, modal validation, drag/drop selection, comments, staff autocomplete, expiry datepicker and sample form feedback work in the browser. Some preview metadata changes use sessionStorage and can be reset. Passwords, tokens and file bytes are never saved in preview storage. Preview uploads are clearly labelled: no file is uploaded or scanned, and no Clean result is fabricated.
+Search/filter, list/grid, nested-folder navigation, menus, modal validation, drag/drop selection, comments, staff autocomplete, expiry datepicker and form feedback interact directly with live controllers and database transactions. File uploads pass through the live virus-scan and storage pipeline.
 
 ## Background scanning handoff
 

@@ -28,9 +28,7 @@
         @if ($doc->trashed_at)
             <div class="alert alert-warning">This document is in trash. Restore it before editing or downloading.</div>
         @endif
-        @if (empty($frontendPreview))
         @include('partials.memo-publication')
-    @endif
     <div id="document-tabs" class="file-detail-tabs">
             <ul class="file-detail-tab-list" aria-label="Document sections">
                 <li><a href="#file-details">Details</a></li>
@@ -101,7 +99,7 @@
                     <section class="panel comments-panel">
                         <h2>Comments</h2>
                         @if ($commenter && !$doc->trashed_at)
-                            <form action="/documents/{{ $doc->id }}/comments" method="post" data-demo-action="comment">
+                            <form action="/documents/{{ $doc->id }}/comments" method="post">
                                 @csrf
                                 <label for="comment" class="form-label">Add a comment</label
                                 ><textarea
@@ -205,7 +203,6 @@
                                                 <a
                                                     class="btn btn-outline-secondary"
                                                     href="/files/{{ $v->id }}"
-                                                    @if (!empty($frontendPreview)) data-demo-download @endif
                                                     >Download</a
                                                 >
                                             @else
@@ -251,7 +248,7 @@
                             </div>
                             <span class="status-badge {{ $shareStatus==='Active'?'clean':'neutral' }}">{{ $shareStatus }}</span>
                             @if ($sharer && !$share->revoked_at && !$doc->trashed_at)
-                                <form action="/documents/{{ $doc->id }}/shares/{{ $share->id }}" method="post" data-demo-action="revoke-share">
+                                <form action="/documents/{{ $doc->id }}/shares/{{ $share->id }}" method="post">
                                     @csrf
                             <input type="hidden" name="revision" value="{{ $doc->revision }}" />
                                     @method ('DELETE')<input type="hidden" name="revision" value="{{ $doc->revision }}" />
@@ -272,7 +269,7 @@
         <footer class="file-detail-footer">
             <a class="btn btn-outline-secondary" href="{{ $detailClose }}">Close</a>
             @if ($canDownload)
-                <a class="btn btn-primary" id="detail-download" href="/files/{{ $previewVersion->id }}" @if (!empty($frontendPreview)) data-demo-download @endif
+                <a class="btn btn-primary" id="detail-download" href="/files/{{ $previewVersion->id }}"
                     >Download</a
                 >
             @else
@@ -283,7 +280,6 @@
                     <form
                         method="post"
                         action="/documents/{{ $doc->id }}/{{ $doc->trashed_at?'restore':'trash' }}"
-                        data-demo-action="{{ $doc->trashed_at?'restore':'trash' }}"
                         data-document-id="{{ $doc->id }}"
                         data-confirm="{{ $doc->trashed_at?'Restore this document?':'Move this document to trash? All versions are retained.' }}">
                         @csrf
@@ -304,7 +300,7 @@
         <div class="modal fade" id="rename-modal" tabindex="-1" aria-labelledby="rename-title" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
-                    <form method="post" action="/documents/{{ $doc->id }}" data-demo-action="rename" data-ajax-move="true" data-document-id="{{ $doc->id }}">
+                    <form method="post" action="/documents/{{ $doc->id }}" data-ajax-move="true" data-document-id="{{ $doc->id }}">
                         @csrf
                         @method ('PATCH')
                         <input type="hidden" name="revision" value="{{ $doc->revision }}" />
@@ -345,7 +341,7 @@
         <div class="modal fade" id="share-modal" tabindex="-1" aria-labelledby="share-title" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
                 <div class="modal-content">
-                    <form action="/documents/{{ $doc->id }}/shares" method="post" data-demo-action="share">
+                    <form action="/documents/{{ $doc->id }}/shares" method="post">
                         @csrf
                             <input type="hidden" name="revision" value="{{ $doc->revision }}" />
                         <div class="modal-header">

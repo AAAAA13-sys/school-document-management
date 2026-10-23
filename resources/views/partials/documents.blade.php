@@ -61,7 +61,6 @@
                                 <form
                                     method="post"
                                     action="/documents/{{ $item->id }}/star"
-                                    data-demo-action="star"
                                     data-document-id="{{ $item->id }}"
                                     data-document-title="{{ $item->title }}">
                                     @csrf
@@ -98,7 +97,6 @@
                                     <form
                                         method="post"
                                         action="/documents/{{ $item->id }}/{{ $item->trashed_at?'restore':'trash' }}"
-                                        data-demo-action="{{ $item->trashed_at?'restore':'trash' }}"
                                         data-document-id="{{ $item->id }}"
                                         data-confirm="{{ $item->trashed_at?'Restore this document?':'Move this document to trash? All versions will be preserved.' }}">
                                         @csrf

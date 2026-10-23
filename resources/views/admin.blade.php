@@ -179,7 +179,6 @@
                                         <form
                                             method="post"
                                             action="/admin/connectors/{{ $connector->id }}"
-                                            data-demo-action="revoke-connector"
                                             data-confirm="Revoke this connector? Its ERP will no longer be able to authenticate.">
                                             @csrf
                                             @method ('DELETE')
@@ -391,7 +390,7 @@
         <div class="modal fade" id="account-new" tabindex="-1" aria-labelledby="account-new-title" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
                 <div class="modal-content">
-                    <form method="post" action="/admin/accounts" data-demo-action="account">
+                    <form method="post" action="/admin/accounts">
                         <div class="modal-header">
                             <h2 id="account-new-title" class="modal-title">Invite staff member</h2>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -412,7 +411,7 @@
             <div class="modal fade" id="account-{{ $account->id }}" tabindex="-1" aria-labelledby="account-title-{{ $account->id }}" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
                     <div class="modal-content">
-                        <form method="post" action="/admin/accounts/{{ $account->id }}" data-demo-action="account-edit">
+                        <form method="post" action="/admin/accounts/{{ $account->id }}">
                             <div class="modal-header">
                                 <h2 class="modal-title" id="account-title-{{ $account->id }}">Edit staff account</h2>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -433,7 +432,7 @@
         <div class="modal fade" id="connector-new" tabindex="-1" aria-labelledby="connector-title" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
-                    <form method="post" action="/admin/connectors" data-demo-action="connector">
+                    <form method="post" action="/admin/connectors">
                         @csrf
                         <div class="modal-header">
                             <h2 class="modal-title" id="connector-title">Add ERP connector</h2>

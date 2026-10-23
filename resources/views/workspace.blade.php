@@ -275,7 +275,7 @@
             <div class="modal fade" id="folder-modal" tabindex="-1" aria-labelledby="folder-title" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
-                        <form action="/folders" method="post" data-demo-action="folder">
+                        <form action="/folders" method="post">
                             @csrf
                             <div class="modal-header">
                                 <h2 class="modal-title" id="folder-title">New folder</h2>
@@ -311,7 +311,7 @@
                 <div class="modal fade" id="folder-edit-modal" tabindex="-1" aria-labelledby="folder-edit-title" aria-hidden="true">
                     <div class="modal-dialog modal-dialog-centered">
                         <div class="modal-content">
-                            <form action="/folders/{{ $folder->id }}" method="post" data-demo-action="folder-edit">
+                            <form action="/folders/{{ $folder->id }}" method="post">
                                 @csrf
                                 @method ('PATCH')
                                 <input type="hidden" name="revision" value="{{ $folder->revision }}" />

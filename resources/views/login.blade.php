@@ -12,7 +12,7 @@
     <script defer src="/vendor/bootstrap.bundle.min.js"></script>
     <script defer src="/js/dms.js"></script>
 </head>
-<body class="login-page" data-preview="{{ !empty($frontendPreview)?'true':'false' }}">
+<body class="login-page">
     <div class="login-story">
         <a class="brand" href="/login"
             ><span class="brand-mark">d.</span><span>PLP Documents<small>DOCUMENT MANAGEMENT SYSTEM</small></span></a
@@ -47,7 +47,7 @@
             @if ($errors->any())
                 <div class="alert alert-danger" role="alert">{{ $errors->first() }}</div>
             @endif
-            <form method="post" action="/login" data-demo-action="login">
+            <form method="post" action="/login">
                 @csrf
                 <div class="mb-4">
                     <label for="email" class="form-label">Email address</label
@@ -69,9 +69,6 @@
             </form>
             <p class="login-help"><a href="/forgot-password">Forgot your password?</a><br />Need an account? Request an invitation from your DMS administrator.</p>
             <p class="login-policy">For authorized PLP personnel only. Activity is logged.</p>
-            @if (!empty($frontendPreview))
-                <a href="/admin" class="preview-login-link">Frontend preview · Open sample workspace →</a>
-            @endif
         </div>
     </main>
 </body>

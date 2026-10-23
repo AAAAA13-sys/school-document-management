@@ -42,12 +42,8 @@ test('frontend has no manual scan controls and does not fake successful scans', 
     /scan_status\s*[:=]\s*['"]Clean/
   );
 });
-test('only explicit preview rendering intercepts data-changing forms', () => {
+test('form submissions submit to backend and handle upload asynchronously', () => {
   const js = fs.readFileSync('public/js/dms.js', 'utf8');
-  assert.match(js, /if \(!preview\) \{/);
-  assert.match(js, /this.id !== 'upload-form'/);
+  assert.match(js, /this\.id !== 'upload-form'/);
   assert.match(js, /new FormData\(this\)/);
-  const router = fs.readFileSync('scripts/frontend-router.php', 'utf8');
-  assert.match(router, /REQUEST_METHOD.*GET/);
-  assert.match(router, /environment\(\['local','testing'\]\)/);
 });

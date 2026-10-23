@@ -175,3 +175,12 @@ OAS-to-ES packet intake/replay/revision ordering/exact-version retrieval and rev
 - Expected: clear No matching documents feedback and matching result count/pagination.
 - Actual: all rows disappear, table body is blank, footer still says Showing1to12of20 results and still offers page2.
 - Clearing the search returns rows; selecting PMS narrows visible rows to payroll records. Evidence: Chrome screenshot and AX/DOM observations. Status OPEN; not fixed.
+
+### BUG-006 — `/admin/workspaces` throws HTTP 500 (`Undefined variable $section in layout.blade.php`)
+
+- Scope: LIVE authenticated application on `http://127.0.0.1:8011/admin/workspaces`. Severity: High (blocks Super Admin from viewing the Workspace Registry web page).
+- Steps: Sign in as Super Admin (`dms.admin@plpasig.edu.ph` / `Password123!`), open `http://127.0.0.1:8011/admin/workspaces`.
+- Expected: Workspace registry management screen displaying registered workspaces, active state, and add workspace form.
+- Actual: HTTP `500 Server Error`. Laravel logs confirm: `ErrorException: Undefined variable $section` at `resources/views/layout.blade.php:68`.
+- Root cause: `WorkspaceRegistryController::index` renders `workspaces-registry` without passing `$section`. `layout.blade.php` renders `<body data-section="{{ $section }}">` without null-coalescing fallback.
+- Status: OPEN, not fixed (per QA strict constraint: document bugs and write automated tests, no production code changes).
