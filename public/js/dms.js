@@ -258,13 +258,31 @@
       }
     });
 
+    function updateDeviceMode() {
+      if (typeof window === 'undefined' || typeof document === 'undefined' || !document.body) return;
+      const width = typeof window.innerWidth === 'number' ? window.innerWidth : 1024;
+      const isMobile = width < 768;
+      if (isMobile) {
+        if (typeof document.body.setAttribute === 'function') {
+          document.body.setAttribute('data-device', 'mobile');
+        }
+      } else {
+        if (typeof document.body.removeAttribute === 'function') {
+          document.body.removeAttribute('data-device');
+        }
+      }
+    }
+
     $(window).on('resize', () => {
+      updateDeviceMode();
       try {
         if (localStorage.getItem('dms_sidebar_collapsed') === null && window.innerWidth >= 768) {
           setSidebarCollapsed(isTabletViewport(), false);
         }
       } catch (_e) {}
     });
+
+    updateDeviceMode();
 
     initSidebarState();
 
@@ -828,6 +846,7 @@
             data.set('submission_key', item.key);
             data.set('classification', item.classification);
             if (item.confirm) data.set('confirm_duplicate', '1');
+            if (item.force_new_version) data.set('force_new_version', 'true');
             try {
               await $.ajax({
                 url: form.action,
@@ -838,8 +857,24 @@
                 headers: { Accept: 'application/json' },
               });
             } catch (xhr) {
-              if (xhr.status === 409 && xhr.responseJSON?.code === 'duplicate_file') {
-                item.duplicates = xhr.responseJSON.duplicates || [];
+              if (xhr.status === 409) {
+                if (xhr.responseJSON?.code === 'duplicate_file') {
+                  item.duplicates = xhr.responseJSON.duplicates || [];
+                }
+                const duplicateData = (xhr.responseJSON?.duplicates && xhr.responseJSON.duplicates[0])
+                  || xhr.responseJSON?.existing_document
+                  || { title: 'Existing document', owner: 'Document owner' };
+                showDuplicateWarningModal(
+                  duplicateData,
+                  () => {
+                    item.force_new_version = true;
+                    item.confirm = true;
+                    item.status = 'pending';
+                    item.error = '';
+                    renderUploads();
+                    startUploads();
+                  }
+                );
               }
               throw new Error(
                 xhr.responseJSON?.errors
@@ -1068,6 +1103,92 @@
         )
         .always(() => button.prop('disabled', false));
     });
+    // Duplicate warning modal: intercept 409 Conflict, show title & owner, allow upload as new version or cancel
+    function showDuplicateWarningModal(existingDoc, onUploadNewVersion, onCancel) {
+      let modalEl = document.getElementById('duplicate-warning-modal');
+      if (!modalEl) {
+        const modalHtml = `
+          <div class="modal fade" id="duplicate-warning-modal" tabindex="-1" aria-labelledby="duplicate-warning-title" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h2 class="modal-title" id="duplicate-warning-title">Duplicate file detected</h2>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  <p class="modal-subtitle">An identical file already exists in a document you can access.</p>
+                  <div class="duplicate-info-card p-3 my-3 rounded" style="background: var(--canvas, #f8f9fa); border: 1px solid var(--line, #e2e8f0);">
+                    <p class="mb-2"><strong>Document Title:</strong> <span id="duplicate-modal-doc-title">—</span></p>
+                    <p class="mb-0"><strong>Document Owner:</strong> <span id="duplicate-modal-doc-owner">—</span></p>
+                  </div>
+                  <p class="text-muted small mb-0">You can upload this file as a new version of the existing document, or cancel the upload.</p>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="duplicate-modal-cancel">Cancel</button>
+                  <button type="button" class="btn btn-primary" id="duplicate-modal-upload-new-version">Upload as New Version</button>
+                </div>
+              </div>
+            </div>
+          </div>`;
+        $('body').append(modalHtml);
+        modalEl = document.getElementById('duplicate-warning-modal');
+      }
+
+      const title = existingDoc?.title || 'Untitled document';
+      const owner = existingDoc?.owner || existingDoc?.owner_name || existingDoc?.owner_email || (existingDoc?.owner_id ? ('User #' + existingDoc.owner_id) : 'Document owner');
+
+      $('#duplicate-modal-doc-title').text(title);
+      $('#duplicate-modal-doc-owner').text(owner);
+
+      const bsModal = typeof bootstrap !== 'undefined' && bootstrap.Modal
+        ? bootstrap.Modal.getOrCreateInstance(modalEl)
+        : null;
+
+      $('#duplicate-modal-upload-new-version').off('click').on('click', function () {
+        if (bsModal) bsModal.hide();
+        if (typeof onUploadNewVersion === 'function') {
+          onUploadNewVersion();
+        }
+      });
+
+      $('#duplicate-modal-cancel').off('click').on('click', function () {
+        if (bsModal) bsModal.hide();
+        if (typeof onCancel === 'function') {
+          onCancel();
+        }
+      });
+
+      if (bsModal) {
+        bsModal.show();
+      }
+    }
+    window.DmsDuplicateModal = { show: showDuplicateWarningModal };
+
+    function updateFolderShareCheckbox(folderObj) {
+      const container = $('#folder-sharing-container, #folder-sharing-checkbox-group, #folder-share-apply-all-group');
+      const checkbox = container.find('input[type="checkbox"]');
+      if (!folderObj) {
+        container.hide();
+        checkbox.prop('checked', false).prop('disabled', true);
+        return;
+      }
+      const isRestricted = Boolean(
+        folderObj.has_confidential_or_restricted ||
+        folderObj.contains_confidential_or_restricted ||
+        folderObj.has_confidential ||
+        folderObj.has_restricted ||
+        ['Confidential', 'Restricted'].includes(folderObj.classification)
+      );
+      if (isRestricted) {
+        container.hide();
+        checkbox.prop('disabled', true).prop('checked', false);
+      } else {
+        container.show();
+        checkbox.prop('disabled', false);
+      }
+    }
+    window.DmsFolderSharing = { updateCheckbox: updateFolderShareCheckbox };
+
     // Duplicate uploads: list only documents this user may already open.
     function showUploadDuplicates(matches) {
       const list = $('#upload-duplicate-list').empty();
@@ -1167,10 +1288,66 @@
         })
           .done((result) => location.assign('/documents/' + encodeURIComponent(result.document_id)))
           .fail((xhr) => {
-            if (xhr.status === 409 && xhr.responseJSON?.code === 'duplicate_file') {
-              showUploadDuplicates(xhr.responseJSON.duplicates || []);
+            if (xhr.status === 409) {
               progress.prop('hidden', true);
               form.find('button[type="submit"]').prop('disabled', false);
+
+              const duplicateData = (xhr.responseJSON?.duplicates && xhr.responseJSON.duplicates[0])
+                || xhr.responseJSON?.existing_document
+                || xhr.responseJSON?.document
+                || {
+                  title: xhr.responseJSON?.title || 'Existing document',
+                  owner: xhr.responseJSON?.owner || xhr.responseJSON?.owner_name || 'Document owner',
+                  document_id: xhr.responseJSON?.document_id
+                };
+
+              showDuplicateWarningModal(
+                duplicateData,
+                function () {
+                  // "Upload as New Version" (sends force_new_version=true)
+                  const formData = new FormData(form[0]);
+                  formData.set('force_new_version', 'true');
+                  if (duplicateData.document_id) {
+                    formData.set('document_id', duplicateData.document_id);
+                  }
+                  progress.prop('hidden', false);
+                  form.find('button[type="submit"]').prop('disabled', true);
+
+                  $.ajax({
+                    url: form[0].action,
+                    method: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    headers: { Accept: 'application/json' },
+                    xhr: function () {
+                      const retryXhr = $.ajaxSettings.xhr();
+                      retryXhr.upload.addEventListener('progress', (e) => {
+                        if (e.lengthComputable) {
+                          const percent = Math.round((e.loaded / e.total) * 100);
+                          progress.find('[role="progressbar"]').attr('aria-valuenow', percent);
+                          progress.find('.progress-bar').css('width', percent + '%');
+                        }
+                      });
+                      return retryXhr;
+                    },
+                  })
+                    .done((result) => location.assign('/documents/' + encodeURIComponent(result.document_id)))
+                    .fail((retryErr) => {
+                      const msg = retryErr.responseJSON?.message || 'Upload failed.';
+                      progress.find('small').text(msg);
+                      form.find('button[type="submit"]').prop('disabled', false);
+                    });
+                },
+                function () {
+                  progress.prop('hidden', true);
+                  form.find('button[type="submit"]').prop('disabled', false);
+                }
+              );
+
+              if (xhr.responseJSON?.code === 'duplicate_file') {
+                showUploadDuplicates(xhr.responseJSON.duplicates || []);
+              }
               return;
             }
             const errors = xhr.responseJSON?.errors;
