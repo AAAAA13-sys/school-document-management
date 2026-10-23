@@ -272,48 +272,100 @@ a .figma-icon {
   top: 0;
   bottom: 0;
   width: 272px;
-  min-height: 680px;
-  padding: 28px 20px 20px;
+  padding: 16px 14px 14px;
   background: var(--green-950);
   display: flex;
   flex-direction: column;
   z-index: 1040;
   color: #fff;
+  overflow-x: hidden;
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), padding 0.25s ease;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 40px;
+  margin-bottom: 2px;
+}
+
+.sidebar-toggle {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #c5d8cd;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.sidebar-toggle:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.sidebar-toggle:focus-visible {
+  outline: 2px solid var(--yellow-400);
+  outline-offset: 2px;
 }
 
 .brand {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
   color: #fff;
   font-size: 15px;
-  line-height: 23px;
+  line-height: 22px;
   font-weight: 600;
-  min-height: 54px;
+  min-height: 40px;
+  text-decoration: none;
 }
 
-.brand:hover {
+.brand:hover,
+.brand:focus-visible {
   color: #fff;
+  text-decoration: none;
+}
+
+.brand:focus-visible {
+  outline: 2px solid var(--yellow-400);
+  outline-offset: 2px;
+  border-radius: 8px;
 }
 
 .brand-mark {
-  width: 38px;
-  height: 42px;
+  width: 34px;
+  height: 34px;
   background: var(--yellow-400);
   color: var(--green-950);
-  border-radius: 9px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 700;
   flex-shrink: 0;
+}
+
+.brand-text {
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .brand small {
   display: block;
   font-size: 10px;
-  line-height: 18px;
+  line-height: 16px;
   margin-top: 1px;
   color: #fff;
   opacity: 0.6;
@@ -322,21 +374,34 @@ a .figma-icon {
 }
 
 .workspace-label {
-  height: 45px;
-  padding-top: 24px;
-  font-size: 12px;
-  line-height: 18px;
+  height: 24px;
+  padding-top: 6px;
+  font-size: 11px;
+  line-height: 16px;
   color: #fff;
-  opacity: 0.45;
+  opacity: 0.5;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .workspace-identity {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 84px;
-  padding: 8px;
-  margin-bottom: 0;
+  min-height: 44px;
+  padding: 4px 4px;
+  margin-bottom: 2px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.workspace-identity:focus-visible {
+  outline: 2px solid var(--yellow-400);
+  outline-offset: 2px;
 }
 
 .source-icon {
@@ -346,52 +411,88 @@ a .figma-icon {
   background: var(--yellow-400);
   color: var(--green-950);
   border-radius: 6px;
-  width: 40px;
-  height: 36px;
-  font-size: 14px;
-  line-height: 21px;
+  min-width: 40px;
+  width: auto;
+  height: 32px;
+  padding: 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 20px;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 
-.workspace-identity > div {
-  max-width: 168px;
-  font-size: 14px;
-  line-height: 21px;
+.workspace-info {
+  max-width: 172px;
+  font-size: 13px;
+  line-height: 18px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.workspace-identity strong {
+.workspace-info strong {
   display: block;
-  font-weight: 400;
-}
-
-.workspace-identity small {
-  display: block;
-  font-size: 14px;
-  line-height: 21px;
+  font-weight: 500;
   color: #fff;
-  opacity: 0.55;
-  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.workspace-info small {
+  display: block;
+  font-size: 12px;
+  line-height: 16px;
+  color: #fff;
+  opacity: 0.6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .main-nav {
   overflow-y: auto;
+  overflow-x: hidden;
   scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
   flex-shrink: 1;
+  padding-right: 2px;
+}
+
+.main-nav::-webkit-scrollbar {
+  width: 4px;
+}
+
+.main-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.main-nav::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.main-nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
 }
 
 .main-nav > a {
   display: flex;
   gap: 12px;
   align-items: center;
-  height: 44px;
-  min-height: 44px;
-  padding: 12px;
+  height: 36px;
+  min-height: 36px;
+  padding: 7px 12px;
   border-radius: 8px;
   color: #e4eee7;
-  font-size: 16px;
+  font-size: 14.5px;
   font-weight: 500;
-  line-height: 25px;
-  margin-bottom: 8px;
+  line-height: 20px;
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), height 0.25s cubic-bezier(0.4, 0, 0.2, 1), padding 0.25s ease, border-radius 0.25s ease, background 0.15s ease, color 0.15s ease;
 }
 
 .main-nav > a:hover {
@@ -402,38 +503,233 @@ a .figma-icon {
 .main-nav > a.active {
   color: var(--green-950);
   background: var(--yellow-400);
+  font-weight: 600;
 }
 
 .main-nav > a.active:hover {
   background: #f8d75d;
 }
 
+.main-nav > a .nav-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .main-nav .nav-caption {
-  height: 40px;
+  height: 24px;
   margin: 0;
-  padding: 10px 0 14px;
+  padding: 6px 0 2px;
   display: flex;
   align-items: center;
   color: #c5d8cd;
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 11px;
+  line-height: 16px;
   font-weight: 600;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .main-nav .governance-caption {
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .sidebar-bottom {
   margin-top: auto;
-  padding-top: 24px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.return-admin {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  line-height: 18px;
+  color: #c5d8cd;
+  padding: 4px 6px;
+  margin-bottom: 2px;
+  border-radius: 6px;
+  min-height: 30px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.return-admin:hover,
+.return-admin:focus-visible {
+  color: #fff;
+  background: #2b624c;
+  text-decoration: none;
 }
 
 .profile {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 70px;
+  min-height: 46px;
+  padding: 3px 2px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.profile:focus-visible {
+  outline: 2px solid var(--yellow-400);
+  outline-offset: 2px;
+}
+
+.profile-info {
+  font-size: 13px;
+  line-height: 18px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-info strong {
+  display: block;
+  color: #fff;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-info small {
+  display: block;
+  color: #c5d8cd;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Collapsed Navigation Rail (68px) */
+body.sidebar-collapsed .sidebar {
+  width: 68px;
+  padding: 14px 8px 12px;
+}
+
+body.sidebar-collapsed .app-body {
+  margin-left: 68px;
+}
+
+body.sidebar-collapsed .sidebar-header {
+  flex-direction: column;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+}
+
+body.sidebar-collapsed .brand {
+  justify-content: center;
+  min-height: 36px;
+  padding: 0;
+}
+
+body.sidebar-collapsed .brand-text {
+  display: none !important;
+  opacity: 0;
+  width: 0;
+  pointer-events: none;
+}
+
+body.sidebar-collapsed .sidebar-toggle {
+  margin: 0 auto;
+}
+
+body.sidebar-collapsed .sidebar-toggle .sidebar-toggle-icon {
+  display: inline-block;
+  transform: rotate(180deg);
+}
+
+body.sidebar-collapsed .workspace-label {
+  display: none !important;
+  opacity: 0;
+  width: 0;
+  pointer-events: none;
+}
+
+body.sidebar-collapsed .workspace-identity {
+  justify-content: center;
+  min-height: 40px;
+  padding: 2px 0;
+  cursor: pointer;
+}
+
+body.sidebar-collapsed .workspace-info {
+  display: none !important;
+  opacity: 0;
+  width: 0;
+  pointer-events: none;
+}
+
+body.sidebar-collapsed .main-nav > a {
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+  margin: 0 auto 5px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 9px;
+}
+
+body.sidebar-collapsed .main-nav > a.active {
+  background: var(--yellow-400);
+  color: var(--green-950);
+  border-radius: 9px;
+}
+
+body.sidebar-collapsed .main-nav > a .nav-label {
+  display: none !important;
+  opacity: 0;
+  width: 0;
+  pointer-events: none;
+}
+
+body.sidebar-collapsed .main-nav .nav-caption {
+  height: 1px;
+  margin: 6px auto;
+  width: 28px;
+  background: rgba(255, 255, 255, 0.15);
+  font-size: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+body.sidebar-collapsed .return-admin {
+  display: none !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.sidebar-collapsed .sidebar-bottom {
+  padding-top: 8px;
+}
+
+body.sidebar-collapsed .profile {
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 46px;
+  gap: 4px;
+  padding: 2px 0;
+  cursor: pointer;
+}
+
+body.sidebar-collapsed .profile-info {
+  display: none !important;
+  opacity: 0;
+  width: 0;
+  pointer-events: none;
+}
+
+body.sidebar-collapsed .profile form {
+  margin: 0 auto;
 }
 
 .avatar,
@@ -495,6 +791,7 @@ a .figma-icon {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  transition: margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .topbar {
@@ -2266,6 +2563,44 @@ body.login-page {
     padding-top: 16px;
   }
 
+  .sidebar-toggle {
+    display: none !important;
+  }
+
+  body.sidebar-collapsed .sidebar {
+    width: min(300px, 85vw);
+    padding: 24px 20px 20px;
+  }
+
+  body.sidebar-collapsed .app-body {
+    margin-left: 0 !important;
+  }
+
+  body.sidebar-collapsed .sidebar-header {
+    flex-direction: row;
+    justify-content: flex-start;
+  }
+
+  body.sidebar-collapsed .brand-text,
+  body.sidebar-collapsed .workspace-label,
+  body.sidebar-collapsed .workspace-info,
+  body.sidebar-collapsed .main-nav > a .nav-label,
+  body.sidebar-collapsed .profile-info {
+    display: block !important;
+  }
+
+  body.sidebar-collapsed .return-admin {
+    display: flex !important;
+  }
+
+  body.sidebar-collapsed .main-nav > a {
+    width: auto;
+    height: 44px;
+    min-height: 44px;
+    padding: 10px 12px;
+    justify-content: flex-start;
+  }
+
   .profile {
     min-height: 60px;
   }
@@ -2838,11 +3173,6 @@ body.login-page {
 /* Shared interaction states: legible type, clear targets and menus above the document list. */
 .sidebar {
   min-height: 0;
-  padding: 24px 18px 16px;
-}
-
-.brand {
-  gap: 10px;
 }
 
 .brand small {
@@ -2852,13 +3182,6 @@ body.login-page {
 
 .workspace-label {
   opacity: 0.8;
-}
-
-.main-nav > a {
-  height: auto;
-  min-height: 48px;
-  padding: 11px 14px;
-  margin-bottom: 4px;
 }
 
 .main-nav > a:focus-visible {
@@ -2872,35 +3195,11 @@ body.login-page {
   color: var(--green-950);
 }
 
-.sidebar-bottom {
-  padding-top: 12px;
-  border-top: 1px solid #ffffff24;
-}
-
-.return-admin {
-  padding: 10px 12px;
-  margin: 0 0 4px;
-  border-radius: 8px;
-  min-height: 44px;
-  color: #e4eee7;
-}
-
 .return-admin:hover,
 .return-admin:focus-visible {
   color: #fff;
   background: #2b624c;
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
-
-.profile {
-  min-height: 64px;
-}
-
-.profile .icon-button {
-  width: 40px;
-  height: 40px;
-  color: #fff;
+  text-decoration: none;
 }
 
 .profile .icon-button:hover,

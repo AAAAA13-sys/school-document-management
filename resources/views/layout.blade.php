@@ -38,13 +38,18 @@
 <body data-section="{{ $section }}" data-source="{{ $source }}" data-preview="{{ !empty($frontendPreview) ? 'true':'false' }}">
     <a class="skip-link" href="#main">Skip to content</a>
     <aside class="sidebar" id="sidebar" aria-label="Primary navigation">
-        <a class="brand" href="/"
-            ><span class="brand-mark">d.</span><span>PLP Documents<small>DOCUMENT MANAGEMENT</small></span></a
-        >
+        <div class="sidebar-header">
+            <a class="brand" href="/" data-bs-toggle="tooltip" data-bs-placement="right" title="PLP Documents · Document Management"
+                ><span class="brand-mark">d.</span><span class="brand-text">PLP Documents<small>DOCUMENT MANAGEMENT</small></span></a
+            >
+            <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-label="Collapse navigation sidebar" aria-controls="sidebar" aria-expanded="true" data-bs-toggle="tooltip" data-bs-placement="right" title="Collapse navigation (Ctrl+B)">
+                <span class="sidebar-toggle-icon" aria-hidden="true">«</span>
+            </button>
+        </div>
         <div class="workspace-label">{{ $isAdmin ? 'ADMINISTRATION':'YOUR WORKSPACE' }}</div>
-        <div class="workspace-identity">
+        <div class="workspace-identity" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="right" title="{{ $workspaceName }} · {{ $viewer->campus }} campus" aria-label="{{ $workspaceName }} · {{ $viewer->campus }} campus">
             <span class="source-icon">{{ $workspaceCode }}</span>
-            <div>
+            <div class="workspace-info">
                 <strong>{{ $workspaceName }}</strong
                 ><small>{{ $viewer->campus }} campus</small>
             </div>
@@ -59,32 +64,32 @@
                     <span class="nav-caption governance-caption">GOVERNANCE</span>
                 @endif
                 @php $active=$section===$key && ($key!=='documents' || $libraryView==='all'); @endphp
-                <a href="{{ $root }}/{{ $key }}" class="{{ $active?'active':'' }}" @if ($active) aria-current="page" @endif
-                    ><x-figma-icon :name="$glyph.($active?'-active':'')" /><span>{{ $label }}</span></a
+                <a href="{{ $root }}/{{ $key }}" class="{{ $active?'active':'' }}" @if ($active) aria-current="page" @endif data-bs-toggle="tooltip" data-bs-placement="right" title="{{ $label }}"
+                    ><x-figma-icon :name="$glyph.($active?'-active':'')" /><span class="nav-label">{{ $label }}</span></a
                 >
             @endforeach
             @unless ($isAdmin)
                 <span class="nav-caption">{{ $viewer->isSuperAdmin() ? 'REPOSITORY':'MY LIBRARY' }}</span>
                 @foreach ($libraryLinks as $key=>[$glyph,$label])
                     @php $active=$section==='documents' && $libraryView===$key; @endphp
-                    <a href="{{ $root }}/documents?view={{ $key }}" class="{{ $active?'active':'' }}" @if ($active) aria-current="page" @endif
-                        ><x-figma-icon :name="$glyph.($active && in_array($glyph,['users','trash'])?'-active':'')" /><span>{{ $label }}</span></a
+                    <a href="{{ $root }}/documents?view={{ $key }}" class="{{ $active?'active':'' }}" @if ($active) aria-current="page" @endif data-bs-toggle="tooltip" data-bs-placement="right" title="{{ $label }}"
+                        ><x-figma-icon :name="$glyph.($active && in_array($glyph,['users','trash'])?'-active':'')" /><span class="nav-label">{{ $label }}</span></a
                     >
                 @endforeach
             @endunless
         </nav>
         <div class="sidebar-bottom">
             @if (($viewer->isSuperAdmin() || $viewer->isAdmin()) && !$isAdmin)
-                <a class="return-admin" href="/admin">← Administration</a>
+                <a class="return-admin" href="/admin" data-bs-toggle="tooltip" data-bs-placement="right" title="Administration"><span class="return-text">← Administration</span></a>
             @endif
 
-            <a href="/account" class="return-admin">My account</a>
-            <div class="profile">
+            <a href="/account" class="return-admin" data-bs-toggle="tooltip" data-bs-placement="right" title="My account"><span class="return-text">My account</span></a>
+            <div class="profile" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="right" title="{{ $viewer->name }} · {{ $roleName }}" aria-label="{{ $viewer->name }} · {{ $roleName }}">
                 <span class="avatar">{{ $initials }}</span>
-                <div><strong>{{ $viewer->name }}</strong><small>{{ $roleName }}</small></div>
+                <div class="profile-info"><strong>{{ $viewer->name }}</strong><small>{{ $roleName }}</small></div>
                 <form action="/logout" method="post" data-demo-action="logout">
                     @csrf
-                    <button type="submit" class="icon-button" aria-label="Sign out">
+                    <button type="submit" class="icon-button" aria-label="Sign out" data-bs-toggle="tooltip" data-bs-placement="right" title="Sign out">
                         <x-figma-icon name="logout" :size="18" />
                     </button>
                 </form>

@@ -151,6 +151,83 @@
         first.focus();
       }
     });
+    // Desktop / Tablet Sidebar Collapse Toggle
+    const sidebarToggle = $('#sidebar-toggle');
+    const isTabletViewport = () => window.innerWidth >= 768 && window.innerWidth < 1200;
+    let sidebarTooltips = [];
+
+    function updateSidebarTooltips(enabled) {
+      sidebarTooltips.forEach((t) => {
+        try {
+          t.dispose();
+        } catch (_e) {}
+      });
+      sidebarTooltips = [];
+      if (enabled && typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+        $('#sidebar [data-bs-toggle="tooltip"]').each(function () {
+          try {
+            sidebarTooltips.push(new bootstrap.Tooltip(this, { container: 'body', trigger: 'hover focus' }));
+          } catch (_e) {}
+        });
+      }
+    }
+
+    function setSidebarCollapsed(collapsed, userInitiated = false) {
+      $('body').toggleClass('sidebar-collapsed', collapsed);
+      $('#sidebar').toggleClass('is-collapsed', collapsed);
+      const label = collapsed ? 'Expand navigation sidebar' : 'Collapse navigation sidebar';
+      const tooltipTitle = collapsed ? 'Expand navigation (Ctrl+B)' : 'Collapse navigation (Ctrl+B)';
+      sidebarToggle.attr({
+        'aria-expanded': String(!collapsed),
+        'aria-label': label,
+        'title': tooltipTitle,
+      });
+      sidebarToggle.find('.sidebar-toggle-icon').text(collapsed ? '»' : '«');
+      if (userInitiated) {
+        try {
+          localStorage.setItem('dms_sidebar_collapsed', collapsed ? 'true' : 'false');
+        } catch (_e) {}
+      }
+      updateSidebarTooltips(collapsed);
+    }
+
+    function initSidebarState() {
+      try {
+        const saved = localStorage.getItem('dms_sidebar_collapsed');
+        if (saved !== null) {
+          setSidebarCollapsed(saved === 'true');
+        } else if (isTabletViewport()) {
+          setSidebarCollapsed(true);
+        }
+      } catch (_e) {
+        if (isTabletViewport()) setSidebarCollapsed(true);
+      }
+    }
+
+    sidebarToggle.on('click', () => {
+      const isCurrentlyCollapsed = $('body').hasClass('sidebar-collapsed');
+      setSidebarCollapsed(!isCurrentlyCollapsed, true);
+    });
+
+    $(document).on('keydown', (event) => {
+      if ((event.ctrlKey || event.metaKey || event.altKey) && (event.key === 'b' || event.key === 'B')) {
+        if (!$(event.target).is('input, textarea, select')) {
+          event.preventDefault();
+          sidebarToggle.trigger('click');
+        }
+      }
+    });
+
+    $(window).on('resize', () => {
+      try {
+        if (localStorage.getItem('dms_sidebar_collapsed') === null && window.innerWidth >= 768) {
+          setSidebarCollapsed(isTabletViewport(), false);
+        }
+      } catch (_e) {}
+    });
+
+    initSidebarState();
+
     $('[data-global-back]').on('click', function (event) {
       try {
         if (
