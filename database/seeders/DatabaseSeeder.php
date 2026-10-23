@@ -55,6 +55,7 @@ class DatabaseSeeder extends Seeder
             );
         }
 
+        $this->call(DocumentTypeSeeder::class);
         $this->command?->info('Seeded one Super Admin plus one Admin and one Staff per ERP source.');
     }
 }

@@ -86,7 +86,7 @@ class ActionRequest extends FormRequest
             'documents.update' => ['classification' => 'sometimes|required|in:Internal,Confidential,Restricted', 'title' => 'required|string|max:200', 'folder_id' => 'nullable|uuid', 'revision' => 'required|integer|min:1', 'confirm_move' => 'sometimes|boolean'],
             'documents.trash', 'documents.restore' => ['revision' => 'required|integer|min:1'],
             'shares.revoke' => ['revision' => 'required|integer|min:1'],
-            'shares.create' => ['revision' => 'required|integer|min:1', 'recipient_id' => 'required|integer', 'permission' => 'required|in:Viewer,Commenter,Editor', 'expires_at' => 'nullable|date|after:now|before_or_equal:'.now()->addDays(30)->toDateTimeString(), 'version_id' => 'nullable|uuid'],
+            'shares.create' => ['revision' => 'required|integer|min:1', 'recipient_id' => 'required|integer', 'permission' => 'required|in:Viewer,Commenter,Editor', 'expires_at' => 'nullable|date|after:now|before_or_equal:'.now()->addDays(30)->toDateTimeString(), 'version_id' => 'nullable|uuid', 'folder_inheritance' => 'sometimes|boolean'],
             'folder-shares.create' => ['recipient_id' => 'required|integer', 'permission' => 'required|in:Viewer,Commenter,Editor', 'expires_at' => 'nullable|date|after:now|before_or_equal:'.now()->addDays(30)->toDateTimeString()],
             'comments.create' => ['body' => 'required|string|max:2000'],
             'accounts.create', 'accounts.update' => [

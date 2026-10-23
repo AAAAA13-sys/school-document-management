@@ -101,7 +101,7 @@ class SensitiveChangeService
         if ($action === 'trash') $update['trashed_at'] = now();
         if ($action === 'restore') $update['trashed_at'] = null;
         if ($action === 'share.grant') DB::table('shares')->updateOrInsert(['document_id' => $doc->id, 'recipient_id' => $p['recipient_id']],
-            ['permission' => $p['permission'], 'version_id' => $p['version_id'] ?? null, 'expires_at' => $p['expires_at'] ?? now()->addDays(30), 'revoked_at' => null, 'memo_generated' => false, 'created_at' => now(), 'updated_at' => now()]);
+            ['permission' => $p['permission'], 'version_id' => $p['version_id'] ?? null, 'expires_at' => $p['expires_at'] ?? now()->addDays(30), 'revoked_at' => null, 'memo_generated' => false, 'folder_inheritance' => (bool) ($p['folder_inheritance'] ?? false), 'created_at' => now(), 'updated_at' => now()]);
         if ($action === 'share.revoke') DB::table('shares')->where('id', $p['share_id'])->update(['revoked_at' => now(), 'updated_at' => now()]);
         if ($action === 'memo.publish') {
             DB::table('shares')->where('document_id', $doc->id)->where('memo_generated', true)->whereNotIn('recipient_id', $p['audience'])->whereNull('revoked_at')->update(['revoked_at' => now(), 'updated_at' => now()]);

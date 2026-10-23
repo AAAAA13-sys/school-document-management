@@ -11,7 +11,11 @@ class ShareController extends Controller
 {
     public function create(ActionRequest $request, string $document)
     {
-        $result = app(\App\Services\SensitiveChangeService::class)->submit($request->user(), Access::document($request->user(), $document), 'share.grant', $request->validated());
+        $payload = $request->validated();
+        if ($request->has('folder_inheritance')) {
+            $payload['folder_inheritance'] = $request->boolean('folder_inheritance');
+        }
+        $result = app(\App\Services\SensitiveChangeService::class)->submit($request->user(), Access::document($request->user(), $document), 'share.grant', $payload);
         $message = $result['status'] === 'pending' ? 'Access request submitted. Existing access is unchanged until approval.' : 'Access grant saved.';
         return $request->expectsJson() ? response()->json($result + ['message' => $message], $result['status'] === 'pending' ? 202 : 200) : back()->with('status', $message);
     }
