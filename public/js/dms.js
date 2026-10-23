@@ -577,8 +577,7 @@
       );
       $('#retry-uploads').prop(
         'hidden',
-        uploading ||
-          !uploads.some((item) => item.status === 'failed' && !item.duplicates?.length)
+        uploading || !uploads.some((item) => item.status === 'failed' && !item.duplicates?.length)
       );
     }
     async function startUploads() {

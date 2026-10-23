@@ -303,12 +303,15 @@ php artisan dms:status
 
 ```powershell
 php artisan test
+npm ci
 npm test
 npm run build
+npm run format:check
 php scripts/check-encoding.php
+php vendor/bin/phpunit -c phpunit.mysql.xml
 ```
 
-The PHP test configuration uses an isolated in-memory SQLite database by default. MySQL concurrency, restore and real-engine ClamAV checks have separate environment requirements; record skipped checks instead of claiming those checks passed. See [Verification](docs/VERIFICATION.md) and [Operations](docs/OPERATIONS.md). This README revision is documentation work and does not itself constitute a new full-system test run.
+The PHP test configuration uses an isolated in-memory SQLite database by default. MySQL concurrency, restore and real-engine ClamAV checks have separate environment requirements; record skipped checks instead of claiming those checks passed. GitHub Actions runs the same checks on pushes and pull requests, plus a post-merge smoke test and a scheduled real-ClamAV workflow. See [Continuous integration](docs/CI-CD.md), [Verification](docs/VERIFICATION.md) and [Operations](docs/OPERATIONS.md). This README revision is documentation work and does not itself constitute a new full-system test run.
 
 ## 8. Project references
 
@@ -320,4 +323,5 @@ The PHP test configuration uses an isolated in-memory SQLite database by default
 - [ERP API contract](docs/API.md) and [OpenAPI JSON](docs/openapi.json): integration behavior.
 - [Implementation plan](docs/IMPLEMENTATION_PLAN.md): original phased plan, not evidence that every phase is finished.
 - [Operations](docs/OPERATIONS.md) and [Verification](docs/VERIFICATION.md): operational procedures and verification context.
+- [Continuous integration](docs/CI-CD.md): GitHub Actions, isolated MySQL tests, real-ClamAV checks and post-merge smoke verification.
 - [Figma reference](https://www.figma.com/design/n44HHt77BnanifVreeSP7S/dms?node-id=0-1): supplied design reference.

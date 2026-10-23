@@ -1,0 +1,240 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend tests (SQLite)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: ctype, curl, dom, fileinfo, mbstring, openssl, pdo_sqlite, sqlite3, tokenizer, xml, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare application environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Verify secret and runtime paths stay untracked
+        run: |
+          if git ls-files --error-unmatch .env > /dev/null 2>&1; then
+            echo ".env must never be tracked."
+            exit 1
+          fi
+          for path in .env .env.local auth.json database/database.sqlite \
+            storage/app/private/example.pdf storage/logs/laravel.log; do
+            if ! git check-ignore -q "$path"; then
+              echo "$path is not excluded by .gitignore."
+              exit 1
+            fi
+          done
+          if git check-ignore -q .env.example; then
+            echo ".env.example must remain available as a template."
+            exit 1
+          fi
+
+      - name: Check PHP syntax
+        run: |
+          find app bootstrap config database routes scripts tests -type f -name '*.php' -print0 \
+            | xargs -0 -n1 php -l > /dev/null
+
+      - name: Run PHP test suite
+        run: php artisan test --compact
+
+      - name: Verify UTF-8 encoding and BOMs
+        run: php scripts/check-encoding.php
+
+      - name: Validate Composer metadata
+        run: composer validate --strict
+
+  mysql:
+    name: Backend tests (MySQL dms_test)
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: dms_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: ctype, curl, dom, fileinfo, mbstring, openssl, pdo_mysql, tokenizer, xml, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Install native MySQL client tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mysql-client
+
+      - name: Prepare isolated MySQL test environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          sed -i 's/^DB_USERNAME=.*/DB_USERNAME=root/' .env
+          sed -i 's/^DB_PASSWORD=.*/DB_PASSWORD=root/' .env
+          for attempt in $(seq 1 30); do
+            if mysqladmin ping -h 127.0.0.1 -P 3306 -uroot -proot --silent; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              echo "MySQL service did not become ready."
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Run MySQL test suite
+        run: php vendor/bin/phpunit -c phpunit.mysql.xml
+
+  frontend:
+    name: Frontend tests and assets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Run frontend tests
+        run: npm test
+
+      - name: Build and verify frontend assets
+        run: npm run build
+
+      - name: Check formatting
+        run: npm run format:check
+
+  smoke:
+    name: Post-merge smoke test
+    if: github.event_name == 'push'
+    needs: [backend, mysql, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: ctype, curl, dom, fileinfo, mbstring, openssl, pdo_sqlite, sqlite3, tokenizer, xml, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare isolated smoke database
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          sed -i 's/^DB_CONNECTION=.*/DB_CONNECTION=sqlite/' .env
+          sed -i "s|^DB_DATABASE=.*|DB_DATABASE=$PWD/database/smoke.sqlite|" .env
+          touch database/smoke.sqlite
+
+      - name: Migrate and warm application caches
+        run: |
+          php artisan migrate:fresh --force
+          php artisan view:cache
+          php artisan route:list --except-vendor > /dev/null
+
+      - name: Start server and probe integration routes
+        run: |
+          php artisan serve --host=127.0.0.1 --port=8011 > /tmp/dms-smoke.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          READY=0
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8011/up > /dev/null; then
+              READY=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$READY" -ne 1 ]; then
+            echo "Application server did not become ready."
+            cat /tmp/dms-smoke.log
+            exit 1
+          fi
+
+          curl -fsS http://127.0.0.1:8011/login | grep -q 'PLP Documents'
+
+          API_STATUS=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H 'Accept: application/json' \
+            http://127.0.0.1:8011/api/v1/documents)
+          if [ "$API_STATUS" != "401" ]; then
+            echo "Expected unauthenticated API status 401, received $API_STATUS."
+            exit 1
+          fi
+
+          echo "Post-merge smoke checks passed."

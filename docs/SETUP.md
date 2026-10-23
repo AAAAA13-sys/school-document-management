@@ -30,3 +30,7 @@ Public self-registration, student accounts and SSO/MFA are outside the agreed sc
 `npm run preview` runs the synthetic read-only frontend at port 8012; it is not the app. `npm run dev` or `composer dev` starts only the real web server, so a scan worker and scheduler must also run.
 
 Document previews use locally served PDF.js assets copied by `npm run build`. Keep `public/pdf-viewer.html`, `public/js/pdf-viewer.mjs` and `public/vendor/pdfjs/` in deployments. `DMS_PREVIEW_MIMES` enables the supported PDF/image/text MIME types; files must be Clean and pass the same access/checksum rules as downloads. Office files and archives have no in-app renderer.
+
+## Automated checks
+
+GitHub Actions runs the SQLite backend suite, the MySQL `dms_test` suite, frontend tests, asset verification and formatting/encoding checks on every push and pull request. After a merge it also runs a disposable-database smoke test against a live server. The real ClamAV integration test is a separate manual/weekly workflow because it installs the engine and downloads official signatures. See [Continuous integration](CI-CD.md) for the exact commands, isolated database rules and scanner prerequisites.
