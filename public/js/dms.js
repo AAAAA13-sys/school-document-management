@@ -420,7 +420,20 @@
           'aria-pressed': String(show),
         });
     });
+    const documentTabs = $('#document-tabs');
+    if (documentTabs.length) {
+      documentTabs.tabs({
+        activate: (_event, ui) => {
+          // Keep the selected section when a completed background scan refreshes the page.
+          history.replaceState(null, '', '#' + ui.newPanel.attr('id'));
+        },
+      });
+    }
     $('[data-preview-version]').on('click', function () {
+      if (documentTabs.length) documentTabs.tabs('option', 'active', 2);
+      $('#detail-download')
+        .attr('href', this.dataset.versionDownload)
+        .text('Download ' + this.dataset.previewVersion.toLowerCase());
       $('#document-preview-frame').prop('hidden', false);
       $('#preview-unavailable').prop('hidden', true);
       $('#preview-version-label').text(this.dataset.previewVersion);

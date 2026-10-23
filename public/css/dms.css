@@ -4136,3 +4136,334 @@ body.login-page .login-policy {
 body.login-page .preview-login-link {
   font-size: 0.875rem;
 }
+
+/* Figma 25:2306, 25:2337, 25:2360, 25:2385: shared document detail surface. */
+.document-detail-card {
+  --green-800: #086347;
+  --ink: #203e34;
+  --line: #e5ece7;
+  --canvas: #f6f8f5;
+  max-width: 1100px;
+  min-height: 820px;
+  margin: 0 auto;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.file-detail-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 44px;
+}
+.file-detail-heading h1 {
+  font-size: 24px;
+  line-height: 34px;
+  font-weight: 600;
+}
+.file-detail-close {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px;
+  flex-shrink: 0;
+  font-size: 20px;
+}
+.file-detail-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+.file-detail-state .status-badge {
+  min-width: 132px;
+  justify-content: flex-start;
+}
+.file-detail-notice {
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+.file-detail-tabs.ui-tabs {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+.file-detail-tabs .file-detail-tab-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+.file-detail-tabs .file-detail-tab-list::before,
+.file-detail-tabs .file-detail-tab-list::after {
+  display: none;
+}
+.file-detail-tabs .file-detail-tab-list li {
+  float: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  white-space: normal;
+}
+.file-detail-tabs .file-detail-tab-list li a {
+  display: flex;
+  float: none;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--ink);
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+}
+.file-detail-tabs .file-detail-tab-list li a:hover {
+  background: var(--canvas);
+  border-color: var(--green-800);
+  color: var(--green-800);
+}
+.file-detail-tabs .file-detail-tab-list li.ui-tabs-active a {
+  background: var(--green-800);
+  border-color: var(--green-800);
+  color: #fff;
+}
+.file-detail-tabs .file-detail-tab-list li a:focus-visible {
+  outline: 3px solid #b78d00;
+  outline-offset: 2px;
+}
+.file-detail-tabs > section,
+.file-detail-tabs > .ui-tabs-panel {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+}
+.file-detail-metadata {
+  display: grid;
+  gap: 12px;
+  min-height: 360px;
+  margin: 0;
+  padding: 24px;
+  border-radius: 12px;
+  background: var(--canvas);
+  font-size: 16px;
+  line-height: 24px;
+}
+.file-detail-metadata > div {
+  display: grid;
+  grid-template-columns: 118px minmax(0, 1fr);
+  gap: 16px;
+}
+.file-detail-metadata dt {
+  font-weight: 400;
+}
+.file-detail-metadata dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.file-detail-metadata code {
+  color: var(--ink);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.file-detail-metadata small,
+.file-version-table small,
+.file-detail-grant small {
+  display: block;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 22px;
+}
+.metadata-secondary {
+  display: inline-block;
+  margin-left: 24px;
+}
+.file-detail-section-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.file-detail-section-heading p {
+  color: var(--muted);
+}
+.file-version-table {
+  border-radius: 12px;
+  background: var(--canvas);
+}
+.file-version-table .table {
+  margin: 0;
+  --bs-table-bg: transparent;
+  --bs-table-striped-bg: #edf2ed;
+}
+.file-version-table .version-row {
+  display: table-row;
+}
+.file-version-table th,
+.file-version-table td {
+  padding: 16px;
+  font-size: 15px;
+  vertical-align: top;
+}
+.file-version-table td {
+  max-width: 240px;
+}
+.file-version-table .checksum {
+  margin-top: 8px;
+}
+.file-version-table .checksum code {
+  display: block;
+  max-width: 200px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.file-version-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.file-detail-tabs .preview-panel {
+  border: 0;
+  border-radius: 12px;
+  background: var(--canvas);
+  overflow: hidden;
+}
+.file-detail-tabs .document-preview-frame {
+  display: block;
+  width: 100%;
+  height: 480px;
+  border: 0;
+  background: var(--canvas);
+}
+.file-detail-tabs .preview-unavailable {
+  padding: 24px;
+  min-height: 200px;
+}
+.file-detail-grants {
+  display: grid;
+  gap: 12px;
+}
+.file-detail-grant {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 16px;
+  max-width: 720px;
+  min-height: 68px;
+  padding: 16px;
+  border-radius: 12px;
+  background: #edf4e9;
+}
+.file-detail-grant > div {
+  flex: 1;
+  min-width: 160px;
+}
+.file-detail-grant strong,
+.file-detail-grant > div > span {
+  display: block;
+}
+.file-detail-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+.file-detail-footer > .btn:first-child {
+  min-width: 120px;
+}
+.file-detail-footer > .btn-primary {
+  min-width: 210px;
+}
+.file-detail-trash {
+  margin-left: auto;
+}
+.file-detail-supplement {
+  margin-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.file-detail-supplement > summary {
+  padding: 14px 0;
+  cursor: pointer;
+  color: var(--green-800);
+  font-weight: 600;
+}
+.file-detail-supplement > summary span {
+  margin-left: 8px;
+  color: var(--muted);
+}
+.file-detail-supplement .panel {
+  border: 0;
+  padding: 0;
+}
+@media (max-width: 767px) {
+  .document-detail-card {
+    min-height: 0;
+    padding: 16px;
+  }
+  .file-detail-heading h1 {
+    font-size: 21px;
+    line-height: 30px;
+  }
+  .file-detail-tabs .file-detail-tab-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .file-detail-metadata {
+    min-height: 0;
+    padding: 16px;
+    gap: 16px;
+  }
+  .file-detail-metadata > div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .file-detail-metadata dt {
+    font-weight: 600;
+  }
+  .metadata-secondary {
+    display: block;
+    margin: 4px 0 0;
+  }
+  .file-detail-footer > .btn,
+  .file-detail-trash,
+  .file-detail-trash .btn {
+    width: 100%;
+  }
+  .file-detail-trash {
+    margin-left: 0;
+  }
+  .file-detail-tabs .document-preview-frame {
+    height: 440px;
+  }
+}
+
+@media (max-width: 767px) {
+  .file-detail-tabs .file-detail-tab-list li a {
+    min-height: 48px;
+    height: 100%;
+    padding: 10px 6px;
+    font-size: 15px;
+  }
+}

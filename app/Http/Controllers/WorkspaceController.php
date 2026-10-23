@@ -105,6 +105,7 @@ class WorkspaceController extends Controller
         $user = $request->user();
         $doc = Access::document($user, $document);
         Gate::forUser($user)->authorize('document.view', $doc);
+        $doc->owner_name = $doc->owner_id ? Access::scope(DB::table('users'), $user)->where('id', $doc->owner_id)->value('name') : null;
         $source = $doc->source;
         $section = 'documents';
         $versions = DB::table('document_versions')->where('document_id', $document)->orderByDesc('number')->get();
@@ -130,7 +131,7 @@ class WorkspaceController extends Controller
             ->get();
         $activity = Access::scope(DB::table('audit_entries'), $user)->where('document_id', $document)->orderByDesc('id')->limit(20)->get();
 
-        return view('document', compact('doc', 'source', 'section', 'versions', 'comments', 'shares', 'recipients', 'owner', 'editor', 'commenter', 'sharer', 'classifications', 'folders', 'activity'));
+        return view('document', compact('doc', 'source', 'section', 'versions', 'comments', 'shares', 'recipients', 'owner', 'editor', 'commenter', 'sharer', 'classifications', 'folders', 'activity', 'grant'));
     }
 
     public function scanStatus(Request $request, string $document)

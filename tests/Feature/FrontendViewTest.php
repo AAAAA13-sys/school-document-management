@@ -68,11 +68,24 @@ class FrontendViewTest extends TestCase
         foreach (['Version history', 'share-modal', 'share-search', 'datepicker', 'Upload new version', 'SHA-256 verified'] as $text) {
             $this->assertStringContainsString($text, $html);
         }
+        $dom = new \DOMDocument;
+        @$dom->loadHTML('<?xml encoding="utf-8" ?>'.$html);
+        $xpath = new \DOMXPath($dom);
+        $this->assertSame(4, $xpath->query('//*[@id="document-tabs"]/ul/li/a')->length);
+        foreach (['file-details', 'file-versions', 'file-preview', 'file-shares'] as $panel) {
+            $this->assertSame(1, $xpath->query('//*[@id="'.$panel.'"]')->length);
+            $this->assertSame(1, $xpath->query('//*[@id="document-tabs"]/ul/li/a[@href="#'.$panel.'"]')->length);
+        }
+        foreach (['Subject', 'Category:', 'Checksum', 'Created', 'Modified:', 'Owner', 'No expiry'] as $metadata) {
+            $this->assertStringContainsString($metadata, $html);
+        }
+        $this->assertStringContainsString('id="detail-download"', $html);
         $this->assertValidMarkup($html);
         $blocked = '00000004-0000-4000-8000-000000000004';
         $html = $this->renderScreen('/documents/'.$blocked, 'OAS', 'documents', $blocked);
         $this->assertStringContainsString('Quarantined', $html);
         $this->assertStringNotContainsString('data-demo-download', $html);
+        $this->assertStringNotContainsString('id="detail-download"', $html);
         $this->assertStringContainsString('disabled>Blocked', $html);
     }
 
