@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ActionRequest;
 use App\Services\Access;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class ShareController extends Controller
 {
@@ -14,7 +15,7 @@ class ShareController extends Controller
             $user = $request->user();
             Access::document($user, $document);
             $doc = DB::table('documents')->where('id', $document)->lockForUpdate()->first();
-            Access::owner($user, $doc);
+            Gate::forUser($user)->authorize('document.share', $doc);
             abort_if($doc->trashed_at, 409);
             $data = $request->validated();
             abort_if((int) $data['recipient_id'] === $user->id, 422, 'Choose another recipient.');
@@ -36,7 +37,7 @@ class ShareController extends Controller
             $user = $request->user();
             Access::document($user, $document);
             $doc = DB::table('documents')->where('id', $document)->lockForUpdate()->first();
-            Access::owner($user, $doc);
+            Gate::forUser($user)->authorize('document.share', $doc);
             abort_unless(DB::table('shares')->where('id', $share)->where('document_id', $document)->exists(), 404);
             DB::table('shares')->where('id', $share)->update(['revoked_at' => now(), 'updated_at' => now()]);
             Access::audit($user, 'share.revoked', $doc, ['share_id' => $share]);
@@ -51,9 +52,8 @@ class ShareController extends Controller
             $user = $request->user();
             Access::document($user, $document);
             $doc = DB::table('documents')->where('id', $document)->lockForUpdate()->first();
+            Gate::forUser($user)->authorize('document.comment', $doc);
             abort_if($doc->trashed_at, 409);
-            $grant = Access::effectiveGrant($user, $doc);
-            abort_unless($doc->owner_id === $user->id || Access::manages($user, $doc) || in_array($grant?->permission, ['Commenter', 'Editor']), 403);
             DB::table('comments')->insert(['document_id' => $document, 'user_id' => $user->id, 'body' => $request->validated('body'), 'created_at' => now()]);
             Access::audit($user, 'comment.created', $doc);
         });

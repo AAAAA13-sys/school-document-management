@@ -14,11 +14,12 @@ class AuthController extends Controller
         if (! Auth::attempt($request->safe()->only(['email', 'password']) + ['active' => true])) {
             return back()->withErrors(['email' => 'The sign-in details are invalid or the account is inactive.'])->onlyInput('email');
         }
+        $user = $request->user();
         $request->session()->regenerate();
-        $request->session()->put('auth_version', $request->user()->auth_version);
-        Access::audit($request->user(), 'account.signed_in');
+        $request->session()->put('auth_version', $user->auth_version);
+        Access::audit($user, 'account.signed_in');
 
-        return redirect()->intended(in_array($request->user()->role, ['super_admin', 'admin']) ? '/admin' : '/workspaces/'.strtolower($request->user()->source));
+        return redirect()->intended($user->homePath());
     }
 
     public function logout(Request $request)

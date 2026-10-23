@@ -1,6 +1,8 @@
 @php
-    $metricLabels = $source==='DMS' && !($personalWorkspace??false) ? ['documents'=>['School documents','Across all four workspaces'],'accounts'=>['Active staff','Scoped to '.$viewer->campus.' campus'],'connectors'=>['Connected systems','EMS · PMS · ES · OAS'],'blocked'=>['Files awaiting attention','Review scan status']] : ['documents'=>['Total documents','In this workspace'],'shared'=>['Shared documents','With active staff access'],'history'=>['History received','Immutable source events'],'blocked'=>['Files awaiting scan','Blocked until cleared']];
-    if ($personalWorkspace??false) $metricLabels = ['documents'=>['My documents','In your personal workspace'],'folders'=>['Folders','Your document organization'],'shared'=>['Shared documents','With active staff access'],'blocked'=>['Files awaiting scan','Blocked until cleared']];
+    $adminView = $source === 'ALL' || request()->is('admin') || request()->is('admin/*');
+    $metricLabels = $adminView
+        ? ['documents'=>['School documents','Across all four workspaces'],'accounts'=>['Active staff','Scoped to '.$viewer->campus.' campus'],'connectors'=>['Connected systems','EMS · PMS · ES · OAS'],'blocked'=>['Files awaiting attention','Review scan status']]
+        : ['documents'=>['Total documents','In this workspace'],'shared'=>['Shared documents','With active staff access'],'history'=>['History received','Immutable source events'],'blocked'=>['Files awaiting scan','Blocked until cleared']];
 @endphp
 <div class="stats-grid">
     @foreach ($metricLabels as $key=>[$label,$note])

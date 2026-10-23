@@ -9,23 +9,27 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('users', fn (Blueprint $table) => $table->string('role',20)->default('staff')->change());
+        Schema::table('users', fn (Blueprint $table) => $table->string('role', 20)->default('staff')->change());
+
         DB::transaction(function () {
-            DB::table('users')->where('role', 'admin')->update(['role'=>'super_admin','source'=>'DMS']);
-            DB::table('users')->whereIn('role', ['hr','payroll','registrar'])->update(['role'=>'admin']);
-            DB::table('users')->where('role', 'employee')->update(['role'=>'staff']);
+            // Legacy staff equivalents keep their existing access by becoming the
+            // canonical staff role with the source their old role implied.
+            DB::table('users')->whereIn('role', ['employee', 'teacher', 'hr'])
+                ->update(['role' => 'staff', 'source' => 'EMS']);
+            DB::table('users')->where('role', 'payroll')
+                ->update(['role' => 'staff', 'source' => 'PMS']);
+
+            // Super Admin is deliberately source-less. Legacy admin and registrar
+            // are intentionally left alone until their access rules are agreed.
+            DB::table('users')->where('role', 'super_admin')->update(['source' => null]);
         });
     }
 
     public function down(): void
     {
-        Schema::table('users', fn (Blueprint $table) => $table->string('role',20)->default('employee')->change());
-        DB::transaction(function () {
-            DB::table('users')->where('role', 'staff')->update(['role'=>'employee']);
-            DB::table('users')->where('role', 'admin')->where('source','EMS')->update(['role'=>'hr']);
-            DB::table('users')->where('role', 'admin')->where('source','PMS')->update(['role'=>'payroll']);
-            DB::table('users')->where('role', 'admin')->whereIn('source',['ES','OAS'])->update(['role'=>'registrar']);
-            DB::table('users')->where('role', 'super_admin')->update(['role'=>'admin']);
-        });
+        Schema::table('users', fn (Blueprint $table) => $table->string('role', 20)->default('employee')->change());
+
+        // The role/source mapping is not reversed: the original legacy role cannot
+        // be recovered after records have been edited in the new hierarchy.
     }
 };

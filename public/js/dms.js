@@ -392,11 +392,14 @@
     $('[data-account-role]')
       .on('change', function () {
         const source = $(this).closest('form').find('[data-account-source]');
-        const allowed = { super_admin: ['DMS'] }[this.value] || ['EMS', 'PMS', 'ES', 'OAS'];
+        const isSuperAdmin = this.value === 'super_admin';
+        const allowed = isSuperAdmin ? [] : ['EMS', 'PMS', 'ES', 'OAS'];
         source.find('option').each(function () {
           this.disabled = !allowed.includes(this.value);
         });
-        if (!allowed.includes(source.val())) source.val(allowed[0]);
+        source.prop('disabled', isSuperAdmin);
+        if (isSuperAdmin) source.val('');
+        else if (!allowed.includes(source.val())) source.val(allowed[0]);
       })
       .trigger('change');
     $('[data-password-policy]').on('input', function () {

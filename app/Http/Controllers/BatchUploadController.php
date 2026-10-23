@@ -8,6 +8,7 @@ use App\Services\Access;
 use App\Services\DocumentService;
 use App\Services\HistoryService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -18,10 +19,14 @@ class BatchUploadController extends Controller
         $actor = $request->user();
         $input = $request->validated();
         $source = $input['source'];
-        abort_unless($actor->role === 'super_admin' ? $source === 'DMS' : in_array($source, $actor->sources()), 403);
+        Gate::forUser($actor)->authorize('document.create', $source);
         $parent = $input['folder_id'] ?? null;
         if ($parent) {
-            abort_unless(Access::scope(DB::table('folders'), $actor)->where('id', $parent)->when($actor->role !== 'admin', fn ($q) => $q->where('owner_id', $actor->id))->where('source', $source)->exists(), 403);
+            $folderQuery = Access::scope(DB::table('folders'), $actor)->where('id', $parent)->where('source', $source);
+            if ($actor->source) {
+                $folderQuery->where('source', $actor->source);
+            }
+            abort_unless($folderQuery->exists(), 404);
         }
         $results = [];
         // Each file commits separately; replay the same batch key to resume without duplicate versions.

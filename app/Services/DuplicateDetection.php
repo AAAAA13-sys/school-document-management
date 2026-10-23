@@ -34,13 +34,13 @@ class DuplicateDetection
             // Same visibility rules as workspace listings, shares and downloads.
             $query->whereIn('v.document_id', Access::documents($actor)->select('id'));
         } else {
-            $query->where('d.school_id', $actor->school_id)
-                ->where('d.campus', $actor->campus)
-                ->where('d.source', $actor->source);
+            // Connectors see the same source-scoped Internal/Confidential set as
+            // the API, never Restricted documents.
+            $query->whereIn('v.document_id', Access::visibleTo(DB::table('documents'), $actor)->select('id'));
         }
 
         $rows = $query->get(['v.id as version_id', 'v.document_id', 'v.number', 'v.created_at',
-            'd.title', 'd.owner_id', 'd.source', 'd.school_id', 'd.campus']);
+            'd.title', 'd.owner_id', 'd.source', 'd.classification', 'd.school_id', 'd.campus']);
 
         if ($rows->isEmpty()) {
             return [];
@@ -75,7 +75,15 @@ class DuplicateDetection
         if (! $actor instanceof User) {
             return true;
         }
-        if ($row->owner_id === $actor->id || Access::manages($actor, $row)) {
+        if ($row->owner_id === $actor->id || $actor->isSuperAdmin()) {
+            return true;
+        }
+        if ($row->classification !== 'Restricted' && Access::manages($actor, $row)) {
+            return true;
+        }
+        if ($row->classification === 'Internal' && $actor->canAccessSource($row->source)) {
+            // Source-wide visibility makes a version-pinned cross-source grant
+            // irrelevant for Internal documents already inside the actor's source.
             return true;
         }
         $pinnedVersion = $pinned[$row->document_id] ?? null;
@@ -88,7 +96,10 @@ class DuplicateDetection
         if (! $actor instanceof User) {
             return true;
         }
-        if ($row->owner_id === $actor->id || Access::manages($actor, $row)) {
+        if ($row->owner_id === $actor->id) {
+            return true;
+        }
+        if ($row->classification !== 'Restricted' && Access::manages($actor, $row)) {
             return true;
         }
 

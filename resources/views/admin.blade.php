@@ -22,7 +22,7 @@
         @include ('partials.stats')
         <div class="section-heading">
             <h2>Your connected workspaces</h2>
-            <span>{{ $viewer->role==='super_admin'?'Read-only oversight across all four repositories.':'Manage your assigned repository.' }}</span>
+            <span>{{ $viewer->isSuperAdmin()?'Read-only oversight across all four repositories.':'Manage your assigned repository.' }}</span>
         </div>
         <div class="workspace-grid">
             @foreach (array_intersect_key(config('dms.sources'),array_flip($viewer->sources())) as $code=>$name)
@@ -47,7 +47,7 @@
                             <div>
                                 <strong>{{ ucfirst(str_replace(['.','_'],' ',$event->action)) }}</strong
                                 ><small
-                                    >{{ $event->actor_name??('Staff #'.$event->actor_id) }} · {{ $event->source??'DMS' }} · {{ Illuminate\Support\Carbon::parse($event->created_at)->format('M d, H:i') }}</small
+                                    >{{ $event->actor_name??('Staff #'.$event->actor_id) }} · {{ $event->source??'—' }} · {{ Illuminate\Support\Carbon::parse($event->created_at)->format('M d, H:i') }}</small
                                 >
                             </div>
                         </article>
@@ -66,7 +66,7 @@
                 @endforeach
             </section>
         </div>
-        @if ($viewer->role==='super_admin')
+        @if ($viewer->can('connectors.manage'))
             <a class="btn btn-outline-secondary mt-4" href="/admin/connectors">Manage ERP connections</a>
         @endif
     @elseif ($section==='accounts')
@@ -100,8 +100,8 @@
                             <tr data-staff-status="{{ $person->active?'active':'inactive' }}">
                                 <td><strong>{{ $person->name }}</strong></td>
                                 <td>{{ $person->email }}</td>
-                                <td>{{ config('dms.role_labels.'.$person->role) }}</td>
-                                <td>{{ $person->role==='super_admin'?'DMS':$person->source }}</td>
+                                <td>{{ config('dms.role_labels.'.$person->role, ucfirst(str_replace('_',' ',$person->role))) }}</td>
+                                <td>{{ $person->role==='super_admin'||!$person->source?'All sources':$person->source }}</td>
                                 <td>
                                     <span class="status-badge {{ $person->active?'clean':'neutral' }}">{{ $person->active?'Active':'Inactive' }}</span>
                                 </td>
@@ -344,7 +344,7 @@
                                 <td>
                                     {{ $event->actor_name??($event->actor_id?'Staff #'.$event->actor_id:($event->connector_id?'Connector #'.$event->connector_id:'System')) }}
                                 </td>
-                                <td>{{ $event->source??'DMS' }}</td>
+                                <td>{{ $event->source??'—' }}</td>
                                 <td class="text-nowrap">{{ Illuminate\Support\Carbon::parse($event->created_at)->format('M d, Y · H:i') }}</td>
                                 <td>
                                     <button

@@ -10,7 +10,8 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $t) {
             $t->string('role', 20)->default('employee');
-            $t->string('source', 3)->default('EMS');
+            // Super Admin is source-less and sees all ERP sources.
+            $t->string('source', 3)->nullable()->default(null);
             $t->string('school_id', 64)->default('PLP');
             $t->string('campus', 64)->default('Main');
             $t->boolean('active')->default(true);

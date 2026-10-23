@@ -10,7 +10,7 @@ Scan job delays are 30, 120, 300 and 900 seconds. Failed versions remain blocked
 
 Use `php artisan dms:status` to check database access, queue counts and a real benign-file scan. It does not prove a worker is running; inspect the supervised process and its logs. The scanner fails closed on missing engine, bad/stale signatures, timeout, encrypted content, scan-limit alerts, missing bytes or checksum changes. Keep official engine/signatures updated. Pending/Failed/Quarantined are operational states, not business approvals.
 
-After deploy/config changes: apply new migrations, `php artisan optimize:clear`, rebuild/cache views as desired, and restart workers. Do not regenerate APP_KEY. Do not run test migrations or seeders against dms/live data. `phpunit.xml` forces SQLite :memory:; `phpunit.mysql.xml` forces dms_test. There are no seeded default accounts.
+After deploy/config changes: apply new migrations, `php artisan optimize:clear`, rebuild/cache views as desired, and restart workers. Do not regenerate APP_KEY. Do not run test migrations or seeders against dms/live data. `phpunit.xml` forces SQLite :memory:; `phpunit.mysql.xml` forces dms_test. The optional demo seeder is for isolated development only, overwrites its predefined demo accounts, and must never run against dms/live data; production bootstrap uses `dms:admin`.
 
 ## Consistent backups
 

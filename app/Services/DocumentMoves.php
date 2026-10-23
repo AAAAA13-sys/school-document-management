@@ -16,10 +16,14 @@ class DocumentMoves
     /**
      * @return array{gained: array<int, string>, reduced: array<int, string>, broadened: bool}
      */
-    public static function audienceDelta(object $document, ?string $destinationFolderId): array
+    public static function audienceDelta(object $document, ?string $destinationFolderId, ?string $newClassification = null): array
     {
-        $before = Access::folderAudience($document->folder_id);
-        $after = Access::folderAudience($destinationFolderId);
+        // Folder grants only widen Internal documents. For Confidential and
+        // Restricted documents a move cannot broaden access through a folder.
+        $oldInternal = $document->classification === 'Internal';
+        $newInternal = ($newClassification ?? $document->classification) === 'Internal';
+        $before = $oldInternal ? Access::folderAudience($document->folder_id) : [];
+        $after = $newInternal ? Access::folderAudience($destinationFolderId) : [];
         $candidates = array_values(array_unique(array_merge(array_keys($before), array_keys($after))));
 
         // Recipients whose access does not depend on the folder: explicit document

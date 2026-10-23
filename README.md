@@ -14,7 +14,7 @@ School offices need a controlled place to store supporting files, preserve earli
 | ---- | ------------------- | --------------------------------------------------------------------------------------- |
 | EMS  | Employee Management | Receive and organize approved personnel-related document categories and source history. |
 | PMS  | Payroll Management  | Receive and organize approved payroll-related supporting files and source history.      |
-| ES   | Enrollment System   | Receive and organize approved enrollment-related supporting files and source history.   |
+| ES   | Enrollment          | Receive and organize approved enrollment-related supporting files and source history.   |
 | OAS  | Online Admission    | Receive and organize approved admission-related supporting files and source history.    |
 
 The actual document categories still need confirmation. These descriptions identify integration areas, not an approved inventory of files to collect. The DMS does not recalculate payroll, decide admissions, process enrollment or replace an ERP’s existing record screens.
@@ -32,14 +32,14 @@ The actual document categories still need confirmation. These descriptions ident
 
 | Area               | Current implementation                                                                                                                   | Remaining work or limitation                                                                                                                |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Accounts and roles | Super Admin, Admin and Staff; server-side role checks and distinct controls.                                                             | Confirm the wider faculty/college account model; demonstrate all roles with separate accounts.                                              |
-| Personal workspace | Super Admin has a writable personal DMS workspace, separate from read-only ERP oversight.                                                | This is the explicitly agreed exception to the Super Admin’s routine-document restriction. DMS is not a fifth ERP connector.                |
+| Accounts and roles | Super Admin, Admin and Staff; Laravel policies/Gates plus route middleware enforce the server-side role matrix.                         | Confirm the wider faculty/college account model; demonstrate all roles with separate accounts.                                              |
+| Source oversight   | Super Admin reads every ERP source and its audit log without editing; Admin manages one assigned source; Staff reads its own source.    | DMS is the application, not a document source; there is no personal `/my-workspace` repository.                                             |
 | Uploads            | Plain multi-file drag/drop or file selection; filename titles; selectable classification; two simultaneous requests; retry failed files. | Up to 50 files per upload session and 10 MB per file. Any extension is accepted, but scan results still determine whether it can be served. |
 | File security      | Private UUID storage, detected MIME metadata, SHA-256 integrity checks and queued local ClamAV scanning.                                 | Failed, pending and quarantined versions remain blocked; deployed scanner/worker health still needs verification.                           |
 | Preview            | Local PDF.js viewer; common raster images; escaped text, CSV and JSON previews.                                                          | Office documents and archives remain download-only. No external document viewer receives private files.                                     |
-| Organization       | Folders, rename, classification editing, move menu, document-to-folder drag/drop, stars, trash/restore and Back navigation.              | Folder collaboration and group permissions are not implemented. Moving a file does not create a folder-sharing permission.                  |
-| Sharing            | Named-user document grants: Viewer, Commenter or Editor; optional expiry, revocation and pinned-version access.                          | College/department groups and folder-level inheritance still need a design and implementation.                                              |
-| Integration        | Scoped connector tokens and `/api/v1` document/history endpoints, revision handling and replay protection.                               | Each ERP team must supply and test its adapter. Working endpoints do not mean all four real ERPs are connected.                             |
+| Organization       | Folders, rename, classification editing, move menu, document-to-folder drag/drop, stars, trash/restore and Back navigation.              | Department/group permissions are not implemented. Moving a file does not create a folder-sharing permission.                                |
+| Sharing            | Named-user document and folder grants: Viewer, Commenter or Editor; optional expiry, revocation, pinned versions and folder inheritance. Folder grants expose Internal documents only; only Super Admin can share Restricted. | College/department groups still need a design and implementation.                                                                           |
+| Integration        | Scoped connector tokens and `/api/v1` document/history endpoints, revision handling and replay protection. API read-back exposes Internal/Confidential only.                               | Each ERP team must supply and test its adapter. Working endpoints do not mean all four real ERPs are connected.                             |
 | Duplicate handling | SHA-256 is recorded; idempotency keys prevent duplicate processing of the same submission retry.                                         | **Detecting the same file in separate uploads with different keys is still backlog work.**                                                  |
 | Frontend           | Blade, Bootstrap, jQuery and jQuery UI; role-aware menus; four-second top-right notifications with a progress bar.                       | Complete the mobile/tablet/desktop checklist, consistent zebra table styling and screenshot evidence.                                       |
 
@@ -47,7 +47,7 @@ The actual document categories still need confirmation. These descriptions ident
 
 ### A. Explain the sharing mechanism and its purpose
 
-**Current mechanism:** an owner or authorized content Admin grants a named account Viewer, Commenter or Editor access to a document. Sharing is limited by the existing school/campus scope. Staff cannot change access permissions. There are no public links.
+**Current mechanism:** an Admin managing an Internal/Confidential document grants a named account Viewer, Commenter or Editor access. Only Super Admin can create or revoke a share on a Restricted document. Sharing is limited by the existing school/campus scope; named grants may cross ERP source boundaries. Staff cannot change access permissions. There are no public links.
 
 | Permission | Current document access                                                                                                                        |
 | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -55,7 +55,7 @@ The actual document categories still need confirmation. These descriptions ident
 | Commenter  | Viewer access plus comments.                                                                                                                   |
 | Editor     | Commenter access plus rename and new-version uploads; cannot move, trash, reshare or change classification merely because of the Editor grant. |
 
-Role-based access also applies: an Admin manages content in its assigned ERP source, and Super Admin has read-only oversight of the four ERP repositories. Individual grants are not the only access path for these management roles.
+Role-based access also applies: Super Admin has read-only oversight of all four ERP repositories and the full audit log, except for Restricted sharing; an Admin manages Internal/Confidential content in its assigned ERP source and only owned Restricted documents; Staff can read Internal documents in its own source and only owned or explicitly shared Confidential/Restricted documents, while edits/deletes remain limited to owned or Editor-granted content. Individual grants are not the only access path for these management roles.
 
 **Proposed presentation scenario, pending approval:** a college secretary shares an authorized evaluation/report document with a department head and selected faculty. One person reviews, one comments and one updates the working version. Explain why those recipients need that same document rather than another ERP record or an emailed copy.
 
@@ -88,27 +88,28 @@ Complete this inventory with the professor and ERP teams before expanding the do
 
 The current hierarchy is:
 
-| Existing feature                | Super Admin                              | Admin                        | Staff                                                  |
-| ------------------------------- | ---------------------------------------- | ---------------------------- | ------------------------------------------------------ |
-| Manage Admin accounts and roles | Yes, within school/campus scope          | No                           | No                                                     |
-| Manage Staff accounts/passwords | Yes                                      | Assigned ERP source only     | No                                                     |
-| Manage ERP connectors           | Yes                                      | No                           | No                                                     |
-| Manage ERP documents/folders    | Read-only oversight                      | Assigned ERP source          | Authorized document work; no folder management         |
-| Upload/edit personal DMS files  | Yes, agreed personal-workspace exception | Uses assigned ERP workspace  | Uses assigned ERP workspace                            |
-| Share documents/change grants   | Own personal DMS documents               | Managed repository documents | No                                                     |
-| Change classification           | Own personal DMS documents               | Managed repository documents | Owned documents; an Editor grant alone is insufficient |
-| Audit access                    | Full scoped audit                        | Assigned-source audit        | No administration audit screen                         |
+| Existing feature                | Super Admin                    | Admin                             | Staff                                                  |
+| ------------------------------- | ------------------------------ | --------------------------------- | ------------------------------------------------------ |
+| Manage Admin accounts and roles | Yes, within school/campus scope | No                                | No                                                     |
+| Manage Staff accounts/passwords | Yes                            | Assigned ERP source only          | No                                                     |
+| Manage ERP connectors           | Yes                            | No                                | No                                                     |
+| View ERP documents              | All four sources and classifications, read-only | Assigned source Internal/Confidential; Restricted only if owner or shared | Own source Internal; Confidential/Restricted only if owner or shared |
+| Upload/edit/delete documents    | No (read-only oversight)       | Assigned source Internal/Confidential; owned Restricted; Editor share edits content only | Own documents; Editor share edits content only |
+| Manage folders                  | No (read-only oversight)       | Assigned source                   | No                                                     |
+| Share documents/change grants   | Restricted documents only      | Assigned-source Internal/Confidential documents/folders; never Restricted | No                                                     |
+| Change classification           | No                             | Own documents at any level; assigned-source Internal/Confidential documents otherwise | Owned documents; an Editor grant alone is insufficient |
+| Audit access                    | Full scoped audit              | Assigned-source audit; hidden-document entries filtered | No administration audit screen                         |
 
-Staff can upload and work with owned or explicitly shared documents. They cannot browse unrelated documents merely because they have an account in the same ERP workspace.
+Internal documents are readable by active Staff and Admins in their assigned ERP source and by Super Admin. Confidential documents are visible to their owner, the Admin of that source, Super Admin and explicit document recipients; Staff need ownership or an explicit document grant. Restricted documents are visible only to their owner, Super Admin and explicit document recipients. Named shares and folder grants may cross ERP sources as the documented exception, but folder grants widen Internal access only. Staff editing/deleting remains limited to owned documents; an Editor grant permits editing content but not deleting. Admins manage Internal/Confidential documents in their source and only owned Restricted documents.
 
-**Classification is currently metadata with validated values:** Internal, Confidential and Restricted. It does not automatically create or revoke sharing grants. Access is enforced through roles, ownership, scope and explicit grants. Do not present the classification label alone as a complete confidentiality policy.
+**Classification is enforced server-side:** Internal, Confidential and Restricted all use one reusable visibility scope, and the document policy follows the same rules. Only Super Admin can create or revoke a Restricted document share; Super Admin remains read-only for other document writes. Hidden documents return 404 and do not appear in listings, search, counts, folder totals, downloads, duplicate warnings, API read-back or source audit entries. Existing explicit classifications are preserved; the database default for unspecified rows is Internal.
 
 - [x] Implement the three-role hierarchy and restrict controls on the server as well as in the UI.
 - [x] Provide classification selection during uploads and authorized editing afterward.
-- [ ] Agree what each classification means for viewing, editing, sharing and retention.
-- [ ] Decide and implement any additional classification-based access rules.
+- [x] Agree what each classification means for viewing, editing and sharing; retention remains to be agreed.
+- [x] Implement classification-based access rules for workspaces, search, folders, sharing, history/events, downloads, API read-back, counts and audit.
 - [ ] Demonstrate Super Admin, Admin and Staff interfaces separately.
-- [ ] Prove Staff cannot access administration URLs or unshared documents through direct requests.
+- [x] Prove Staff cannot access administration URLs or unshared documents through direct requests.
 
 Approval workflows, 2FA/SSO, new notification channels and new system-settings modules were deferred from the earlier hierarchy pass. They are not implemented merely because they appeared in a role checklist.
 
@@ -124,7 +125,7 @@ The professor’s proposed CCS-faculty collaboration needs **folder/group permis
 - [ ] Define revocation, classification conflicts and audit requirements.
 - [ ] Revise the scope/specification, then implement and test the agreed model.
 
-**Current limitation:** moving a document to a folder does not grant that folder’s collaborators access, because shared-folder membership does not yet exist.
+**Current limitation:** folder grants cover named accounts only and expose Internal documents; college/department group membership is not implemented.
 
 ### E. Implement duplicate-file detection
 
@@ -190,7 +191,7 @@ Include this evidence set. Use synthetic/redacted data and never expose password
 
 | Screenshot or demonstration                                | Code to explain                                                                                                              | Rationale to include                                                                       |
 | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Different role dashboards/navigation                       | `resources/views/layout.blade.php`, `app/Http/Controllers/AdminController.php`, `app/Http/Middleware/RepositoryReadOnly.php` | Different controls plus server-side authorization; hidden controls alone are insufficient. |
+| Different role dashboards/navigation                       | `resources/views/layout.blade.php`, `app/Policies`, `app/Providers/AppServiceProvider.php`, `routes/web.php`                  | Different controls plus policy/Gate enforcement; hidden controls alone are insufficient.    |
 | Multi-file upload and classification                       | `resources/views/partials/upload.blade.php`, `public/js/dms.js`, `app/Http/Requests/UploadRequest.php`                       | jQuery queues separate uploads; validated metadata and automatic scanning.                 |
 | Drag a document into an existing folder; use the move menu | `public/js/dms.js`, `resources/views/partials/documents.blade.php`, `app/Http/Controllers/DocumentController.php`            | jQuery UI interaction with the same validated/revision-checked server operation.           |
 | Four-second top-right notification                         | `public/js/dms.js`, `resources/views/layout.blade.php`                                                                       | jQuery UI progress bar provides visible feedback and dismissal timing.                     |
@@ -238,7 +239,7 @@ For the professor’s zebra-table requirement, add and verify `.table-striped` w
 3. Demonstrate a new version, authorized editing, search and moving an owned file.
 4. Sign in as Admin; show source-scoped staff/content management and named-user sharing.
 5. Use recipient accounts to demonstrate allowed viewing/editing and a blocked action.
-6. Sign in as Super Admin; show system administration, ERP oversight, audit and the separate personal workspace.
+6. Sign in as Super Admin; show system administration, read-only ERP oversight, full audit and account management.
 7. Show folder collaboration and duplicate detection only once implemented; otherwise identify the exact remaining work.
 8. Show mobile/tablet/desktop screenshots and explain the actual Bootstrap/jQuery code.
 
