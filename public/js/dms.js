@@ -17,6 +17,16 @@
     /[^A-Za-z0-9]/.test(value);
   // Exposed only as pure validators for the dependency-free frontend checks.
   window.DmsValidation = { fileError, strongPassword };
+  window.DmsStatusBadge = {
+    update: function (el, status) {
+      const $el = $(el);
+      const s = String(status || '').toLowerCase();
+      $el.removeClass('clean pending failed quarantined neutral')
+        .addClass(s)
+        .text(status)
+        .attr('data-status', status);
+    },
+  };
   window.DmsUploadQueue = async function (items, send, update) {
     async function worker() {
       let item;
@@ -581,6 +591,8 @@
       const q = String(
         $('[data-search-form] input[type="search"]').val() || ''
       ).toLocaleLowerCase();
+      const filterClass = $('#document-class').val() || '';
+      const filterStatus = $('#document-status').val() || '';
       let visible = 0;
       $('.document-row').each(function () {
         const row = $(this);
@@ -593,7 +605,11 @@
         const matches = (row.attr('data-title') + ' ' + row.attr('data-reference'))
           .toLocaleLowerCase()
           .includes(q);
-        const show = matches && visibleByState && (view !== 'starred' || starred);
+        const rowClass = row.find('.classification').text().trim();
+        const rowStatus = row.attr('data-status') || '';
+        const matchesClass = !filterClass || rowClass === filterClass;
+        const matchesStatus = !filterStatus || rowStatus.toLowerCase() === filterStatus.toLowerCase();
+        const show = matches && visibleByState && (view !== 'starred' || starred) && matchesClass && matchesStatus;
         row.prop('hidden', !show);
         if (show) visible++;
       });
@@ -606,10 +622,12 @@
         const row = $(this);
         const source = $('#repository-source,#audit-source').val() || '';
         const classification = $('#repository-class').val() || '';
+        const status = $('#repository-status').val() || '';
         const show =
           row.text().toLocaleLowerCase().includes(q) &&
           (!source || row.attr('data-source') === source) &&
           (!classification || row.attr('data-classification') === classification) &&
+          (!status || row.attr('data-doc-status') === status) &&
           (staffFilter === 'all' || row.attr('data-staff-status') === staffFilter);
         row.prop('hidden', !show);
       });
@@ -629,7 +647,7 @@
       filterTimer = setTimeout(filter, 180);
     };
     $('[data-search-form] input[type="search"]').on('input', filterSoon);
-    $('#repository-source,#repository-class,#audit-source').on('change', filter);
+    $('#repository-source,#repository-class,#repository-status,#audit-source,#document-class,#document-status').on('change', filter);
     $('[data-staff-filter]').on('click', function () {
       staffFilter = this.dataset.staffFilter;
       $('[data-staff-filter]').removeClass('active').attr('aria-pressed', 'false');
@@ -644,6 +662,69 @@
       const url = new URL(location.href);
       url.searchParams.set('layout', this.dataset.layout);
       history.replaceState(null, '', url);
+    });
+
+    $('.document-column-headings .sort-header').on('click keydown', function (event) {
+      if (event.type === 'keydown' && !['Enter', ' '].includes(event.key)) return;
+      if (event.type === 'keydown') event.preventDefault();
+      const column = this.dataset.sort;
+      const currentSort = this.getAttribute('aria-sort');
+      const newSort = currentSort === 'ascending' ? 'descending' : 'ascending';
+      $('.document-column-headings .sort-header').attr('aria-sort', 'none');
+      this.setAttribute('aria-sort', newSort);
+
+      const items = $('#document-items');
+      const rows = items.children('.document-row').get();
+      rows.sort((a, b) => {
+        let valA = '', valB = '';
+        if (column === 'title') {
+          valA = (a.dataset.title || '').toLowerCase();
+          valB = (b.dataset.title || '').toLowerCase();
+        } else if (column === 'class') {
+          valA = $(a).find('.classification').text().trim().toLowerCase();
+          valB = $(b).find('.classification').text().trim().toLowerCase();
+        } else if (column === 'date') {
+          valA = $(a).find('time').attr('datetime') || '';
+          valB = $(b).find('time').attr('datetime') || '';
+        } else if (column === 'status') {
+          valA = (a.dataset.status || '').toLowerCase();
+          valB = (b.dataset.status || '').toLowerCase();
+        }
+        let comp = 0;
+        if (column === 'date') {
+          comp = new Date(valA).getTime() - new Date(valB).getTime();
+        } else {
+          comp = valA.localeCompare(valB);
+        }
+        return newSort === 'ascending' ? comp : -comp;
+      });
+      $.each(rows, function (_, row) {
+        items.append(row);
+      });
+      restripeDocuments();
+    });
+
+    $('table[data-filter-table] th.sort-header').on('click keydown', function (event) {
+      if (event.type === 'keydown' && !['Enter', ' '].includes(event.key)) return;
+      if (event.type === 'keydown') event.preventDefault();
+      const colIndex = parseInt(this.dataset.sortTable, 10);
+      const currentSort = this.getAttribute('aria-sort');
+      const newSort = currentSort === 'ascending' ? 'descending' : 'ascending';
+      $(this).closest('tr').find('th.sort-header').attr('aria-sort', 'none');
+      this.setAttribute('aria-sort', newSort);
+
+      const table = $(this).closest('table');
+      const tbody = table.find('tbody');
+      const rows = tbody.find('tr:not(.is-empty)').get();
+      rows.sort((a, b) => {
+        const valA = $(a).children('td').eq(colIndex).text().trim().toLowerCase();
+        const valB = $(b).children('td').eq(colIndex).text().trim().toLowerCase();
+        const comp = valA.localeCompare(valB);
+        return newSort === 'ascending' ? comp : -comp;
+      });
+      $.each(rows, function (_, row) {
+        tbody.append(row);
+      });
     });
     const multiUpload = $('#upload-form').attr('data-multi-upload') === 'true';
     const uploads = [];
@@ -703,7 +784,35 @@
     async function startUploads() {
       if (uploading) return;
       if (preview) {
-        toast('Frontend preview: files are not uploaded.');
+        uploading = true;
+        renderUploads();
+        const pendingItems = uploads.filter((item) => item.status === 'pending');
+        for (const item of pendingItems) {
+          item.status = 'uploading';
+          renderUploads();
+          await new Promise((resolve) => setTimeout(resolve, 250));
+          item.status = 'saved';
+          item.error = '';
+          const newDoc = {
+            id: item.key,
+            title: item.file.name.replace(/\.[^/.]+$/, '').slice(0, 200),
+            size: item.file.size,
+            ext: (item.file.name.split('.').pop() || 'FILE').toUpperCase(),
+            classification: item.classification || $('#upload-class').val() || 'Confidential',
+            status: 'Pending',
+            date: 'Today',
+            datetime: new Date().toISOString(),
+          };
+          state._preview_docs = state._preview_docs || [];
+          state._preview_docs.unshift(newDoc);
+          save();
+          renderUploads();
+        }
+        uploading = false;
+        renderUploads();
+        injectPreviewDocs();
+        filter();
+        toast('Intake complete: ' + pendingItems.length + ' file(s) queued for security scan.');
         return;
       }
       uploading = true;
@@ -782,7 +891,9 @@
         }
       })
       .on('hidden.bs.modal', () => {
-        if (multiUpload && uploads.some((item) => item.status === 'saved')) location.reload();
+        if (multiUpload && uploads.some((item) => item.status === 'saved')) {
+          if (!preview) location.reload();
+        }
       });
     function selectedFile() {
       const input = $('#upload-file')[0];
@@ -855,6 +966,60 @@
           if (this.tagName === 'INPUT') this.value = state[detailId].title;
           else $(this).text(state[detailId].title);
         });
+    }
+    function injectPreviewDocs() {
+      if (!preview || !state._preview_docs?.length) return;
+      const items = $('#document-items');
+      if (!items.length) return;
+      state._preview_docs.forEach((doc) => {
+        if ($('.document-row[data-document-id="' + doc.id + '"]').length) return;
+        const sizeKb = (doc.size / 1024).toFixed(doc.size % 1024 === 0 ? 0 : 1);
+        const row = $(`
+          <article
+            class="document-row"
+            data-document-id="${doc.id}"
+            data-revision="1"
+            data-folder-id=""
+            data-can-move="true"
+            data-title="${$('<div>').text(doc.title).html()}"
+            data-reference=""
+            data-starred="false"
+            data-trashed="false"
+            data-status="Pending"
+            data-source="${document.body.dataset.source || 'EMS'}">
+            <div class="file-cell">
+              <span class="file-icon">${doc.ext}</span>
+              <div>
+                <a class="document-title" href="#!">${$('<div>').text(doc.title).html()}</a>
+                <small>${sizeKb} KB · Version 1</small>
+              </div>
+            </div>
+            <span class="classification class-${doc.classification.toLowerCase()}" data-class="${doc.classification}">${doc.classification}</span>
+            <time class="modified-date" datetime="${doc.datetime}">${doc.date}</time>
+            <span class="status-badge pending" data-status="Pending">Pending</span>
+            <div class="dropdown document-actions">
+              <button
+                class="icon-button document-menu-toggle"
+                type="button"
+                id="document-actions-${doc.id}"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+                aria-label="Actions for ${$('<div>').text(doc.title).html()}">
+                <span class="menu-dots" aria-hidden="true">⋯</span>
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="document-actions-${doc.id}">
+                <li>
+                  <span class="dropdown-item text-muted">Preview document</span>
+                </li>
+              </ul>
+            </div>
+          </article>
+        `);
+        const headings = items.find('.document-column-headings');
+        if (headings.length) headings.after(row);
+        else items.prepend(row);
+      });
+      restripeDocuments();
     }
     $('#folder-upload-form').on('submit', function (event) {
       event.preventDefault();
@@ -1158,6 +1323,7 @@
           : 'Form validated in this frontend preview.'
       );
     });
+    injectPreviewDocs();
     filter();
   });
 })(jQuery);

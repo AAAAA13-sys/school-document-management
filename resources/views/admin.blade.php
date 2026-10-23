@@ -219,30 +219,36 @@
                 <option>Internal</option>
                 <option>Confidential</option>
                 <option>Restricted</option>
+            </select
+            ><label class="visually-hidden" for="repository-status">Status</label
+            ><select id="repository-status" name="status" class="form-select filter-select">
+                <option value="">All statuses</option>
+                <option value="Active">Active</option>
+                <option value="Trashed">Trashed</option>
             </select>
         </form>
         <section class="panel">
             <div class="panel-header"><h2>School documents</h2></div>
             <div class="table-responsive">
-                <table class="table table-zebra" data-filter-table>
+                <table class="table table-zebra table-sticky" data-filter-table>
                     <thead>
                         <tr>
-                            <th>Document</th>
-                            <th>Source</th>
-                            <th>Classification</th>
-                            <th>Status</th>
-                            <th>Updated</th>
+                            <th scope="col" class="sort-header" data-sort-table="0" role="columnheader" tabindex="0" aria-sort="none">Document <span class="sort-indicator" aria-hidden="true"></span></th>
+                            <th scope="col" class="sort-header" data-sort-table="1" role="columnheader" tabindex="0" aria-sort="none">Source <span class="sort-indicator" aria-hidden="true"></span></th>
+                            <th scope="col" class="sort-header" data-sort-table="2" role="columnheader" tabindex="0" aria-sort="none">Classification <span class="sort-indicator" aria-hidden="true"></span></th>
+                            <th scope="col" class="sort-header" data-sort-table="3" role="columnheader" tabindex="0" aria-sort="none">Status <span class="sort-indicator" aria-hidden="true"></span></th>
+                            <th scope="col" class="sort-header" data-sort-table="4" role="columnheader" tabindex="0" aria-sort="none">Updated <span class="sort-indicator" aria-hidden="true"></span></th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse ($documents as $item)
-                            <tr data-source="{{ $item->source }}" data-classification="{{ $item->classification }}">
+                            <tr data-source="{{ $item->source }}" data-classification="{{ $item->classification }}" data-doc-status="{{ $item->trashed_at?'Trashed':'Active' }}">
                                 <td>
                                     <a class="document-title" href="/documents/{{ $item->id }}">{{ $item->title }}</a>
                                 </td>
                                 <td>{{ $item->source }}</td>
-                                <td>{{ $item->classification }}</td>
-                                <td>{{ $item->trashed_at?'Trashed':'Active' }}</td>
+                                <td><span class="classification class-{{ strtolower($item->classification) }}">{{ $item->classification }}</span></td>
+                                <td><span class="status-badge {{ $item->trashed_at?'neutral':'clean' }}">{{ $item->trashed_at?'Trashed':'Active' }}</span></td>
                                 <td>{{ Illuminate\Support\Carbon::parse($item->updated_at)->format('M d, Y') }}</td>
                             </tr>
                         @empty
