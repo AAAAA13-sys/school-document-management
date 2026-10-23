@@ -78,6 +78,11 @@ class DuplicateDetection
         if ($row->owner_id === $actor->id || Access::manages($actor, $row)) {
             return true;
         }
+        if ($actor->isSuperAdmin() || $actor->canAccessSource($row->source)) {
+            // Source-wide visibility makes a version-pinned cross-source grant
+            // irrelevant for documents already inside the actor's source.
+            return true;
+        }
         $pinnedVersion = $pinned[$row->document_id] ?? null;
 
         return $pinnedVersion === null || $pinnedVersion === $row->version_id;

@@ -19,15 +19,21 @@
 </head>
 @php
     $viewer = $viewer ?? auth()->user();
-    $personalWorkspace = $personalWorkspace ?? ($source === 'DMS' && $section === 'documents');
-    $isAdmin = $source === 'DMS' && !$personalWorkspace;
-    $navSource=in_array($source,$viewer->sources())?$source:$viewer->source;
-    $root = $isAdmin ? '/admin' : ($personalWorkspace && $viewer->role==='super_admin' ? '/my-workspace' : '/workspaces/'.strtolower($navSource));
+    $isAdmin = $isAdmin ?? (request()->is('admin') || request()->is('admin/*') || ($section === 'account' && ($viewer->isSuperAdmin() || $viewer->isAdmin())));
+    $sources = $viewer->sources();
+    $navSource = in_array($source ?? null, $sources, true) ? $source : ($sources[0] ?? $viewer->source ?? 'EMS');
+    $root = $isAdmin ? '/admin' : '/workspaces/'.strtolower($navSource);
+    $workspaceName = $isAdmin ? 'Administration' : (config('dms.sources.'.$source) ?? 'Workspace');
+    $workspaceCode = $isAdmin ? 'ADMIN' : $source;
     $libraryView = request('view', 'all');
     $roleName = config('dms.role_labels.'.$viewer->role);
     $initials = collect(explode(' ', $viewer->name))->take(2)->map(fn($s)=>mb_strtoupper(mb_substr($s,0,1)))->join('');
-    $sections = $isAdmin ? ['overview'=>['home','Overview'],'repository'=>['file','School repository'],'accounts'=>['users','Staff accounts'],'connectors'=>['link','ERP connectors'],'scans'=>['shield','File security'],'audit'=>['history','Audit trail']] : ['overview'=>['home','Overview'],'documents'=>['file','Documents'],'history'=>['history','Received history'],'snapshots'=>['link','Current records']];
-    if ($personalWorkspace) $sections = ['overview'=>['home','Overview'],'documents'=>['file','Documents']];
+    $sections = $isAdmin
+        ? ['overview'=>['home','Overview'],'repository'=>['file','School repository'],'accounts'=>['users','Staff accounts'],'connectors'=>['link','ERP connectors'],'scans'=>['shield','File security'],'audit'=>['history','Audit trail']]
+        : ['overview'=>['home','Overview'],'documents'=>['file','Documents'],'history'=>['history','Received history'],'snapshots'=>['link','Current records']];
+    $libraryLinks = $viewer->isSuperAdmin()
+        ? ['all'=>['file','All documents'],'trash'=>['trash','Trash']]
+        : ['mine'=>['folder','My documents'],'shared'=>['users','Shared with me'],'starred'=>['star','Starred'],'trash'=>['trash','Trash']];
 @endphp
 <body data-section="{{ $section }}" data-source="{{ $source }}" data-preview="{{ !empty($frontendPreview) ? 'true':'false' }}">
     <a class="skip-link" href="#main">Skip to content</a>
@@ -37,30 +43,29 @@
         >
         <div class="workspace-label">{{ $isAdmin ? 'ADMINISTRATION':'YOUR WORKSPACE' }}</div>
         <div class="workspace-identity">
-            <span class="source-icon">{{ $source }}</span>
+            <span class="source-icon">{{ $workspaceCode }}</span>
             <div>
-                <strong>{{ $isAdmin ? 'Administration':($personalWorkspace?'My workspace':config('dms.sources.'.$source)) }}</strong
+                <strong>{{ $workspaceName }}</strong
                 ><small>{{ $viewer->campus }} campus</small>
             </div>
         </div>
         <nav class="main-nav">
-            @if ($viewer->role==='super_admin' && !$personalWorkspace)
-                <a href="/my-workspace"><x-figma-icon name="folder" /><span>My workspace</span></a>
-            @endif
             @foreach ($sections as $key=>[$glyph,$label])
-                @if (($viewer->role!=='staff' || !in_array($key,['history','snapshots'])) && !($viewer->role==='admin' && $key==='connectors'))
-                    @if ($isAdmin && $key==='scans')
-                        <span class="nav-caption governance-caption">GOVERNANCE</span>
-                    @endif
-                    @php $active=$section===$key && ($key!=='documents' || $libraryView==='all'); @endphp
-                    <a href="{{ $root }}/{{ $key }}" class="{{ $active?'active':'' }}" @if ($active) aria-current="page" @endif
-                        ><x-figma-icon :name="$glyph.($active?'-active':'')" /><span>{{ $label }}</span></a
-                    >
+                @continue($key === 'connectors' && ! $viewer->can('connectors.manage'))
+                @continue($key === 'accounts' && ! $viewer->can('accounts.manage'))
+                @continue($key === 'history' && ! $viewer->can('workspace.history'))
+                @continue($key === 'snapshots' && ! $viewer->can('workspace.history'))
+                @if ($isAdmin && $key==='scans')
+                    <span class="nav-caption governance-caption">GOVERNANCE</span>
                 @endif
+                @php $active=$section===$key && ($key!=='documents' || $libraryView==='all'); @endphp
+                <a href="{{ $root }}/{{ $key }}" class="{{ $active?'active':'' }}" @if ($active) aria-current="page" @endif
+                    ><x-figma-icon :name="$glyph.($active?'-active':'')" /><span>{{ $label }}</span></a
+                >
             @endforeach
             @unless ($isAdmin)
-                <span class="nav-caption">{{ $viewer->role==='super_admin' && !$personalWorkspace?'REPOSITORY':'MY LIBRARY' }}</span>
-                @foreach (($viewer->role==='super_admin' && !$personalWorkspace?['trash'=>['trash','Trash']]:['mine'=>['folder','My documents'],'shared'=>['users','Shared with me'],'starred'=>['star','Starred'],'trash'=>['trash','Trash']]) as $key=>[$glyph,$label])
+                <span class="nav-caption">{{ $viewer->isSuperAdmin() ? 'REPOSITORY':'MY LIBRARY' }}</span>
+                @foreach ($libraryLinks as $key=>[$glyph,$label])
                     @php $active=$section==='documents' && $libraryView===$key; @endphp
                     <a href="{{ $root }}/documents?view={{ $key }}" class="{{ $active?'active':'' }}" @if ($active) aria-current="page" @endif
                         ><x-figma-icon :name="$glyph.($active && in_array($glyph,['users','trash'])?'-active':'')" /><span>{{ $label }}</span></a
@@ -69,7 +74,7 @@
             @endunless
         </nav>
         <div class="sidebar-bottom">
-            @if (in_array($viewer->role,['super_admin','admin']) && !$isAdmin)
+            @if (($viewer->isSuperAdmin() || $viewer->isAdmin()) && !$isAdmin)
                 <a class="return-admin" href="/admin">← Administration</a>
             @endif
 
@@ -94,8 +99,8 @@
             </button>
             <a class="mobile-brand" href="/">PLP Documents</a>
             <div class="breadcrumb-line">
-                @if ($personalWorkspace)
-                    <a href="/my-workspace">My workspace</a>
+                @if ($isAdmin)
+                    <a href="/admin">Administration</a>
                 @else
                     <a href="/">School ERP</a
                     ><span>/</span
@@ -113,7 +118,7 @@
                     data-bs-content="File scanning runs automatically after upload. Pending versions remain blocked until clean."
                     aria-label="Notifications">
                     <x-figma-icon name="bell" /></button
-                ><span class="top-avatar">{{ $initials }}</span><span class="mobile-source">{{ $source }}</span>
+                ><span class="top-avatar">{{ $initials }}</span><span class="mobile-source">{{ $workspaceCode }}</span>
             </div>
         </header>
         <main id="main" tabindex="-1">
@@ -122,11 +127,9 @@
             // deep link needs an explicit way out. Everywhere else navigation is
             // carried by the sidebar plus the "Up to ..." folder tile.
             $showBack=isset($doc);
-            $backFallback=$isAdmin?($viewer->role==='super_admin'?'/my-workspace':'/workspaces/'.strtolower($viewer->source)):$root.'/overview';
+            $backFallback=$root.'/overview';
             if(isset($doc)) $backFallback=$root.'/documents'.($doc->folder_id?'?folder='.$doc->folder_id:'');
             elseif(isset($folder) && $folder) $backFallback=$root.'/documents'.($folder->parent_id?'?folder='.$folder->parent_id:'');
-            elseif(!$isAdmin && $section==='overview' && in_array($viewer->role,['super_admin','admin'])) $backFallback='/admin';
-            if(isset($doc) && $doc->owner_id!==$viewer->id && ($viewer->role==='staff' || $source==='DMS' || !in_array($source,$viewer->sources()))) $backFallback=$root.'/documents?view=shared';
             if($section==='account') $backFallback='/';
         @endphp
             @if ($showBack)
@@ -151,7 +154,7 @@
         <div class="preview-bar">
             <span>Frontend preview · Sample data</span><label class="visually-hidden" for="preview-workspace">Preview workspace</label
             ><select id="preview-workspace" aria-label="Preview workspace">
-                <option value="/admin" @selected ($isAdmin)>DMS Admin</option>
+                <option value="/admin" @selected ($isAdmin)>Administration</option>
                 @foreach (config('dms.sources') as $code=>$name)
                     <option value="/workspaces/{{ strtolower($code) }}" @selected ($source===$code)>{{ $code }}</option>
                 @endforeach

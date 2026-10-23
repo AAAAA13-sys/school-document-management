@@ -39,9 +39,9 @@ class Access
     {
         return self::scope(DB::table('documents'), $user)->where(function (Builder $q) use ($user) {
             $q->where('owner_id', $user->id);
-            if (! $user->isStaff()) {
-                $q->orWhereIn('source', $user->sources());
-            }
+            // Staff can read every document in their source; edit/delete authority
+            // remains with the owner, a scoped Admin, or an explicit Editor grant.
+            $q->orWhereIn('source', $user->sources());
             $q->orWhereIn('id', DB::table('shares')->select('document_id')->where('recipient_id', $user->id)
                 ->whereNull('revoked_at')->where(fn ($s) => $s->whereNull('expires_at')->orWhere('expires_at', '>', now())));
             // Folder grants are inherited by the granted folder and every descendant.

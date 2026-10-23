@@ -7,6 +7,7 @@ use App\Jobs\ScanDocumentVersion;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -54,7 +55,7 @@ class DocumentService
                     DB::table('documents')->where('id', $id)->update(['revision' => $doc->revision + 1, 'updated_at' => now()]);
                 } else {
                     if ($actor instanceof User) {
-                        abort_unless($actor->isSuperAdmin() ? $source === 'DMS' : $actor->canAccessSource($source), 403);
+                        Gate::forUser($actor)->authorize('document.create', $source);
                     }
                     if (! empty($input['folder_id'])) {
                         $folder = Access::scope(DB::table('folders'), $actor)->where('id', $input['folder_id'])->where('source', $source)->first();
@@ -125,8 +126,9 @@ class DocumentService
         abort_unless($actor->school_id === $doc->school_id && $actor->campus === $doc->campus, 404);
         if ($actor instanceof User) {
             Access::document($actor, $doc->id);
+            Gate::forUser($actor)->authorize('document.view', $doc);
             if ($edit) {
-                Access::edit($actor, $doc);
+                Gate::forUser($actor)->authorize('document.edit', $doc);
             }
         } else {
             abort_unless($actor->source === $doc->source, 404);
@@ -139,7 +141,8 @@ class DocumentService
         $doc = DB::table('documents')->where('id', $version->document_id)->first() ?? abort(404);
         $this->authorize($actor, $doc);
         abort_if($doc->trashed_at, 404);
-        if ($actor instanceof User && $doc->owner_id !== $actor->id && ! ($actor->isSuperAdmin() || (! $actor->isStaff() && $actor->canAccessSource($doc->source)))) {
+        if ($actor instanceof User && $doc->owner_id !== $actor->id
+            && ! Gate::forUser($actor)->allows('document.all-versions', $doc)) {
             $grant = Access::grant($actor, $doc);
             abort_if($grant?->version_id && $grant->version_id !== $versionId, 403);
         }

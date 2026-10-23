@@ -1,4 +1,4 @@
-@if ($canManageFolder && $viewer->role !== 'staff')
+@if ($canManageFolder)
     <div class="modal fade" id="folder-share-modal" tabindex="-1" aria-labelledby="folder-share-title" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">

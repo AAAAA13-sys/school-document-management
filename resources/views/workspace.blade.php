@@ -1,15 +1,16 @@
 @extends ('layout')
 @php $viewer=$viewer??auth()->user(); @endphp
-@section ('title',($source==='DMS'?'My workspace':config('dms.sources.'.$source)).' · '.ucfirst($section))
+@section ('title',config('dms.sources.'.$source).' · '.ucfirst($section))
 @section ('content')
     @php
-    $root=$source==='DMS'?'/my-workspace':'/workspaces/'.strtolower($source);
-    $personalWorkspace=$source==='DMS';
-    $readOnly=$viewer->role==='super_admin' && $source!=='DMS';
+    $root='/workspaces/'.strtolower($source);
+    $readOnly=$viewer->isSuperAdmin();
+    $canWrite=$viewer->can('documents.write');
+    $canManageFolders=$viewer->can('folders.manage');
     $view=$view??'all';
     $titles=['all'=>'Documents','mine'=>'My documents','shared'=>'Shared with me','starred'=>'Starred documents','trash'=>'Trash'];
-    $title=match($section){'overview'=>$source==='DMS'?'My workspace':'Your workspace, organized.','history'=>'Received history','snapshots'=>'Current records',default=>$titles[$view]};
-    $subtitle=match($section){'overview'=>$source==='DMS'?'Your personal documents, folders and shared files.':'Keep every document connected, protected, and easy to find.','history'=>'Every source event is preserved, including events that arrive out of order.','snapshots'=>'The latest received state of each source record.',default=>'Your files, organized and securely stored.'};
+    $title=match($section){'overview'=>'Your workspace, organized.','history'=>'Received history','snapshots'=>'Current records',default=>$titles[$view]};
+    $subtitle=match($section){'overview'=>'Keep every document connected, protected, and easy to find.','history'=>'Every source event is preserved, including events that arrive out of order.','snapshots'=>'The latest received state of each source record.',default=>'Your files, organized and securely stored.'};
 @endphp
     <div class="page-heading">
         <div>
@@ -17,7 +18,7 @@
             <h1>{{ $title }}</h1>
             <p>{{ $subtitle }}</p>
         </div>
-        @if (!$readOnly && in_array($section,['overview','documents']))
+        @if ($canWrite && in_array($section,['overview','documents']))
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#upload-modal">Upload document</button>
         @endif
     </div>
@@ -61,7 +62,7 @@
                     maxlength="200"
                     placeholder="Search documents or reference…"
                     autocomplete="off" />
-                @if (!$readOnly && $viewer->role!=='staff')
+                @if ($canManageFolders)
                     <button
                         type="button"
                         class="icon-button mobile-folder-button"
@@ -77,10 +78,10 @@
                 <input type="hidden" name="folder" value="{{ $folder->id }}" />
             @endif
             <div class="toolbar-actions">
-                @if (!$readOnly && $viewer->role!=='staff')
+                @if ($canManageFolders)
                     <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#folder-upload-modal">Upload folder</button>
                 @endif
-                @if (!$readOnly && $viewer->role!=='staff')
+                @if ($canManageFolders)
                     <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#folder-modal">New folder</button>
                 @endif
                 <div class="view-toggle" role="group" aria-label="Document layout">
@@ -110,7 +111,7 @@
                     ><span>/</span>
                 @endif
                 <strong>{{ $folder->name }}</strong>
-                @if (!$readOnly && $canManageFolder && $viewer->role!=='staff')
+                @if ($canManageFolder)
                     <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" data-bs-toggle="modal" data-bs-target="#folder-edit-modal">
                         Edit folder
                     </button>
@@ -254,9 +255,9 @@
     @endif
 @endsection
 @push ('dialogs')
-    @if (!$readOnly && in_array($section,['overview','documents']))
+    @if ($canWrite && in_array($section,['overview','documents']))
         @include ('partials.upload')
-        @if ($viewer->role!=='staff')
+        @if ($canManageFolders)
             @include ('partials.folder-upload')
             <div class="modal fade" id="folder-modal" tabindex="-1" aria-labelledby="folder-title" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered">

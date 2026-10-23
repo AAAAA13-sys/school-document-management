@@ -1,4 +1,4 @@
-@php $repositoryReadOnly=$viewer->role==='super_admin' && $source!=='DMS'; @endphp
+@php $repositoryReadOnly=$viewer->isSuperAdmin(); @endphp
 <section class="panel documents-panel">
     <div class="panel-header">
         <h2>{{ $section==='overview'?'Recent documents':($view==='trash'?'Trashed documents':($view==='shared'?'Shared documents':'All documents')) }}</h2>
@@ -11,7 +11,7 @@
             <span>Document name</span><span>Classification</span><span>Last updated</span><span>Scan status</span><span></span>
         </div>
         @foreach ($documents as $item)
-            @php $v=$versions[$item->id]??null; $canMove=!$repositoryReadOnly && !$item->trashed_at && ($item->owner_id===$viewer->id || \App\Services\Access::manages($viewer,$item)); @endphp
+            @php $v=$versions[$item->id]??null; $canMove=!$item->trashed_at && $viewer->can('document.manage',$item); @endphp
             <article
                 class="document-row"
                 data-document-id="{{ $item->id }}"
@@ -52,7 +52,7 @@
                         <li>
                             <a class="dropdown-item" href="/documents/{{ $item->id }}"><x-figma-icon name="file" />Open document</a>
                         </li>
-                        @if (!$repositoryReadOnly)
+                        @if ($viewer->can('document.star',$item))
                             <li>
                                 <form
                                     method="post"
@@ -75,8 +75,9 @@
                                     </button>
                                 </form>
                             </li>
-                            @if ($item->owner_id===$viewer->id || \App\Services\Access::manages($viewer,$item))
-                                @if ($canMove)
+                        @endif
+                        @if ($viewer->can('document.manage',$item))
+                            @if ($canMove)
                                     <li>
                                         <button
                                             type="button"
@@ -105,7 +106,6 @@
                                     </form>
                                 </li>
                             @endif
-                        @endif
                     </ul>
                 </div>
             </article>
@@ -140,7 +140,7 @@
                             <p class="modal-subtitle" id="move-document-name"></p>
                             <label for="move-document-folder" class="form-label">Destination folder</label
                             ><select class="form-select" id="move-document-folder">
-                                <option value="">My drive (root)</option>
+                                <option value="">Workspace root</option>
                                 @foreach ($folders as $destination)
                                     <option value="{{ $destination->id }}" data-source="{{ $destination->source }}">{{ $destination->name }}</option>
                                 @endforeach

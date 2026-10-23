@@ -10,6 +10,7 @@ use App\Services\DocumentMoves;
 use App\Services\DocumentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class DocumentController extends Controller
 {
@@ -29,11 +30,11 @@ class DocumentController extends Controller
             $user = $request->user();
             Access::document($user, $document);
             $doc = DB::table('documents')->where('id', $document)->lockForUpdate()->first();
-            Access::edit($user, $doc);
+            Gate::forUser($user)->authorize('document.edit', $doc);
             abort_if($doc->trashed_at, 409, 'Restore this document first.');
             abort_unless($doc->revision === (int) $request->validated('revision'), 409, 'Document changed. Reload and retry.');
             $classification = $request->validated('classification', $doc->classification);
-            if ($classification !== $doc->classification) Access::owner($user, $doc);
+            if ($classification !== $doc->classification) Gate::forUser($user)->authorize('document.manage', $doc);
             $previousClassification = $doc->classification;
             $previousFolder = $doc->folder_id;
             $folder = $request->validated('folder_id');
@@ -41,7 +42,7 @@ class DocumentController extends Controller
             $accessChange = ['gained' => [], 'reduced' => [], 'broadened' => false];
             $destination = null;
             if ($moved) {
-                Access::owner($user, $doc);
+                Gate::forUser($user)->authorize('document.manage', $doc);
                 if ($folder) {
                     $destinationQuery = Access::scope(DB::table('folders'), $user)->where('id', $folder)
                         ->where('source', $doc->source);
@@ -49,7 +50,7 @@ class DocumentController extends Controller
                         $destinationQuery->where('owner_id', $user->id);
                     }
                     $destination = $destinationQuery->first();
-                    abort_unless($destination, 403);
+                    abort_unless($destination, 404);
                 }
                 // A move silently re-scopes inherited access; warn before broadening it.
                 $accessChange = DocumentMoves::audienceDelta($doc, $folder);
@@ -88,7 +89,7 @@ class DocumentController extends Controller
             $user = $request->user();
             Access::document($user, $document);
             $doc = DB::table('documents')->where('id', $document)->lockForUpdate()->first();
-            Access::owner($user, $doc);
+            Gate::forUser($user)->authorize('document.manage', $doc);
             abort_unless($doc->revision === (int) $request->validated('revision'), 409, 'Document changed. Reload and retry.');
             abort_if($restore ? ! $doc->trashed_at : (bool) $doc->trashed_at, 409, 'Document state changed. Reload and retry.');
             DB::table('documents')->where('id', $document)->update(['trashed_at' => $restore ? null : now(), 'revision' => $doc->revision + 1, 'updated_at' => now()]);
@@ -106,6 +107,7 @@ class DocumentController extends Controller
             $user = $request->user();
             DB::table('users')->where('id', $user->id)->lockForUpdate()->first();
             $doc = Access::document($user, $document);
+            Gate::forUser($user)->authorize('document.star', $doc);
             $q = DB::table('stars')->where('document_id', $document)->where('user_id', $user->id);
             if ($q->exists()) {
                 $q->delete();

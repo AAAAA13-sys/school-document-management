@@ -6,6 +6,7 @@ use App\Http\Requests\ActionRequest;
 use App\Models\User;
 use App\Services\Access;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class FolderShareController extends Controller
 {
@@ -13,8 +14,12 @@ class FolderShareController extends Controller
     {
         DB::transaction(function () use ($request, $folder) {
             $user = $request->user();
-            $row = Access::scope(DB::table('folders'), $user)->where('id', $folder)->lockForUpdate()->first() ?? abort(404);
-            abort_unless($row->owner_id === $user->id || Access::managesFolder($user, $row), 403);
+            $rowQuery = Access::scope(DB::table('folders'), $user)->where('id', $folder);
+            if ($user->source) {
+                $rowQuery->where('source', $user->source);
+            }
+            $row = $rowQuery->lockForUpdate()->first() ?? abort(404);
+            Gate::forUser($user)->authorize('folder.share', $row);
             $data = $request->validated();
             abort_if((int) $data['recipient_id'] === $user->id, 422, 'Choose another recipient.');
             $recipient = User::where('school_id', $user->school_id)->where('campus', $user->campus)
@@ -36,8 +41,12 @@ class FolderShareController extends Controller
     {
         DB::transaction(function () use ($request, $folder, $share) {
             $user = $request->user();
-            $row = Access::scope(DB::table('folders'), $user)->where('id', $folder)->lockForUpdate()->first() ?? abort(404);
-            abort_unless($row->owner_id === $user->id || Access::managesFolder($user, $row), 403);
+            $rowQuery = Access::scope(DB::table('folders'), $user)->where('id', $folder);
+            if ($user->source) {
+                $rowQuery->where('source', $user->source);
+            }
+            $row = $rowQuery->lockForUpdate()->first() ?? abort(404);
+            Gate::forUser($user)->authorize('folder.share', $row);
             abort_unless(DB::table('folder_shares')->where('id', $share)->where('folder_id', $folder)->exists(), 404);
             DB::table('folder_shares')->where('id', $share)->update(['revoked_at' => now(), 'updated_at' => now()]);
             // Explicit document grants stay intact: revoking one path must not silently

@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Enums\Role;
 use App\Enums\Source;
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -13,13 +14,39 @@ class ActionRequest extends FormRequest
     public function authorize(): bool
     {
         $user = $this->user();
-        if (in_array($this->route()->getName(), ['accounts.create', 'accounts.update'])) {
-            return $user !== null
-                && ($user->isSuperAdmin() || $user->isAdmin())
-                && (! $user->isAdmin() || $this->input('role') === Role::Staff->value);
+        if ($user?->active !== true) {
+            return false;
         }
-        if ($this->route()->getName() === 'connectors.create') {
-            return $user?->isSuperAdmin() === true;
+
+        $route = $this->route()->getName();
+        if ($route === 'accounts.create') {
+            $role = $this->input('role');
+            if (is_string($role) && in_array($role, Role::values(), true) && ! $user->can('accounts.role', $role)) {
+                return false;
+            }
+
+            $source = $this->input('source');
+            // Let validation reject malformed source values; only enforce a
+            // valid, but out-of-scope, source as a forbidden action here.
+            if (($source === null || in_array($source, Source::values(), true)) && ! $user->can('accounts.source', [$source])) {
+                return false;
+            }
+
+            return true;
+        }
+
+        if ($route === 'accounts.update') {
+            $query = User::where('school_id', $user->school_id)
+                ->where('campus', $user->campus)
+                ->whereKey($this->route('account'));
+            if ($user->isAdmin() && $user->source) {
+                // Another source's account does not exist for this Admin.
+                $query->where('source', $user->source);
+            }
+            $target = $query->first();
+            abort_unless($target, 404);
+
+            return $user->can('update', $target);
         }
 
         return true;
@@ -41,7 +68,7 @@ class ActionRequest extends FormRequest
     public function rules(): array
     {
         return match ($this->route()->getName()) {
-            'folders.create' => ['name' => 'required|string|max:150', 'parent_id' => 'nullable|uuid', 'source' => 'required|in:EMS,PMS,ES,OAS,DMS'],
+            'folders.create' => ['name' => 'required|string|max:150', 'parent_id' => 'nullable|uuid', 'source' => ['required', Rule::in(Source::values())]],
             'folders.update' => ['name' => 'required|string|max:150', 'parent_id' => 'nullable|uuid', 'revision' => 'required|integer|min:1'],
             'documents.update' => ['classification' => 'sometimes|required|in:Internal,Confidential,Restricted', 'title' => 'required|string|max:200', 'folder_id' => 'nullable|uuid', 'revision' => 'required|integer|min:1', 'confirm_move' => 'sometimes|boolean'],
             'documents.trash', 'documents.restore' => ['revision' => 'required|integer|min:1'],

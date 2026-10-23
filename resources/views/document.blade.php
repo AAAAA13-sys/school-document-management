@@ -16,7 +16,7 @@
     @if ($doc->trashed_at)
         <div class="alert alert-warning">This document is in trash. Restore it before editing or downloading.</div>
     @endif
-    @if ($viewer->role==='super_admin' && $source!=='DMS')
+    @if ($viewer->isSuperAdmin())
         <div class="alert alert-light border">
             <strong>Super admin · Read-only oversight</strong>
             <p>You can inspect this document and its history. Only repository staff can make changes.</p>
@@ -124,7 +124,7 @@
             <section class="panel">
                 <h2>Document information</h2>
                 <dl class="metadata">
-                    @foreach (['Source'=>$source==='DMS'?'DMS · My workspace':config('dms.sources.'.$source),'Classification'=>$doc->classification,'Reference'=>$doc->reference?:'—','Folder'=>$folders->firstWhere('id',$doc->folder_id)?->name??'My drive'] as $label=>$value)
+                    @foreach (['Source'=>config('dms.sources.'.$source) ?? $source,'Classification'=>$doc->classification,'Reference'=>$doc->reference?:'—','Folder'=>$folders->firstWhere('id',$doc->folder_id)?->name??'Workspace root'] as $label=>$value)
                         <div>
                             <dt>{{ $label }}</dt>
                             <dd>{{ $value }}</dd>
@@ -144,7 +144,7 @@
                     @foreach ($shares->whereNull('revoked_at') as $share)
                         <div class="share-row" data-share-id="{{ $share->id }}">
                             <span>{{ $share->name }} · {{ $share->permission }}{{ $share->version_id?' · Pinned version':'' }}</span>
-                            @if ($owner && $viewer->role!=='staff')
+                            @if ($sharer)
                                 <form action="/documents/{{ $doc->id }}/shares/{{ $share->id }}" method="post" data-demo-action="revoke-share">
                                     @csrf
                                     @method ('DELETE')
@@ -154,7 +154,7 @@
                         </div>
                     @endforeach
                 </div>
-                @if ($owner && $viewer->role!=='staff' && !$doc->trashed_at)
+                @if ($sharer && !$doc->trashed_at)
                     <button type="button" class="btn btn-outline-secondary mt-3" data-bs-toggle="modal" data-bs-target="#share-modal">Manage access</button>
                 @endif
             </section>
@@ -216,7 +216,7 @@
                                     @endforeach</select
                                 ><label for="move-folder" class="form-label">Folder</label
                                 ><select id="move-folder" name="folder_id" class="form-select">
-                                    <option value="">My drive (root)</option>
+                                    <option value="">Workspace root</option>
                                     @foreach ($folders as $f)
                                         <option value="{{ $f->id }}" @selected ($doc->folder_id===$f->id)>{{ $f->name }}</option>
                                     @endforeach
@@ -234,7 +234,7 @@
             </div>
         </div>
     @endif
-    @if ($owner && $viewer->role!=='staff' && !$doc->trashed_at)
+    @if ($sharer && !$doc->trashed_at)
         <div class="modal fade" id="share-modal" tabindex="-1" aria-labelledby="share-title" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
                 <div class="modal-content">

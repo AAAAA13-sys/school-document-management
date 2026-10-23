@@ -20,7 +20,7 @@ class FrontendViewTest extends TestCase
         $request->setLaravelSession($session);
         View::share('errors', new ViewErrorBag);
         $fixtures = require resource_path('preview/data.php');
-        $view = $document ? 'document' : ($source === 'DMS' ? 'admin' : 'workspace');
+        $view = $document ? 'document' : (str_starts_with($request->path(), 'admin') ? 'admin' : 'workspace');
 
         return view($view, $fixtures($source, $section, $document))->render();
     }
@@ -51,7 +51,7 @@ class FrontendViewTest extends TestCase
     public function test_admin_pages_and_dialogs_render_without_database_access(): void
     {
         foreach (['overview', 'repository', 'accounts', 'connectors', 'scans', 'audit'] as $section) {
-            $html = $this->renderScreen('/admin/'.$section, 'DMS', $section);
+            $html = $this->renderScreen('/admin/'.$section, 'ALL', $section);
             $this->assertStringContainsString('ADMINISTRATION', $html);
             $this->assertValidMarkup($html);
             if ($section === 'scans') {

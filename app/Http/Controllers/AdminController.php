@@ -9,6 +9,7 @@ use App\Http\Requests\ReadRequest;
 use App\Models\User;
 use App\Services\Access;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
 class AdminController extends Controller
@@ -16,11 +17,11 @@ class AdminController extends Controller
     public function index(ReadRequest $request, string $section = 'overview')
     {
         $user = $request->user();
-        abort_unless($user->isSuperAdmin() || $user->isAdmin(), 403);
         abort_unless(in_array($section, ['overview', 'repository', 'accounts', 'connectors', 'audit', 'scans']), 404);
-        abort_if($user->isAdmin() && $section === 'connectors', 403);
-        $source = 'DMS';
-        $stats = ['documents' => Access::administrationScope(DB::table('documents'), $user)->whereIn('source', array_keys(config('dms.sources')))->whereNull('trashed_at')->count(),
+        Gate::forUser($user)->authorize('admin.section', $section);
+        // Application area marker for the shared layout; it is not a document source.
+        $source = 'ALL';
+        $stats = ['documents' => Access::administrationScope(DB::table('documents'), $user)->whereIn('source', Source::values())->whereNull('trashed_at')->count(),
             'accounts' => Access::administrationScope(DB::table('users'), $user)->where('active', true)->count(),
             'history' => Access::administrationScope(DB::table('history_receipts'), $user)->count(),
             'connectors' => Access::administrationScope(DB::table('connectors'), $user)->where('active', true)->distinct()->count('source'),
@@ -50,9 +51,13 @@ class AdminController extends Controller
             $docs->where('classification', $request->input('classification'));
         }
         $documents = $docs->orderByDesc('updated_at')->paginate(20)->withQueryString();
-        $scans = DB::table('document_versions')->join('documents', 'documents.id', '=', 'document_versions.document_id')
-            ->when($user->isAdmin() && $user->source, fn ($q) => $q->where('documents.source', $user->source))->where('documents.school_id', $user->school_id)->where('documents.campus', $user->campus)->where('scan_status', '!=', 'Clean')
-            ->select('document_versions.*', 'documents.title', 'documents.source')->orderByDesc('document_versions.created_at')->paginate(20)->withQueryString();
+        $scans = Access::administrationScope(
+            DB::table('document_versions')->join('documents', 'documents.id', '=', 'document_versions.document_id'),
+            $user,
+            'documents.',
+        )->where('scan_status', '!=', 'Clean')
+            ->select('document_versions.*', 'documents.title', 'documents.source')
+            ->orderByDesc('document_versions.created_at')->paginate(20)->withQueryString();
 
         return view('admin', compact('workspaceCounts', 'source', 'section', 'stats', 'accounts', 'connectors', 'audits', 'documents', 'scans'));
     }
@@ -60,15 +65,24 @@ class AdminController extends Controller
     public function account(ActionRequest $request, ?string $account = null)
     {
         $admin = $request->user();
-        abort_unless($admin->isSuperAdmin() || $admin->isAdmin(), 403);
+        Gate::forUser($admin)->authorize('accounts.manage');
         $data = $request->validated();
         $data['source'] = $data['role'] === Role::SuperAdmin->value ? null : Source::normalize($data['source'] ?? null);
-        abort_if($admin->isAdmin() && ($data['role'] !== Role::Staff->value || ($admin->source !== null && $data['source'] !== $admin->source)), 403);
         DB::transaction(function () use ($admin, $account, $data) {
             if ($account) {
-                $row = User::where('school_id', $admin->school_id)->where('campus', $admin->campus)->where('id', $account)->lockForUpdate()->firstOrFail();
-                abort_if($admin->isAdmin() && ($row->role !== Role::Staff->value || ($admin->source !== null && $row->source !== $admin->source)), 403);
+                $query = User::where('school_id', $admin->school_id)
+                    ->where('campus', $admin->campus)
+                    ->whereKey($account);
+                if ($admin->isAdmin() && $admin->source) {
+                    // Guessing an account in another source is a 404, not a
+                    // disclosure that the account exists.
+                    $query->where('source', $admin->source);
+                }
+                $row = $query->lockForUpdate()->first() ?? abort(404);
+                Gate::forUser($admin)->authorize('update', $row);
                 abort_if($row->id === $admin->id && ($data['role'] !== $row->role || $data['source'] !== $row->source || ! $data['active']), 422, 'You cannot demote or deactivate yourself.');
+                Gate::forUser($admin)->authorize('changeRole', [$row, $data['role']]);
+                Gate::forUser($admin)->authorize('changeSource', [$row, $data['source']]);
                 if (empty($data['password'])) {
                     unset($data['password']);
                 }
@@ -82,6 +96,8 @@ class AdminController extends Controller
                     DB::table('sessions')->where('user_id', $row->id)->delete();
                 }
             } else {
+                Gate::forUser($admin)->authorize('accounts.role', $data['role']);
+                Gate::forUser($admin)->authorize('accounts.source', $data['source']);
                 $row = new User($data);
                 // These are server-assigned and never accepted from the form.
                 $row->school_id = $admin->school_id;
@@ -97,7 +113,7 @@ class AdminController extends Controller
     public function connector(ActionRequest $request)
     {
         $user = $request->user();
-        abort_unless($user->isSuperAdmin(), 403);
+        Gate::forUser($user)->authorize('connectors.manage');
         $token = Str::random(64);
         DB::transaction(function () use ($user, $request, $token) {
             $id = DB::table('connectors')->insertGetId($request->validated() + ['school_id' => $user->school_id, 'campus' => $user->campus, 'token_hash' => hash('sha256', $token), 'active' => true, 'created_at' => now(), 'updated_at' => now()]);
@@ -110,7 +126,7 @@ class AdminController extends Controller
     public function revoke(ActionRequest $request, string $connector)
     {
         $user = $request->user();
-        abort_unless($user->isSuperAdmin(), 403);
+        Gate::forUser($user)->authorize('connectors.manage');
         DB::transaction(function () use ($user, $connector) {
             $row = Access::administrationScope(DB::table('connectors'), $user)->where('id', $connector)->lockForUpdate()->first() ?? abort(404);
             DB::table('connectors')->where('id', $row->id)->update(['active' => false, 'updated_at' => now()]);

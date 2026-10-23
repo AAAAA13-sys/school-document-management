@@ -20,10 +20,7 @@ try {
     if($path==='/'){header('Location: /admin');exit;}
     $fixtures=require $root.'/resources/preview/data.php';
     if($path==='/login'){$view='login';$data=['frontendPreview'=>true];}
-    elseif(preg_match('~^/admin(?:/(overview|repository|accounts|connectors|scans|audit))?/?$~',$path,$m)){$view='admin';$data=$fixtures('DMS',$m[1]??'overview');}
-    // Super Admin personal workspace. Mirrors WorkspaceController@personal, which
-    // delegates to index() with source DMS and allows only overview|documents.
-    elseif(preg_match('~^/my-workspace(?:/(overview|documents))?/?$~',$path,$m)){$view='workspace';$data=$fixtures('DMS',$m[1]??'overview');}
+    elseif(preg_match('~^/admin(?:/(overview|repository|accounts|connectors|scans|audit))?/?$~',$path,$m)){$view='admin';$data=$fixtures('ALL',$m[1]??'overview');}
     elseif(preg_match('~^/workspaces/(ems|pms|es|oas)(?:/(overview|documents|history|snapshots))?/?$~',$path,$m)){$view='workspace';$data=$fixtures(strtoupper($m[1]),$m[2]??'overview');}
     elseif(preg_match('~^/documents/([a-f0-9-]{36})/?$~',$path,$m)){$view='document';$data=$fixtures('EMS','documents',$m[1]);}
     else{http_response_code(404);echo 'Preview page not found. <a href="/admin">Return to the frontend</a>';exit;}

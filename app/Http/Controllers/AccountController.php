@@ -15,7 +15,7 @@ class AccountController extends Controller
 {
     public function show(Request $request)
     {
-        $source = in_array($request->user()->role, ['super_admin', 'admin']) ? 'DMS' : $request->user()->source;
+        $source = $request->user()->source ?? 'ALL';
 
         return view('account', ['source' => $source, 'section' => 'account']);
     }
