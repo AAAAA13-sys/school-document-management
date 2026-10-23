@@ -90,7 +90,6 @@
                         <dt>Folder</dt>
                         <dd>{{ $folders->firstWhere('id',$doc->folder_id)?->name??($doc->folder_id?'Shared folder':'My drive') }}</dd>
                     </div>
->>>>>>> Stashed changes
                 </dl>
                 @if ($editor && !$doc->trashed_at)
                     <button type="button" class="btn btn-outline-secondary mt-3" data-bs-toggle="modal" data-bs-target="#rename-modal">
