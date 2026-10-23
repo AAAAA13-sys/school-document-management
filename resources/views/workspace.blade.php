@@ -73,6 +73,21 @@
                     </button>
                 @endif
             </div>
+            <label class="visually-hidden" for="document-class">Classification</label
+            ><select id="document-class" name="classification" class="form-select filter-select">
+                <option value="">All classifications</option>
+                <option>Confidential</option>
+                <option>Restricted</option>
+                <option>Internal</option>
+            </select
+            ><label class="visually-hidden" for="document-status">Scan status</label
+            ><select id="document-status" name="status" class="form-select filter-select">
+                <option value="">All scan statuses</option>
+                <option value="Clean">Clean</option>
+                <option value="Pending">Pending</option>
+                <option value="Failed">Failed</option>
+                <option value="Quarantined">Quarantined</option>
+            </select>
             <input type="hidden" name="view" value="{{ $view }}" />
             @if ($folder)
                 <input type="hidden" name="folder" value="{{ $folder->id }}" />

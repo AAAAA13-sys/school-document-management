@@ -7,8 +7,12 @@
         @endif
     </div>
     <div class="document-items {{ request('layout')==='grid'?'is-grid':'' }}" id="document-items">
-        <div class="document-column-headings" aria-hidden="true">
-            <span>Document name</span><span>Classification</span><span>Last updated</span><span>Scan status</span><span></span>
+        <div class="document-column-headings" role="row">
+            <span class="sort-header" data-sort="title" role="columnheader" tabindex="0" aria-sort="none" title="Sort by document name">Document name <span class="sort-indicator" aria-hidden="true"></span></span>
+            <span class="sort-header" data-sort="class" role="columnheader" tabindex="0" aria-sort="none" title="Sort by classification">Classification <span class="sort-indicator" aria-hidden="true"></span></span>
+            <span class="sort-header" data-sort="date" role="columnheader" tabindex="0" aria-sort="none" title="Sort by date updated">Last updated <span class="sort-indicator" aria-hidden="true"></span></span>
+            <span class="sort-header" data-sort="status" role="columnheader" tabindex="0" aria-sort="none" title="Sort by scan status">Scan status <span class="sort-indicator" aria-hidden="true"></span></span>
+            <span role="columnheader"></span>
         </div>
         @foreach ($documents as $item)
             @php $v=$versions[$item->id]??null; $canMove=!$item->trashed_at && $viewer->can('document.manage',$item); @endphp
@@ -31,13 +35,13 @@
                         ><small>{{ $v?number_format($v->size/1024,$v->size%1024===0?0:1).' KB · Version '.$v->number:'No version yet' }}</small>
                     </div>
                 </div>
-                <span class="classification">{{ $item->classification }}</span
+                <span class="classification class-{{ strtolower($item->classification) }}" data-class="{{ $item->classification }}">{{ $item->classification }}</span
                 ><time
                     class="modified-date"
                     datetime="{{ $item->updated_at }}"
                     >{{ Illuminate\Support\Carbon::parse($item->updated_at)->format('M d, Y') }}</time
                 >
-                <span class="status-badge {{ strtolower($v?->scan_status??'Pending') }}">{{ $v?->scan_status??'Pending' }}</span>
+                <span class="status-badge {{ strtolower($v?->scan_status??'Pending') }}" data-status="{{ $v?->scan_status??'Pending' }}">{{ $v?->scan_status??'Pending' }}</span>
                 <div class="dropdown document-actions">
                     <button
                         class="icon-button document-menu-toggle"

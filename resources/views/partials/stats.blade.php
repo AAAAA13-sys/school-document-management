@@ -6,7 +6,7 @@
 @endphp
 <div class="stats-grid">
     @foreach ($metricLabels as $key=>[$label,$note])
-        <article class="stat-card">
+        <article class="stat-card stat-card-{{ $key }}">
             <h2>{{ $label }}</h2>
             <strong
                 >{{ isset($stats[$key]) ? number_format($stats[$key]) : '—' }}

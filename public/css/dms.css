@@ -4820,3 +4820,206 @@ body.login-page .preview-login-link {
     font-size: 15px;
   }
 }
+
+/* ==========================================================================
+   Frontend Agent Enhancements: Status Badges, Sortable Tables, Role Dashboards
+   ========================================================================== */
+
+/* Elevated Status Badges */
+.status-badge {
+  gap: 6px;
+  padding: 4px 10px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.status-badge::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.status-badge.clean {
+  background: var(--green-100);
+  color: var(--green-800);
+  border-color: #bbf7d0;
+}
+
+.status-badge.pending {
+  background: #fefce8;
+  color: #854d0e;
+  border-color: #fef08a;
+}
+
+.status-badge.pending::before {
+  animation: status-pulse-dot 1.8s infinite ease-in-out;
+}
+
+@keyframes status-pulse-dot {
+  0%, 100% {
+    opacity: 0.45;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+}
+
+.status-badge.quarantined {
+  background: #fef2f2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.status-badge.failed {
+  background: #fff1f2;
+  color: #be123c;
+  border-color: #fecdd3;
+}
+
+.status-badge.neutral {
+  background: #f8fafc;
+  color: #475569;
+  border-color: #e2e8f0;
+}
+
+/* Classification Badges */
+.classification {
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
+  max-width: 100%;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.classification.class-confidential,
+.classification[data-class="Confidential"] {
+  background: #f0fdf4;
+  color: #166534;
+  border-color: #bbf7d0;
+}
+
+.classification.class-restricted,
+.classification[data-class="Restricted"] {
+  background: #fffbeb;
+  color: #92400e;
+  border-color: #fde68a;
+}
+
+.classification.class-internal,
+.classification[data-class="Internal"] {
+  background: #f1f5f9;
+  color: #334155;
+  border-color: #cbd5e1;
+}
+
+/* Sortable Column Headers */
+.sort-header {
+  cursor: pointer;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.15s ease;
+}
+
+.sort-header:hover,
+.sort-header:focus-visible {
+  color: var(--ink);
+  outline: none;
+}
+
+.sort-header .sort-indicator {
+  display: inline-flex;
+  align-items: center;
+}
+
+.sort-header .sort-indicator::after {
+  content: '↕';
+  font-size: 11px;
+  opacity: 0.35;
+  margin-left: 2px;
+}
+
+.sort-header[aria-sort="ascending"] .sort-indicator::after {
+  content: '▲';
+  opacity: 1;
+  color: var(--green-800);
+}
+
+.sort-header[aria-sort="descending"] .sort-indicator::after {
+  content: '▼';
+  opacity: 1;
+  color: var(--green-800);
+}
+
+/* Role Dashboard Stat Cards Enhancements */
+.stat-card {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border-top: 3px solid var(--line);
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+}
+
+.stat-card.stat-card-documents {
+  border-top-color: var(--green-700);
+}
+
+.stat-card.stat-card-accounts {
+  border-top-color: #2563eb;
+}
+
+.stat-card.stat-card-connectors {
+  border-top-color: #6366f1;
+}
+
+.stat-card.stat-card-blocked {
+  border-top-color: #e11d48;
+}
+
+.stat-card.stat-card-shared {
+  border-top-color: #0d9488;
+}
+
+.stat-card.stat-card-history {
+  border-top-color: #7c3aed;
+}
+
+/* Intake Upload Zone Dragover Highlight */
+.upload-zone.is-dragover,
+.upload-zone.drag-over {
+  border-color: var(--green-700) !important;
+  background-color: #f0fdf4 !important;
+  box-shadow: 0 0 0 4px rgba(22, 101, 52, 0.1);
+}
+
+.plain-upload-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
