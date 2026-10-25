@@ -8,6 +8,12 @@ use App\Http\Controllers\ApiController;
 use App\Http\Controllers\ApplicantPacketController;
 use Illuminate\Support\Facades\Route;
 
+// Public Health & Readiness Probes for Subsystems & Load Testing
+Route::prefix('v1')->group(function () {
+    Route::get('/health', [ApiController::class, 'health']);
+    Route::get('/ping', [ApiController::class, 'ping']);
+});
+
 Route::prefix('v1')->middleware(['connector', 'throttle:connector'])->group(function () {
     // 1. Admissions Subsystem Endpoints
     Route::get('/admissions', [AdmissionsApiController::class, 'index']);

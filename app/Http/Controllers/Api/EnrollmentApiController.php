@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Concerns\NormalizesPayload;
 use App\Http\Controllers\Controller;
 use App\Models\Document;
 use App\Models\StudentApplicant;
@@ -13,6 +14,8 @@ use Illuminate\Support\Facades\Validator;
 
 class EnrollmentApiController extends Controller
 {
+    use NormalizesPayload;
+
     protected array $allowedSources = ['ES', 'ENROLLMENT', 'OAS', 'ADMISSION'];
 
     protected function authorizeConnector(Request $request): object
@@ -98,12 +101,14 @@ class EnrollmentApiController extends Controller
     {
         $connector = $this->authorizeConnector($request);
 
+        $raw = $this->normalizeInput($request->all());
+
         // Batch support
-        if ($request->has('batch') && is_array($request->input('batch'))) {
+        if (isset($raw['batch']) && is_array($raw['batch'])) {
             return $this->storeBatch($request, $connector);
         }
 
-        $validator = Validator::make($request->all(), [
+        $validator = Validator::make($raw, [
             'student_number' => 'required|string|max:64',
             'applicant_id' => 'nullable',
             'first_name' => 'sometimes|string|max:100',
@@ -220,7 +225,8 @@ class EnrollmentApiController extends Controller
 
     protected function storeBatch(Request $request, object $connector): JsonResponse
     {
-        $batch = $request->input('batch');
+        $raw = $this->normalizeInput($request->all());
+        $batch = $raw['batch'] ?? [];
         if (! is_array($batch) || empty($batch)) {
             return response()->json([
                 'status' => 'error',
@@ -232,7 +238,8 @@ class EnrollmentApiController extends Controller
         $errors = [];
 
         DB::transaction(function () use ($batch, $connector, &$processed, &$errors) {
-            foreach ($batch as $index => $item) {
+            foreach ($batch as $index => $rawItem) {
+                $item = is_array($rawItem) ? $this->normalizeInput($rawItem) : [];
                 $validator = Validator::make($item, [
                     'student_number' => 'required|string|max:64',
                     'program' => 'required|string|max:100',
@@ -302,7 +309,9 @@ class EnrollmentApiController extends Controller
 
         abort_unless($enrollment, 404, 'Enrollee record not found.');
 
-        $validator = Validator::make($request->all(), [
+        $raw = $this->normalizeInput($request->all());
+
+        $validator = Validator::make($raw, [
             'enrolled_units' => 'sometimes|integer|min:0|max:60',
             'course_allocations' => 'nullable|array',
             'enrollment_status' => 'sometimes|string|in:pending,enrolled,assessed,withdrawn,completed',

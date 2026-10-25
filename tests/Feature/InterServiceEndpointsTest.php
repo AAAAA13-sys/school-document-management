@@ -450,4 +450,216 @@ class InterServiceEndpointsTest extends TestCase
 
         $this->assertContains('signed', (array) $patchResp->json('data.tags'));
     }
+
+    public function test_public_health_and_ping_endpoints(): void
+    {
+        // 1. GET /api/v1/health returns HTTP 200 with online subsystems
+        $this->getJson('/api/v1/health')
+            ->assertOk()
+            ->assertJsonPath('status', 'healthy')
+            ->assertJsonPath('service', 'PLP Enterprise DMS')
+            ->assertJsonStructure([
+                'status',
+                'service',
+                'version',
+                'timestamp',
+                'subsystems' => [
+                    'admissions',
+                    'enrollment',
+                    'cashier',
+                    'payroll',
+                    'documents',
+                ],
+            ]);
+
+        // 2. GET /api/v1/ping returns pong status
+        $this->getJson('/api/v1/ping')
+            ->assertOk()
+            ->assertJsonPath('status', 'pong')
+            ->assertJsonStructure(['status', 'timestamp']);
+    }
+
+    public function test_camelcase_payload_normalization_for_admissions_and_enrollment(): void
+    {
+        // Admissions with camelCase keys
+        $admissionsResp = $this->withToken($this->oasToken)
+            ->postJson('/api/v1/admissions', [
+                'applicantNumber' => 'APP-CAMEL-001',
+                'firstName' => 'Apolinario',
+                'middleName' => 'Mabini',
+                'lastName' => 'Marasigan',
+                'email' => 'apolinario.mabini@plp.edu.ph',
+                'programApplied' => 'Bachelor of Science in Information Technology',
+                'admissionStatus' => 'admitted',
+                'appliedAt' => '2026-03-01',
+                'metadata' => ['scholarship' => 'Full Academic'],
+            ]);
+
+        $admissionsResp->assertCreated()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('data.applicant_number', 'APP-CAMEL-001')
+            ->assertJsonPath('data.first_name', 'Apolinario')
+            ->assertJsonPath('data.program_applied', 'Bachelor of Science in Information Technology');
+
+        $this->assertDatabaseHas('student_applicants', [
+            'applicant_number' => 'APP-CAMEL-001',
+            'first_name' => 'Apolinario',
+            'admission_status' => 'admitted',
+        ]);
+
+        // Enrollment with camelCase keys linking applicant
+        $enrollmentResp = $this->withToken($this->esToken)
+            ->postJson('/api/v1/enrollment', [
+                'studentNumber' => 'SN-CAMEL-2026-001',
+                'applicantId' => 'APP-CAMEL-001',
+                'program' => 'Bachelor of Science in Information Technology',
+                'yearLevel' => 1,
+                'academicYear' => '2026-2027',
+                'semester' => '1st Semester',
+                'enrolledUnits' => 21,
+                'enrollmentStatus' => 'enrolled',
+                'clearanceStatus' => 'cleared',
+                'courseAllocations' => [
+                    ['courseCode' => 'CS101', 'courseTitle' => 'Intro to Programming', 'units' => 3],
+                    ['courseCode' => 'CS102', 'courseTitle' => 'Discrete Math', 'units' => 3],
+                ],
+            ]);
+
+        $enrollmentResp->assertCreated()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('data.student_number', 'SN-CAMEL-2026-001')
+            ->assertJsonPath('data.first_name', 'Apolinario')
+            ->assertJsonPath('data.enrolled_units', 21);
+
+        $this->assertDatabaseHas('student_enrollments', [
+            'student_number' => 'SN-CAMEL-2026-001',
+            'enrolled_units' => 21,
+            'academic_year' => '2026-2027',
+        ]);
+
+        // Update enrollment with camelCase
+        $this->withToken($this->esToken)
+            ->patchJson('/api/v1/enrollment/SN-CAMEL-2026-001', [
+                'enrolledUnits' => 24,
+                'enrollmentStatus' => 'completed',
+            ])->assertOk()
+            ->assertJsonPath('data.enrolled_units', 24)
+            ->assertJsonPath('data.enrollment_status', 'completed');
+    }
+
+    public function test_camelcase_payload_normalization_for_cashier_and_payroll(): void
+    {
+        // Cashier with camelCase
+        $cashierResp = $this->withToken($this->cashierToken)
+            ->postJson('/api/v1/cashier', [
+                'assessmentNumber' => 'ASSESS-CAMEL-001',
+                'studentNumber' => 'SN-CAMEL-2026-001',
+                'studentName' => 'Apolinario Mabini',
+                'accountType' => 'Tuition',
+                'academicYear' => '2026-2027',
+                'semester' => '1st Semester',
+                'totalAmount' => 18500.00,
+                'amountPaid' => 10000.00,
+                'paymentMethod' => 'Bank Transfer',
+                'paymentStatus' => 'assessed',
+            ]);
+
+        $cashierResp->assertCreated()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('data.assessment_number', 'ASSESS-CAMEL-001')
+            ->assertJsonPath('data.total_amount', '18500.00')
+            ->assertJsonPath('data.balance', '8500.00');
+
+        // Cashier verify with camelCase
+        $this->withToken($this->cashierToken)
+            ->postJson('/api/v1/cashier/ASSESS-CAMEL-001/verify', [
+                'orNumber' => 'OR-CAMEL-8888',
+                'amountPaid' => 8500.00,
+                'paymentMethod' => 'GCash',
+                'verifiedBy' => 'Chief Teller',
+            ])->assertOk()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('data.or_number', 'OR-CAMEL-8888')
+            ->assertJsonPath('data.balance', '0.00')
+            ->assertJsonPath('data.payment_status', 'verified');
+
+        // Payroll with camelCase
+        $payrollResp = $this->withToken($this->pmsToken)
+            ->postJson('/api/v1/payroll', [
+                'payrollPeriod' => '2026-03-B',
+                'employeeId' => 'EMP-CAMEL-777',
+                'employeeName' => 'Marcelo Del Pilar',
+                'department' => 'College of Science',
+                'employmentType' => 'faculty',
+                'grossPay' => 45000.00,
+                'deductions' => 3500.00,
+                'disbursementStatus' => 'disbursed',
+            ]);
+
+        $payrollResp->assertCreated()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('data.payroll_period', '2026-03-B')
+            ->assertJsonPath('data.employee_id', 'EMP-CAMEL-777')
+            ->assertJsonPath('data.net_pay', '41500.00');
+
+        $this->assertDatabaseHas('payroll_records', [
+            'payroll_period' => '2026-03-B',
+            'employee_id' => 'EMP-CAMEL-777',
+            'disbursement_status' => 'disbursed',
+        ]);
+    }
+
+    public function test_batch_payloads_with_camelcase_keys(): void
+    {
+        // Batch admissions with camelCase
+        $this->withToken($this->oasToken)
+            ->postJson('/api/v1/admissions', [
+                'batch' => [
+                    [
+                        'applicantNumber' => 'APP-BATCH-CAMEL-1',
+                        'firstName' => 'Juan',
+                        'lastName' => 'Luna',
+                        'email' => 'juan.luna@plp.edu.ph',
+                        'programApplied' => 'Fine Arts',
+                    ],
+                    [
+                        'applicantNumber' => 'APP-BATCH-CAMEL-2',
+                        'firstName' => 'Antonio',
+                        'lastName' => 'Luna',
+                        'email' => 'antonio.luna@plp.edu.ph',
+                        'programApplied' => 'Pharmacy',
+                    ],
+                ],
+            ])->assertCreated()
+            ->assertJsonPath('processed_count', 2);
+
+        // Batch cashier with camelCase
+        $this->withToken($this->cashierToken)
+            ->postJson('/api/v1/cashier', [
+                'batch' => [
+                    [
+                        'assessmentNumber' => 'ASSESS-BATCH-CAMEL-1',
+                        'studentName' => 'Juan Luna',
+                        'accountType' => 'Graduation Fee',
+                        'totalAmount' => 2500.00,
+                    ],
+                ],
+            ])->assertCreated()
+            ->assertJsonPath('processed_count', 1);
+
+        // Batch payroll with camelCase
+        $this->withToken($this->pmsToken)
+            ->postJson('/api/v1/payroll', [
+                'batch' => [
+                    [
+                        'payrollPeriod' => '2026-03-B',
+                        'employeeId' => 'EMP-BATCH-CAMEL-1',
+                        'employeeName' => 'Juan Luna',
+                        'department' => 'College of Arts',
+                        'grossPay' => 38000.00,
+                    ],
+                ],
+            ])->assertCreated()
+            ->assertJsonPath('processed_count', 1);
+    }
 }

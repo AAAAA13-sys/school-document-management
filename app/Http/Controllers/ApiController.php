@@ -14,6 +14,31 @@ use Illuminate\Support\Facades\DB;
 
 class ApiController extends Controller
 {
+    public function health()
+    {
+        return response()->json([
+            'status' => 'healthy',
+            'service' => 'PLP Enterprise DMS',
+            'version' => '1.0',
+            'timestamp' => now()->toIso8601String(),
+            'subsystems' => [
+                'admissions' => 'online',
+                'enrollment' => 'online',
+                'cashier' => 'online',
+                'payroll' => 'online',
+                'documents' => 'online',
+            ],
+        ], 200);
+    }
+
+    public function ping()
+    {
+        return response()->json([
+            'status' => 'pong',
+            'timestamp' => now()->toIso8601String(),
+        ], 200);
+    }
+
     public function history(HistoryRequest $request, HistoryService $service)
     {
         $input = $request->validated();

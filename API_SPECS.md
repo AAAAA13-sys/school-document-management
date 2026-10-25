@@ -1485,4 +1485,22 @@ Universal file ingestion, metadata tagging, status tracking, and centralized ret
 | `/api/v1/payroll` | `PMS`, `PAYROLL`, `EMS` | Payroll & Payslips | Validates net pay against gross and deductions; indexes payslip document to immutable file storage. |
 | `/api/v1/documents` | All Active Connectors | Universal File Storage | Enforces 10MB limit, SHA-256 validation, background ClamAV scanning, and multi-tenant isolation. |
 
+---
+
+### 13.7 Health Probes, Payload Normalization & QA Load Testing
+
+#### 13.7.1 Service Health & Readiness Probes
+- **`GET /api/v1/health`**: Unauthenticated public health check returning `status: "healthy"`, service name, ISO-8601 timestamp, and individual online status indicators for all 5 subsystems (`admissions`, `enrollment`, `cashier`, `payroll`, `documents`).
+- **`GET /api/v1/ping`**: Lightweight probe returning `{"status": "pong", "timestamp": "..."}` for container orchestration and uptime monitors.
+
+#### 13.7.2 Multi-Format Payload Normalization
+All POST and PATCH endpoints automatically normalize incoming payloads:
+- Subsystems may send either `snake_case` (e.g. `applicant_number`, `student_number`, `or_number`) or `camelCase` (e.g. `applicantNumber`, `studentNumber`, `orNumber`).
+- Batch payloads accept `{"batch": [...]}` with nested camelCase objects and arrays.
+- Authentication tokens are accepted via `Authorization: Bearer <token>`, `X-API-KEY: <token>`, or `X-Connector-Token: <token>`.
+
+#### 13.7.3 Performance & Load Test Configuration
+- Rate limiting is configurable via the `DMS_CONNECTOR_RATE_LIMIT` environment variable in `.env` (defaults to `120` req/min; set higher or disable for high-volume automated performance testing like Artillery and k6).
+
+
 

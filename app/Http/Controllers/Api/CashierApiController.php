@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Concerns\NormalizesPayload;
 use App\Http\Controllers\Controller;
 use App\Models\CashierAssessment;
 use App\Models\Document;
@@ -12,6 +13,8 @@ use Illuminate\Support\Facades\Validator;
 
 class CashierApiController extends Controller
 {
+    use NormalizesPayload;
+
     protected array $allowedSources = ['CASHIER', 'CAS', 'PMS', 'ES'];
 
     protected function authorizeConnector(Request $request): object
@@ -99,12 +102,14 @@ class CashierApiController extends Controller
     {
         $connector = $this->authorizeConnector($request);
 
+        $raw = $this->normalizeInput($request->all());
+
         // Batch support
-        if ($request->has('batch') && is_array($request->input('batch'))) {
+        if (isset($raw['batch']) && is_array($raw['batch'])) {
             return $this->storeBatch($request, $connector);
         }
 
-        $validator = Validator::make($request->all(), [
+        $validator = Validator::make($raw, [
             'assessment_number' => 'required|string|max:64',
             'or_number' => 'nullable|string|max:64',
             'student_number' => 'nullable|string|max:64',
@@ -204,7 +209,8 @@ class CashierApiController extends Controller
 
     protected function storeBatch(Request $request, object $connector): JsonResponse
     {
-        $batch = $request->input('batch');
+        $raw = $this->normalizeInput($request->all());
+        $batch = $raw['batch'] ?? [];
         if (! is_array($batch) || empty($batch)) {
             return response()->json([
                 'status' => 'error',
@@ -216,7 +222,8 @@ class CashierApiController extends Controller
         $errors = [];
 
         DB::transaction(function () use ($batch, $connector, &$processed, &$errors) {
-            foreach ($batch as $index => $item) {
+            foreach ($batch as $index => $rawItem) {
+                $item = is_array($rawItem) ? $this->normalizeInput($rawItem) : [];
                 $validator = Validator::make($item, [
                     'assessment_number' => 'required|string|max:64',
                     'student_name' => 'required|string|max:150',
@@ -295,7 +302,9 @@ class CashierApiController extends Controller
 
         abort_unless($assessment, 404, 'Assessment not found.');
 
-        $validator = Validator::make($request->all(), [
+        $raw = $this->normalizeInput($request->all());
+
+        $validator = Validator::make($raw, [
             'or_number' => 'required|string|max:64',
             'amount_paid' => 'required|numeric|min:0.01',
             'payment_method' => 'sometimes|string|max:50',
@@ -358,7 +367,9 @@ class CashierApiController extends Controller
 
         abort_unless($assessment, 404, 'Assessment not found.');
 
-        $validator = Validator::make($request->all(), [
+        $raw = $this->normalizeInput($request->all());
+
+        $validator = Validator::make($raw, [
             'payment_status' => 'sometimes|string|in:assessed,pending_verification,verified,refunded,voided',
             'receipt_document_id' => 'nullable|uuid',
             'metadata' => 'nullable|array',

@@ -20,4 +20,6 @@ return [
     'freshclam_config' => env('FRESHCLAM_CONFIG'),
     // Only browser-safe MIME types are previewed; arbitrary upload formats remain download-only.
     'preview_mimes' => array_filter(explode(',', env('DMS_PREVIEW_MIMES', 'application/pdf,image/png,image/jpeg,image/gif,image/webp,text/plain,text/csv,application/json'))),
+    // Configurable connector rate limit per minute (supports high-throughput load tests)
+    'connector_rate_limit' => (int) env('DMS_CONNECTOR_RATE_LIMIT', 120),
 ];

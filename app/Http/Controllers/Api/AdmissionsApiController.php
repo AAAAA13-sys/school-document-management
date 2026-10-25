@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Concerns\NormalizesPayload;
 use App\Http\Controllers\Controller;
 use App\Models\ApplicantDocument;
 use App\Models\Document;
@@ -13,6 +14,8 @@ use Illuminate\Support\Facades\Validator;
 
 class AdmissionsApiController extends Controller
 {
+    use NormalizesPayload;
+
     protected array $allowedSources = ['OAS', 'ADMISSION', 'ADMISSIONS', 'ES'];
 
     protected function authorizeConnector(Request $request): object
@@ -91,12 +94,14 @@ class AdmissionsApiController extends Controller
     {
         $connector = $this->authorizeConnector($request);
 
+        $raw = $this->normalizeInput($request->all());
+
         // Check for batch payload
-        if ($request->has('batch') && is_array($request->input('batch'))) {
+        if (isset($raw['batch']) && is_array($raw['batch'])) {
             return $this->storeBatch($request, $connector);
         }
 
-        $validator = Validator::make($request->all(), [
+        $validator = Validator::make($raw, [
             'applicant_number' => 'required|string|max:64',
             'first_name' => 'required|string|max:100',
             'middle_name' => 'nullable|string|max:100',
@@ -192,7 +197,8 @@ class AdmissionsApiController extends Controller
         $errors = [];
 
         DB::transaction(function () use ($batch, $connector, &$processed, &$errors) {
-            foreach ($batch as $index => $item) {
+            foreach ($batch as $index => $rawItem) {
+                $item = is_array($rawItem) ? $this->normalizeInput($rawItem) : [];
                 $validator = Validator::make($item, [
                     'applicant_number' => 'required|string|max:64',
                     'first_name' => 'required|string|max:100',
@@ -268,7 +274,9 @@ class AdmissionsApiController extends Controller
 
         abort_unless($applicant, 404, 'Applicant not found.');
 
-        $validator = Validator::make($request->all(), [
+        $raw = $this->normalizeInput($request->all());
+
+        $validator = Validator::make($raw, [
             'admission_status' => 'sometimes|string|in:pending,under_review,admitted,rejected,waitlisted',
             'program_applied' => 'sometimes|string|max:100',
             'phone' => 'nullable|string|max:50',

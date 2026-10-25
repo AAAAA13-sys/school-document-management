@@ -21,7 +21,12 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        RateLimiter::for('connector', fn (Request $r) => Limit::perMinute(120)->by('connector:'.$r->attributes->get('connector')->id));
+        RateLimiter::for('connector', function (Request $r) {
+            $limit = (int) config('dms.connector_rate_limit', 120);
+            $key = 'connector:'.($r->attributes->get('connector')?->id ?? $r->ip());
+
+            return Limit::perMinute($limit > 0 ? $limit : 100000)->by($key);
+        });
         RateLimiter::for('signin', fn (Request $r) => [Limit::perMinute(5)->by(strtolower((string) $r->input('email')).'|'.$r->ip()), Limit::perMinute(30)->by('signin-ip:'.$r->ip())]);
 
         Gate::policy(User::class, UserPolicy::class);
