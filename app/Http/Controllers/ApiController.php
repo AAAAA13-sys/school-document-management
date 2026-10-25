@@ -71,6 +71,10 @@ class ApiController extends Controller
             $more = $events->count() > $limit;
             $events = $events->take($limit);
             $docs = Access::visibleTo(DB::table('documents'), $actor)->whereIn('id', $events->pluck('document_id')->filter())->get();
+            foreach ($docs as $doc) {
+                if (isset($doc->tags) && is_string($doc->tags)) $doc->tags = json_decode($doc->tags);
+                if (isset($doc->metadata) && is_string($doc->metadata)) $doc->metadata = json_decode($doc->metadata);
+            }
 
             return response()->json(['data' => $docs, 'next_cursor' => $events->last()?->id ?? (int) $after, 'has_more' => $more]);
         }
@@ -101,7 +105,62 @@ class ApiController extends Controller
         $pin = DB::table('memo_publications')->where('document_id', $document)->value('version_id');
         $versions = DB::table('document_versions')->when($pin, fn ($q) => $q->where('id', $pin))->where('document_id', $document)->orderBy('number')->get(['id', 'number', 'filename', 'mime', 'size', 'checksum', 'scan_status', 'created_at']);
 
+        if (isset($doc->tags) && is_string($doc->tags)) $doc->tags = json_decode($doc->tags);
+        if (isset($doc->metadata) && is_string($doc->metadata)) $doc->metadata = json_decode($doc->metadata);
+
         return response()->json(['data' => $doc, 'versions' => $versions]);
+    }
+
+    public function updateDocument(Request $request, string $document)
+    {
+        $actor = $request->attributes->get('connector');
+        $doc = Access::visibleTo(DB::table('documents'), $actor)->where('id', $document)->first() ?? abort(404);
+
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'title' => 'sometimes|string|max:200',
+            'subject' => 'nullable|string|max:200',
+            'reference' => 'nullable|string|max:100',
+            'category' => 'nullable|string|max:100',
+            'classification' => 'sometimes|string|in:Internal,Confidential,Restricted',
+            'tags' => 'nullable',
+            'metadata' => 'nullable',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed for document update.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $validated = $validator->validated();
+        $updates = [];
+        foreach (['title', 'subject', 'reference', 'category', 'classification'] as $field) {
+            if (array_key_exists($field, $validated)) {
+                $updates[$field] = $validated[$field];
+            }
+        }
+        if (array_key_exists('tags', $validated)) {
+            $updates['tags'] = is_string($validated['tags']) ? $validated['tags'] : json_encode($validated['tags']);
+        }
+        if (array_key_exists('metadata', $validated)) {
+            $updates['metadata'] = is_string($validated['metadata']) ? $validated['metadata'] : json_encode($validated['metadata']);
+        }
+        if (! empty($updates)) {
+            $updates['updated_at'] = now();
+            DB::table('documents')->where('id', $document)->update($updates);
+        }
+
+        $updated = DB::table('documents')->where('id', $document)->first();
+        if (isset($updated->tags) && is_string($updated->tags)) $updated->tags = json_decode($updated->tags);
+        if (isset($updated->metadata) && is_string($updated->metadata)) $updated->metadata = json_decode($updated->metadata);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Document metadata updated successfully.',
+            'data' => $updated,
+        ], 200);
     }
 
     public function snapshot(Request $request, string $type, string $record)

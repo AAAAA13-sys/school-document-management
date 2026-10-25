@@ -93,7 +93,10 @@ class DocumentService
                     DB::table('documents')->insert(['id' => $id, 'owner_id' => $actor instanceof User ? $actor->id : null,
                         'folder_id' => $input['folder_id'] ?? null, 'source' => $source, 'school_id' => $actor->school_id, 'campus' => $actor->campus,
                         'title' => $input['title'], 'subject' => $input['subject'] ?? null, 'reference' => $input['reference'] ?? null,
-                        'category' => $input['category'] ?? null, 'classification' => $input['classification'], 'revision' => 1, 'created_at' => now(), 'updated_at' => now()]);
+                        'category' => $input['category'] ?? null, 'classification' => $input['classification'],
+                        'tags' => isset($input['tags']) ? (is_string($input['tags']) ? $input['tags'] : json_encode($input['tags'])) : null,
+                        'metadata' => isset($input['metadata']) ? (is_string($input['metadata']) ? $input['metadata'] : json_encode($input['metadata'])) : null,
+                        'revision' => 1, 'created_at' => now(), 'updated_at' => now()]);
                 }
                 $version = (string) Str::uuid();
                 $stored = 'documents/'.$version;

@@ -1113,3 +1113,376 @@ All error responses adhere to the standard Laravel JSON error specification:
 - **Auth**: Connector Bearer Token (`source: ES`)
 - **Response `200 OK`**: Binary stream of the clean version file.
 
+---
+
+## 13. Central Enterprise Hub & Inter-Service Integration Endpoints
+
+All external university subsystems (Admission/OAS, Enrollment/ES, Cashier/PMS, Payroll/EMS) communicate with the DMS as the central enterprise core for cross-subsystem orchestration, centralized data persistence, and relational document linking.
+
+### 13.1 Admissions Subsystem API (`/api/v1/admissions`)
+Manages incoming student applicant records, requirement checklists, and relational requirement document links.
+
+#### 13.1.1 List / Search Student Applicants
+- **Method**: `GET /api/v1/admissions`
+- **Auth**: Connector Bearer Token (`OAS`, `ADMISSION`, `ES`) or Session
+- **Query Parameters**:
+  - `status` (optional): `pending`, `under_review`, `admitted`, `rejected`, `waitlisted`
+  - `program` (optional): Filter by program code/name
+  - `search` (optional): Full-text search on applicant number, first/last name, email
+  - `with_documents` (optional, default `true`): Eager-load linked document metadata
+  - `page` (default: 1), `per_page` (default: 15, max: 100)
+- **Response `200 OK`**:
+  ```json
+  {
+    "status": "success",
+    "data": [
+      {
+        "id": 1,
+        "applicant_number": "APP-2026-0001",
+        "first_name": "Juan",
+        "middle_name": "Protacio",
+        "last_name": "Rizal",
+        "suffix": null,
+        "email": "juan.rizal@plp.edu.ph",
+        "phone": "09181234567",
+        "program_applied": "BS Information Technology",
+        "admission_status": "pending",
+        "school_id": "PLP",
+        "campus": "Main",
+        "applied_at": "2026-10-26T07:00:00Z",
+        "requirements": [
+          {
+            "type": "FORM_137",
+            "document_id": "e4b105a2-9907-4e3f-a18a-9d9fc9287a91",
+            "status": "verified"
+          }
+        ],
+        "applicant_documents": [
+          {
+            "id": 1,
+            "document_type": "FORM_137",
+            "verification_status": "verified",
+            "document": { ... }
+          }
+        ]
+      }
+    ],
+    "meta": {
+      "current_page": 1,
+      "last_page": 1,
+      "per_page": 15,
+      "total": 1
+    }
+  }
+  ```
+
+#### 13.1.2 Ingest Student Applicant (Single or Batch)
+- **Method**: `POST /api/v1/admissions`
+- **Auth**: Connector Bearer Token (`OAS`, `ADMISSION`, `ES`)
+- **Single Payload**:
+  ```json
+  {
+    "applicant_number": "APP-2026-0001",
+    "first_name": "Juan",
+    "middle_name": "Protacio",
+    "last_name": "Rizal",
+    "suffix": null,
+    "email": "juan.rizal@plp.edu.ph",
+    "phone": "09181234567",
+    "program_applied": "BS Information Technology",
+    "admission_status": "pending",
+    "requirements": [
+      {
+        "type": "FORM_137",
+        "document_id": "e4b105a2-9907-4e3f-a18a-9d9fc9287a91",
+        "status": "verified",
+        "notes": "Transcript validated against DepEd portal."
+      }
+    ],
+    "metadata": {
+      "gpa": 94.8,
+      "strand": "STEM"
+    }
+  }
+  ```
+- **Batch Payload**:
+  ```json
+  {
+    "batch": [
+      { "applicant_number": "APP-2026-0002", "first_name": "Andres", "last_name": "Bonifacio", ... },
+      { "applicant_number": "APP-2026-0003", "first_name": "Emilio", "last_name": "Aguinaldo", ... }
+    ]
+  }
+  ```
+- **Response `201 Created`** (or `200 OK` on idempotent update):
+  ```json
+  {
+    "status": "success",
+    "message": "Student applicant successfully registered.",
+    "created": true,
+    "data": { ... }
+  }
+  ```
+
+#### 13.1.3 Get Applicant Details
+- **Method**: `GET /api/v1/admissions/{id}` (where `{id}` is applicant primary key or `applicant_number`)
+- **Response `200 OK`**: Complete applicant profile with relational document versions and verification notes.
+
+#### 13.1.4 Update Applicant Status & Requirements
+- **Method**: `PATCH /api/v1/admissions/{id}`
+- **Payload**:
+  ```json
+  {
+    "admission_status": "admitted",
+    "requirements": [
+      {
+        "type": "PSA_BIRTH_CERT",
+        "document_id": "99b5d3c8-6623-455b-81f1-32e70e2858b9",
+        "status": "verified"
+      }
+    ]
+  }
+  ```
+- **Response `200 OK`**: Updated applicant details.
+
+---
+
+### 13.2 Enrollment Subsystem API (`/api/v1/enrollment`)
+Transitions admitted applicants to student enrollee status, allocating academic subjects and unit quotas while indexing the Certificate of Registration (COR).
+
+#### 13.2.1 List Enrollees
+- **Method**: `GET /api/v1/enrollment`
+- **Query Parameters**: `program`, `year_level`, `academic_year`, `semester`, `status`, `search`, pagination.
+- **Response `200 OK`**: Paginated list of student enrollees with linked COR documents.
+
+#### 13.2.2 Transition & Enroll Student
+- **Method**: `POST /api/v1/enrollment`
+- **Auth**: Connector Bearer Token (`ES`, `ENROLLMENT`, `OAS`)
+- **Payload**:
+  ```json
+  {
+    "student_number": "2026-00101-MN-0",
+    "applicant_id": 1,
+    "program": "BS Information Technology",
+    "year_level": 1,
+    "academic_year": "2026-2027",
+    "semester": "1st Semester",
+    "enrolled_units": 21,
+    "course_allocations": [
+      {
+        "course_code": "IT101",
+        "description": "Introduction to Information Technology",
+        "units": 3,
+        "section": "IT-1A",
+        "schedule": "MWF 08:00-09:00"
+      },
+      {
+        "course_code": "IT102",
+        "description": "Computer Programming 1",
+        "units": 3,
+        "section": "IT-1A",
+        "schedule": "TTH 10:00-11:30"
+      }
+    ],
+    "enrollment_status": "enrolled",
+    "clearance_status": "cleared",
+    "cor_document_id": "e4b105a2-9907-4e3f-a18a-9d9fc9287a91"
+  }
+  ```
+- **Governance Automation**: Linking `applicant_id` automatically transitions the applicant's `admission_status` to `admitted`.
+- **Response `201 Created`**:
+  ```json
+  {
+    "status": "success",
+    "message": "Student enrollment registered successfully.",
+    "created": true,
+    "data": { ... }
+  }
+  ```
+
+#### 13.2.3 Update Enrollee Allocation & Status
+- **Method**: `PATCH /api/v1/enrollment/{id}`
+- **Payload**: `{ "enrolled_units": 24, "clearance_status": "cleared" }`
+- **Response `200 OK`**: Updated enrollment record.
+
+---
+
+### 13.3 Cashier Subsystem API (`/api/v1/cashier`)
+Tracks student fee assessments, balances, and validates official receipts.
+
+#### 13.3.1 List Assessments
+- **Method**: `GET /api/v1/cashier`
+- **Query Parameters**: `status`, `student_number`, `account_type`, `academic_year`, `semester`, `search`, pagination.
+- **Response `200 OK`**: Paginated array of assessments with payment status.
+
+#### 13.3.2 Create Fee Assessment
+- **Method**: `POST /api/v1/cashier`
+- **Auth**: Connector Bearer Token (`CASHIER`, `CAS`, `PMS`, `ES`)
+- **Payload**:
+  ```json
+  {
+    "assessment_number": "ASSESS-2026-001",
+    "student_number": "2026-00101-MN-0",
+    "student_name": "Juan Rizal",
+    "account_type": "tuition",
+    "academic_year": "2026-2027",
+    "semester": "1st Semester",
+    "total_amount": 15000.00,
+    "amount_paid": 5000.00,
+    "payment_method": "cash"
+  }
+  ```
+- **Response `201 Created`**:
+  ```json
+  {
+    "status": "success",
+    "message": "Fee assessment created successfully.",
+    "data": {
+      "assessment_number": "ASSESS-2026-001",
+      "total_amount": 15000.00,
+      "amount_paid": 5000.00,
+      "balance": 10000.00,
+      "payment_status": "assessed"
+    }
+  }
+  ```
+
+#### 13.3.3 Verify Payment & Index Official Receipt
+- **Method**: `POST /api/v1/cashier/{id}/verify`
+- **Payload**:
+  ```json
+  {
+    "or_number": "OR-2026-99123",
+    "amount_paid": 10000.00,
+    "payment_method": "online_transfer",
+    "receipt_document_id": "f5c317b4-1018-4e4f-b29b-0e0fd0398b02",
+    "verified_by": "Teller Jane Doe"
+  }
+  ```
+- **Response `200 OK`**:
+  ```json
+  {
+    "status": "success",
+    "message": "Payment successfully verified.",
+    "data": {
+      "assessment_number": "ASSESS-2026-001",
+      "or_number": "OR-2026-99123",
+      "amount_paid": 15000.00,
+      "balance": 0.00,
+      "payment_status": "verified",
+      "verified_at": "2026-10-26T07:15:00Z"
+    }
+  }
+  ```
+
+---
+
+### 13.4 Payroll Subsystem API (`/api/v1/payroll`)
+Manages university faculty/staff payroll records and centralized digital payslip document indexing.
+
+#### 13.4.1 List Payroll Records
+- **Method**: `GET /api/v1/payroll`
+- **Query Parameters**: `period`, `department`, `employee_id`, `status`, `employment_type`, `search`, pagination.
+- **Response `200 OK`**: Paginated payroll records.
+
+#### 13.4.2 Ingest Payroll Record
+- **Method**: `POST /api/v1/payroll`
+- **Auth**: Connector Bearer Token (`PMS`, `PAYROLL`, `EMS`)
+- **Payload**:
+  ```json
+  {
+    "payroll_period": "2026-10-A",
+    "employee_id": "EMP-10023",
+    "employee_name": "Prof. Maria Santos",
+    "department": "College of Computer Studies",
+    "employment_type": "faculty",
+    "gross_pay": 50000.00,
+    "deductions": 6000.00,
+    "net_pay": 44000.00,
+    "deduction_breakdown": {
+      "withholding_tax": 3000.00,
+      "gsis": 2000.00,
+      "philhealth": 600.00,
+      "pagibig": 400.00
+    },
+    "disbursement_status": "processed",
+    "payslip_document_id": "f5c317b4-1018-4e4f-b29b-0e0fd0398b02"
+  }
+  ```
+- **Response `201 Created`**:
+  ```json
+  {
+    "status": "success",
+    "message": "Payroll record indexed successfully.",
+    "created": true,
+    "data": { ... }
+  }
+  ```
+
+#### 13.4.3 Update Disbursement Status
+- **Method**: `PATCH /api/v1/payroll/{id}`
+- **Payload**: `{ "disbursement_status": "disbursed" }`
+- **Response `200 OK`**: Record updated with `disbursed_at` timestamp.
+
+---
+
+### 13.5 Universal Documents Repository API (`/api/v1/documents`)
+Universal file ingestion, metadata tagging, status tracking, and centralized retrieval.
+
+#### 13.5.1 Universal Multipart Upload with Metadata Tagging
+- **Method**: `POST /api/v1/documents`
+- **Headers**:
+  ```http
+  Authorization: Bearer <connector-token>
+  Idempotency-Key: <unique-uuid>
+  Content-Type: multipart/form-data
+  ```
+- **Form Fields**:
+  - `file`: Binary file (max 10MB)
+  - `title`: string (max 200)
+  - `classification`: `Internal`, `Confidential`, `Restricted`
+  - `category`: optional string (e.g. `Official`, `Employment`, `Admissions`, `Receipt`)
+  - `reference`: optional string (e.g. `REF-2026-001`)
+  - `tags`: optional JSON array or comma-separated string
+  - `metadata`: optional JSON object for extensible attributes
+- **Response `201 Created`**:
+  ```json
+  {
+    "document_id": "e4b105a2-9907-4e3f-a18a-9d9fc9287a91",
+    "version_id": "f5c317b4-1018-4e4f-b29b-0e0fd0398b02",
+    "revision": 1,
+    "scan_status": "Pending"
+  }
+  ```
+
+#### 13.5.2 Document Metadata Tracking & Centralized Retrieval
+- **Method**: `GET /api/v1/documents/{document}`
+- **Response `200 OK`**: Returns document metadata, parsed `tags`, `metadata`, and list of all versions with their malware scan statuses (`Clean`, `Pending`, `Infected`) and checksums.
+
+#### 13.5.3 Update Document Metadata & Tags
+- **Method**: `PATCH /api/v1/documents/{document}`
+- **Payload**:
+  ```json
+  {
+    "reference": "HR-2026-CONT-REVISED",
+    "tags": ["faculty", "contract", "2026", "signed"],
+    "metadata": {
+      "approved_by": "Dean of CCS"
+    }
+  }
+  ```
+- **Response `200 OK`**: Updated document object.
+
+---
+
+### 13.6 Business Governance & Access Control Matrix
+
+| Endpoint | Authorized Connector Sources | Primary Operation | Cross-Subsystem Governance Rules |
+| :--- | :--- | :--- | :--- |
+| `/api/v1/admissions` | `OAS`, `ADMISSION`, `ES` | Intake & Requirements | Requires valid applicant number; duplicate submissions update idempotently; requirement documents must belong to same school/campus tenant. |
+| `/api/v1/enrollment` | `ES`, `ENROLLMENT`, `OAS` | Enrollee Transition | Linking applicant automatically updates admission status to `admitted`; Certificate of Registration must exist in tenant. |
+| `/api/v1/cashier` | `CASHIER`, `CAS`, `PMS`, `ES` | Fee Assessments & Payments | Automatically calculates balance (`total - paid`); verification transitions status to `verified` and requires official receipt #. |
+| `/api/v1/payroll` | `PMS`, `PAYROLL`, `EMS` | Payroll & Payslips | Validates net pay against gross and deductions; indexes payslip document to immutable file storage. |
+| `/api/v1/documents` | All Active Connectors | Universal File Storage | Enforces 10MB limit, SHA-256 validation, background ClamAV scanning, and multi-tenant isolation. |
+
+

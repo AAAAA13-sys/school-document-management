@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
@@ -31,6 +32,8 @@ class Document extends Model
         'reference',
         'category',
         'classification',
+        'tags',
+        'metadata',
         'revision',
         'trashed_at',
     ];
@@ -40,6 +43,8 @@ class Document extends Model
         return [
             'revision' => 'integer',
             'trashed_at' => 'datetime',
+            'tags' => 'array',
+            'metadata' => 'array',
         ];
     }
 
@@ -100,6 +105,33 @@ class Document extends Model
     public function memoPublication(): HasOne
     {
         return $this->hasOne(MemoPublication::class, 'document_id');
+    }
+
+    public function applicantDocuments(): HasMany
+    {
+        return $this->hasMany(ApplicantDocument::class, 'document_id');
+    }
+
+    public function applicants(): BelongsToMany
+    {
+        return $this->belongsToMany(StudentApplicant::class, 'applicant_documents', 'document_id', 'applicant_id')
+            ->withPivot(['document_type', 'verification_status', 'verified_by', 'verified_at', 'notes'])
+            ->withTimestamps();
+    }
+
+    public function enrollments(): HasMany
+    {
+        return $this->hasMany(StudentEnrollment::class, 'cor_document_id');
+    }
+
+    public function cashierAssessments(): HasMany
+    {
+        return $this->hasMany(CashierAssessment::class, 'receipt_document_id');
+    }
+
+    public function payrollRecords(): HasMany
+    {
+        return $this->hasMany(PayrollRecord::class, 'payslip_document_id');
     }
 
     public function scopeUntrashed(Builder $query): Builder

@@ -21,7 +21,11 @@ class UploadRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $this->merge(['submission_key' => $this->header('Idempotency-Key', $this->input('submission_key'))]);
+        $key = $this->header('Idempotency-Key', $this->input('submission_key'));
+        if (! $key && $this->is('api/*')) {
+            $key = (string) \Illuminate\Support\Str::uuid();
+        }
+        $this->merge(['submission_key' => $key]);
     }
 
     public function rules(): array
@@ -34,6 +38,7 @@ class UploadRequest extends FormRequest
             'title' => [$new ? 'required' : 'sometimes', 'string', 'max:200'], 'source' => [$this->is('api/*') ? 'prohibited' : 'required', 'in:'.implode(',', $sources)],
             'classification' => [$new ? 'required' : 'sometimes', 'in:Internal,Confidential,Restricted'], 'folder_id' => 'nullable|uuid',
             'subject' => 'nullable|string|max:200', 'reference' => 'nullable|string|max:100', 'category' => 'nullable|string|max:100',
+            'tags' => 'nullable', 'metadata' => 'nullable',
             'revision' => [$new ? 'sometimes' : 'required', 'integer', 'min:1'], 'submission_key' => 'required|string|max:100',
             'confirm_duplicate' => 'sometimes|boolean',
             'force_new_version' => 'sometimes|boolean'];

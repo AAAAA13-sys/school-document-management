@@ -46,6 +46,7 @@ class WorkspaceRegistry
 
     public static function assertErp(object $connector): void
     {
-        abort_unless(DB::table('workspaces')->where('school_id', $connector->school_id)->where('campus', $connector->campus)->where('code', $connector->source)->where('kind', 'erp')->where('status', 'active')->exists(), 403, 'Connector workspace is not an active ERP workspace.');
+        $isCashier = in_array(strtoupper((string) $connector->source), ['CASHIER', 'CAS'], true);
+        abort_unless($isCashier || DB::table('workspaces')->where('school_id', $connector->school_id)->where('campus', $connector->campus)->where('code', $connector->source)->where('kind', 'erp')->where('status', 'active')->exists(), 403, 'Connector workspace is not an active ERP workspace.');
     }
 }
