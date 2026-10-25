@@ -1,7 +1,7 @@
 @php
     $adminView = $source === 'ALL' || request()->is('admin') || request()->is('admin/*');
     $metricLabels = $adminView
-        ? ['documents'=>['School documents','Across all four workspaces'],'accounts'=>['Active staff','Scoped to '.$viewer->campus.' campus'],'connectors'=>['Connected systems','EMS · PMS · ES · OAS'],'blocked'=>['Files awaiting attention','Review scan status']]
+        ? ['documents'=>['Enterprise documents','Aggregated across 5 subsystems'],'accounts'=>['Active staff accounts','Scoped to '.$viewer->campus.' campus'],'connectors'=>['Subsystem connectors','Admission · Enrollment · Cashier · Payroll'],'blocked'=>['Files awaiting attention','Review security scan status']]
         : ['documents'=>['Total documents','In this workspace'],'shared'=>['Shared documents','With active staff access'],'history'=>['History received','Immutable source events'],'blocked'=>['Files awaiting scan','Blocked until cleared']];
 @endphp
 <div class="stats-grid">

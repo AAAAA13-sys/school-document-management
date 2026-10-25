@@ -5123,3 +5123,232 @@ body.login-page .preview-login-link {
   border-color: #bbf7d0;
   font-weight: 600;
 }
+
+/* Enterprise DMS Unified Dashboard & 5-Subsystem Integration */
+.dept-lens-wrapper {
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+
+.dept-lens-heading .eyebrow {
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.dept-lens-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dept-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.dot-all { background-color: #2563eb; }
+.dot-oas { background-color: #0891b2; }
+.dot-es  { background-color: #3b82f6; }
+.dot-ems { background-color: #059669; }
+.dot-pms { background-color: #d97706; }
+.dot-dms { background-color: #7c3aed; }
+
+/* Subsystem Health Matrix Grid */
+.subsystem-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.subsystem-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.subsystem-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border-color: #cbd5e1;
+}
+
+.subsystem-card.is-highlighted {
+  border-color: var(--green-700);
+  box-shadow: 0 0 0 2px rgba(22, 101, 52, 0.15);
+  background-color: #fcfdfd;
+}
+
+.subsystem-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.subsystem-status-indicator {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-online {
+  color: #16a34a;
+}
+
+.status-connected {
+  color: #2563eb;
+}
+
+.subsystem-card-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 2px;
+  color: var(--ink);
+}
+
+.subsystem-dept-label {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.subsystem-card-metrics {
+  display: flex;
+  justify-content: space-between;
+  background: var(--canvas);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  border: 1px solid #f1f5f9;
+}
+
+.metric-item {
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+}
+
+.metric-item .metric-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--muted);
+  letter-spacing: 0.03em;
+}
+
+.metric-item .metric-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.subsystem-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  margin-top: auto;
+}
+
+.sync-mode-pill {
+  background: #f1f5f9;
+  color: #475569;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.endpoint-code {
+  font-family: monospace;
+  color: #64748b;
+  font-size: 10px;
+}
+
+/* Subsystem Code Pills */
+.subsystem-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+
+.subsystem-pill-oas {
+  background: #ecfeff;
+  color: #0891b2;
+  border-color: #a5f3fc;
+}
+
+.subsystem-pill-es {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.subsystem-pill-ems {
+  background: #f0fdf4;
+  color: #15803d;
+  border-color: #bbf7d0;
+}
+
+.subsystem-pill-pms {
+  background: #fffbeb;
+  color: #b45309;
+  border-color: #fde68a;
+}
+
+.subsystem-pill-dms {
+  background: #f5f3ff;
+  color: #6d28d9;
+  border-color: #ddd6fe;
+}
+
+/* Ingestion Stream & Queue Elements */
+.doc-file-cell .doc-title-link {
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.doc-file-cell .doc-title-link:hover {
+  color: var(--green-800);
+  text-decoration: underline;
+}
+
+.checksum-cell {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.enterprise-queues-grid .panel-subtitle {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 0;
+}
+
+@media (max-width: 991px) {
+  .subsystem-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .subsystem-grid {
+    grid-template-columns: 1fr;
+  }
+}

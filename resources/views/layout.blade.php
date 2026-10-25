@@ -23,6 +23,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content="{{ csrf_token() }}" />
+    <meta name="dms-api-url" content="{{ env('DMS_API_URL', env('VITE_API_URL', env('NEXT_PUBLIC_API_URL', ''))) }}" />
     <meta name="color-scheme" content="light" />
     <title>
         @yield ('title', 'Workspace')
@@ -63,6 +64,7 @@
     <script defer src="/vendor/jquery.min.js"></script>
     <script defer src="/vendor/jquery-ui.min.js"></script>
     <script defer src="/vendor/bootstrap.bundle.min.js"></script>
+    <script defer src="/js/dms-api-client.js"></script>
     <script defer src="/js/dms.js"></script>
 </head>
 <body class="{{ $isSidebarCollapsed ? 'sidebar-collapsed' : '' }}" data-section="{{ $section }}" data-source="{{ $source }}" data-preview="{{ !empty($frontendPreview) ? 'true':'false' }}">

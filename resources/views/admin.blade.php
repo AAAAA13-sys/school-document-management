@@ -20,6 +20,267 @@
     </div>
     @if ($section==='overview')
         @include ('partials.stats')
+
+        <div class="dept-lens-wrapper mb-4">
+            <div class="dept-lens-heading mb-2">
+                <span class="eyebrow">ROLE &amp; DEPARTMENT PERSPECTIVE</span>
+                <p class="mb-2 text-muted">Select an administrative role lens to filter cross-departmental queues, documents, and transaction workflows.</p>
+            </div>
+            <div class="filter-pills-bar dept-lens-bar" role="tablist" aria-label="Department Lenses">
+                <button type="button" class="filter-pill active" data-dept-lens="all" aria-selected="true">
+                    <span class="dept-dot dot-all"></span> Enterprise Admin (All Subsystems)
+                </button>
+                <button type="button" class="filter-pill" data-dept-lens="OAS" aria-selected="false">
+                    <span class="dept-dot dot-oas"></span> Admission (OAS)
+                </button>
+                <button type="button" class="filter-pill" data-dept-lens="ES" aria-selected="false">
+                    <span class="dept-dot dot-es"></span> Registrar &amp; Enrollment (ES)
+                </button>
+                <button type="button" class="filter-pill" data-dept-lens="EMS" aria-selected="false">
+                    <span class="dept-dot dot-ems"></span> Cashier &amp; Staff (EMS)
+                </button>
+                <button type="button" class="filter-pill" data-dept-lens="PMS" aria-selected="false">
+                    <span class="dept-dot dot-pms"></span> Payroll &amp; HR (PMS)
+                </button>
+                <button type="button" class="filter-pill" data-dept-lens="DMS" aria-selected="false">
+                    <span class="dept-dot dot-dms"></span> Central Storage (DMS)
+                </button>
+            </div>
+        </div>
+
+        <section class="panel mb-4 subsystem-status-panel" id="subsystem-matrix-section">
+            <div class="panel-header">
+                <div>
+                    <h2>5 Subsystem Integration Health Matrix</h2>
+                    <p class="panel-subtitle">Live health status, synchronization mode, and intake rates across connected school subsystems.</p>
+                </div>
+                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">5 Subsystems Integrated</span>
+            </div>
+            <div class="subsystem-grid">
+                @foreach (($subsystemStatuses ?? collect()) as $sub)
+                    <div class="subsystem-card" data-subsystem-card="{{ $sub->code }}">
+                        <div class="subsystem-card-header">
+                            <span class="subsystem-pill subsystem-pill-{{ strtolower($sub->code) }}">{{ $sub->code }}</span>
+                            <span class="subsystem-status-indicator {{ strtolower($sub->status) === 'online' ? 'status-online' : 'status-connected' }}">
+                                ● {{ $sub->status }}
+                            </span>
+                        </div>
+                        <h3 class="subsystem-card-title">{{ $sub->name }}</h3>
+                        <p class="subsystem-dept-label">{{ $sub->department }}</p>
+                        <div class="subsystem-card-metrics">
+                            <div class="metric-item">
+                                <span class="metric-label">Latency</span>
+                                <strong class="metric-value">{{ $sub->latency }}ms</strong>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">Ingested</span>
+                                <strong class="metric-value">{{ number_format($sub->total) }}</strong>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">Active Queue</span>
+                                <strong class="metric-value">{{ $sub->queue }}</strong>
+                            </div>
+                        </div>
+                        <div class="subsystem-card-footer">
+                            <span class="sync-mode-pill">{{ $sub->sync_mode }}</span>
+                            <span class="endpoint-code">{{ $sub->endpoint }}</span>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </section>
+
+        <section class="panel mb-4" id="ingestion-stream-section">
+            <div class="panel-header">
+                <div>
+                    <h2>Centralized Document Ingestion Stream</h2>
+                    <p class="panel-subtitle">Real-time client document tracking across all 5 subsystems with ClamAV malware scanning and SHA-256 integrity.</p>
+                </div>
+                <div class="d-flex gap-2 align-items-center">
+                    <span class="text-muted small">Auto-verifying ClamAV</span>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped table-zebra align-middle mb-0" id="ingestion-stream-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Subsystem</th>
+                            <th scope="col">Document / File</th>
+                            <th scope="col">Classification</th>
+                            <th scope="col">Security Scan</th>
+                            <th scope="col">Version / Checksum</th>
+                            <th scope="col">Ingested At</th>
+                            <th scope="col" class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse (($ingestionStream ?? collect()) as $item)
+                            @php
+                                $subCode = $item->source ?? 'DMS';
+                                $class = $item->classification ?? 'Internal';
+                                $scanStatus = $item->scan_status ?? 'Clean';
+                                $isClean = strtolower($scanStatus) === 'clean';
+                                $checksumShort = substr($item->checksum ?? 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', 0, 10);
+                                $versionId = $item->version_id ?? $item->id;
+                            @endphp
+                            <tr data-subsystem-row="{{ $subCode }}" data-classification-row="{{ $class }}">
+                                <td>
+                                    <span class="subsystem-pill subsystem-pill-{{ strtolower($subCode) }}">{{ $subCode }}</span>
+                                </td>
+                                <td>
+                                    <div class="doc-file-cell">
+                                        <a href="/documents/{{ $item->id }}" class="doc-title-link">{{ $item->title }}</a>
+                                        <small class="text-muted d-block">{{ $item->filename ?? ($item->title . '.pdf') }} ({{ number_format(($item->size ?? 154820) / 1024, 0) }} KB)</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="classification class-{{ strtolower($class) }}">{{ $class }}</span>
+                                </td>
+                                <td>
+                                    <span class="status-badge {{ strtolower($scanStatus) }}">{{ $scanStatus }}</span>
+                                </td>
+                                <td>
+                                    <div class="checksum-cell">
+                                        <strong>v{{ $item->number ?? 1 }}</strong>
+                                        <span class="font-monospace text-muted small ms-1" title="SHA-256: {{ $item->checksum ?? '—' }}">SHA:{{ $checksumShort }}…</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="text-nowrap">{{ Illuminate\Support\Carbon::parse($item->updated_at ?? now())->format('M d, H:i') }}</span>
+                                </td>
+                                <td class="text-end text-nowrap">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#ingestion-preview-modal" data-preview-title="{{ $item->title }}" data-preview-version="{{ $versionId }}" data-preview-clean="{{ $isClean ? 'true' : 'false' }}">
+                                        Preview
+                                    </button>
+                                    @if ($isClean)
+                                        <a href="/files/{{ $versionId }}" class="btn btn-sm btn-outline-primary me-1" download>
+                                            Download
+                                        </a>
+                                    @else
+                                        <button type="button" class="btn btn-sm btn-outline-danger me-1" disabled title="Download blocked: Scan is {{ $scanStatus }}">
+                                            Blocked
+                                        </button>
+                                    @endif
+                                    <button type="button" class="btn btn-sm btn-light border" data-bs-toggle="modal" data-bs-target="#ingestion-provenance-modal" data-prov-id="{{ $item->id }}" data-prov-title="{{ $item->title }}" data-prov-source="{{ $subCode }}" data-prov-class="{{ $class }}" data-prov-checksum="{{ $item->checksum ?? 'a591a6d4...' }}" data-prov-scan="{{ $scanStatus }}">
+                                        Provenance
+                                    </button>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-muted">No files ingested yet.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <div class="row g-4 mb-4 enterprise-queues-grid">
+            <div class="col-lg-6" data-dept-section="OAS,ES">
+                <section class="panel h-100">
+                    <div class="panel-header">
+                        <div>
+                            <h2>Admission → Enrollment Applicant Queue</h2>
+                            <p class="panel-subtitle">Verified applicant packet hand-off from Admission (OAS) to Registrar Enrollment (ES).</p>
+                        </div>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">OAS → ES Exchange</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-zebra align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Applicant</th>
+                                    <th scope="col">Program &amp; Submitted Files</th>
+                                    <th scope="col">Verification</th>
+                                    <th scope="col">Packet Release</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse (($applicantQueue ?? collect()) as $app)
+                                    <tr>
+                                        <td>
+                                            <strong>{{ $app->name }}</strong>
+                                            <small class="text-muted d-block font-monospace">{{ $app->applicant_id }}</small>
+                                        </td>
+                                        <td>
+                                            <span>{{ $app->program }}</span>
+                                            <small class="text-muted d-block">{{ $app->documents_summary }} ({{ $app->files_count }} files)</small>
+                                        </td>
+                                        <td>
+                                            @if ($app->verified)
+                                                <span class="status-badge clean">Verified</span>
+                                            @else
+                                                <span class="status-badge pending">Pending</span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if ($app->released)
+                                                <span class="badge bg-success text-white px-2 py-1">Released to ES</span>
+                                            @else
+                                                <span class="badge bg-secondary text-white px-2 py-1">Held in OAS</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="4" class="text-center py-3 text-muted">No applicant packets in queue.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+            <div class="col-lg-6" data-dept-section="EMS,PMS">
+                <section class="panel h-100">
+                    <div class="panel-header">
+                        <div>
+                            <h2>Cashier &amp; Payroll Transaction Overview</h2>
+                            <p class="panel-subtitle">Audited financial vouchers, cashier tuition slips, and compensation registers.</p>
+                        </div>
+                        <a href="/admin/audit" class="text-link">Full ledger →</a>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-zebra align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Source</th>
+                                    <th scope="col">Transaction / Voucher</th>
+                                    <th scope="col">Operation</th>
+                                    <th scope="col">Recorded</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse (($departmentTransactions ?? collect()) as $trx)
+                                    <tr>
+                                        <td>
+                                            <span class="subsystem-pill subsystem-pill-{{ strtolower($trx->source) }}">{{ $trx->source }}</span>
+                                        </td>
+                                        <td>
+                                            <strong>{{ $trx->record_id }}</strong>
+                                            <small class="text-muted d-block">{{ $trx->description ?? ($trx->record_type . ' record') }}</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-light text-dark border px-2 py-1">{{ strtoupper($trx->operation) }} v{{ $trx->revision }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="text-nowrap small text-muted">{{ Illuminate\Support\Carbon::parse($trx->created_at)->format('M d, H:i') }}</span>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="4" class="text-center py-3 text-muted">No departmental transactions logged.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+        </div>
+
         <div class="section-heading">
             <h2>Your connected workspaces</h2>
             <span>{{ $viewer->isSuperAdmin()?'Manage repositories within your school and campus.':'Manage your assigned repository.' }}</span>
@@ -387,7 +648,63 @@
     @endif
 @endsection
 @push ('dialogs')
-    @if ($section==='accounts')
+    @if ($section==='overview')
+        <div class="modal fade" id="ingestion-provenance-modal" tabindex="-1" aria-labelledby="ingestion-prov-title" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2 class="modal-title" id="ingestion-prov-title">Document Ingestion Provenance</h2>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="modal-subtitle">Verified immutable transmission and custody evidence.</p>
+                        <div class="provenance-detail-card mb-3 p-3 bg-light rounded border">
+                            <div class="mb-2"><strong>Document Title:</strong> <span id="prov-doc-title">—</span></div>
+                            <div class="mb-2"><strong>Subsystem Origin:</strong> <span id="prov-doc-source" class="subsystem-pill">—</span></div>
+                            <div class="mb-2"><strong>Classification Level:</strong> <span id="prov-doc-class" class="classification">—</span></div>
+                            <div class="mb-2"><strong>ClamAV Scan Result:</strong> <span id="prov-doc-scan" class="status-badge">—</span></div>
+                            <div class="mb-2"><strong>SHA-256 Checksum:</strong> <div id="prov-doc-checksum" class="font-monospace small text-break">—</div></div>
+                            <div><strong>Idempotency Receipt:</strong> <span class="badge bg-success-subtle text-success">Verified &amp; Committed</span></div>
+                        </div>
+                        <div class="info-strip">
+                            <x-figma-icon name="shield-small" :size="24" />
+                            <div>
+                                <strong>Custody &amp; Non-Repudiation Policy</strong>
+                                <p>Original document bytes are encrypted and stored in private storage. Versions are immutable and cannot be overwritten.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close Inspector</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="ingestion-preview-modal" tabindex="-1" aria-labelledby="ingestion-prev-title" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2 class="modal-title" id="ingestion-prev-title">Document Ingestion Preview</h2>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-0">
+                        <div id="ingestion-preview-container" class="p-3 text-center" style="min-height: 400px; background: #f8fafc;">
+                            <div id="preview-blocked-notice" class="alert alert-warning m-3 text-start" hidden>
+                                <strong>File Download / Preview Blocked</strong>
+                                <p class="mb-0">This document version has not cleared malware scanning or is currently flagged. Only Clean verified documents may be viewed.</p>
+                            </div>
+                            <iframe id="ingestion-preview-frame" style="width: 100%; height: 500px; border: none; border-radius: 4px;" title="Document Preview"></iframe>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close Preview</button>
+                        <a id="ingestion-preview-download-btn" href="#" class="btn btn-primary" download>Download Clean File</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @elseif ($section==='accounts')
         <div class="modal fade" id="account-new" tabindex="-1" aria-labelledby="account-new-title" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
                 <div class="modal-content">

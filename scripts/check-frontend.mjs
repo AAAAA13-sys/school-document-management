@@ -13,6 +13,7 @@ const required = [
   'public/vendor/jquery-ui.min.css',
   'public/css/dms.css',
   'public/js/dms.js',
+  'public/js/dms-api-client.js',
   ...['400', '500', '600'].map((w) => `public/vendor/fonts/inter-${w}.woff2`),
 ];
 for (const file of required) assert(fs.statSync(file).size > 0, `Missing asset: ${file}`);
