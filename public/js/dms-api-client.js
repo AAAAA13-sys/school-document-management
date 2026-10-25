@@ -504,6 +504,237 @@
         body: packetData,
       });
     }
+
+    /* -------------------------------------------------------------
+     *  Central Enterprise Hub: Inter-Service Integration API
+     * ----------------------------------------------------------- */
+
+    /* 1. Admissions Subsystem API (/api/v1/admissions) */
+
+    /**
+     * Retrieves student applicants with optional status, program, or search filters.
+     */
+    async getAdmissions(params = {}) {
+      const search = new URLSearchParams();
+      Object.keys(params).forEach((k) => {
+        if (params[k] !== undefined && params[k] !== null && params[k] !== '') {
+          search.set(k, String(params[k]));
+        }
+      });
+      const query = search.toString();
+      return this.request(`/api/v1/admissions${query ? '?' + query : ''}`);
+    }
+
+    /**
+     * Retrieves a single student applicant record with requirement documents.
+     */
+    async getAdmission(applicantId) {
+      if (!applicantId) throw new DmsApiError('Applicant ID is required.', 400);
+      return this.request(`/api/v1/admissions/${encodeURIComponent(applicantId)}`);
+    }
+
+    /**
+     * Ingests a new student applicant (single or batch) into the admissions subsystem.
+     */
+    async createApplicant(payload, options = {}) {
+      return this.request('/api/v1/admissions', {
+        method: 'POST',
+        body: payload,
+        ...options,
+      });
+    }
+
+    /**
+     * Uploads and links an applicant requirement document (e.g. Form 137, Birth Certificate).
+     */
+    async uploadApplicantDocument(applicantId, formData, options = {}) {
+      if (!applicantId) throw new DmsApiError('Applicant ID is required.', 400);
+      if (!(formData instanceof FormData)) {
+        throw new DmsApiError('Document upload requires FormData payload.', 400);
+      }
+      return this.request(`/api/v1/admissions/${encodeURIComponent(applicantId)}/documents`, {
+        method: 'POST',
+        body: formData,
+        ...options,
+      });
+    }
+
+    /* 2. Enrollment Subsystem API (/api/v1/enrollment) */
+
+    /**
+     * Retrieves student enrollees with optional program, status, or term filters.
+     */
+    async getEnrollments(params = {}) {
+      const search = new URLSearchParams();
+      Object.keys(params).forEach((k) => {
+        if (params[k] !== undefined && params[k] !== null && params[k] !== '') {
+          search.set(k, String(params[k]));
+        }
+      });
+      const query = search.toString();
+      return this.request(`/api/v1/enrollment${query ? '?' + query : ''}`);
+    }
+
+    /**
+     * Retrieves a single student enrollment record with course allocations.
+     */
+    async getEnrollment(enrollmentId) {
+      if (!enrollmentId) throw new DmsApiError('Enrollment ID is required.', 400);
+      return this.request(`/api/v1/enrollment/${encodeURIComponent(enrollmentId)}`);
+    }
+
+    /**
+     * Transitions an admitted applicant to enrolled status, assigning courses and COR document.
+     */
+    async enrollStudent(payload, options = {}) {
+      return this.request('/api/v1/enrollment', {
+        method: 'POST',
+        body: payload,
+        ...options,
+      });
+    }
+
+    /**
+     * Updates an enrollee's course allocation, unit count, or clearance status.
+     */
+    async updateEnrollment(enrollmentId, payload, options = {}) {
+      if (!enrollmentId) throw new DmsApiError('Enrollment ID is required.', 400);
+      return this.request(`/api/v1/enrollment/${encodeURIComponent(enrollmentId)}`, {
+        method: 'PATCH',
+        body: payload,
+        ...options,
+      });
+    }
+
+    /* 3. Cashier Subsystem API (/api/v1/cashier) */
+
+    /**
+     * Retrieves student tuition/fee assessments with optional status or student filters.
+     */
+    async getCashierAssessments(params = {}) {
+      const search = new URLSearchParams();
+      Object.keys(params).forEach((k) => {
+        if (params[k] !== undefined && params[k] !== null && params[k] !== '') {
+          search.set(k, String(params[k]));
+        }
+      });
+      const query = search.toString();
+      return this.request(`/api/v1/cashier${query ? '?' + query : ''}`);
+    }
+
+    /**
+     * Retrieves a single fee assessment record.
+     */
+    async getCashierAssessment(assessmentId) {
+      if (!assessmentId) throw new DmsApiError('Assessment ID is required.', 400);
+      return this.request(`/api/v1/cashier/${encodeURIComponent(assessmentId)}`);
+    }
+
+    /**
+     * Creates a fee assessment for a student account.
+     */
+    async createCashierAssessment(payload, options = {}) {
+      return this.request('/api/v1/cashier', {
+        method: 'POST',
+        body: payload,
+        ...options,
+      });
+    }
+
+    /**
+     * Verifies payment on an assessment with Official Receipt # and indexes receipt document.
+     */
+    async verifyCashierPayment(assessmentId, payload, options = {}) {
+      if (!assessmentId) throw new DmsApiError('Assessment ID is required.', 400);
+      return this.request(`/api/v1/cashier/${encodeURIComponent(assessmentId)}/verify`, {
+        method: 'POST',
+        body: payload,
+        ...options,
+      });
+    }
+
+    /* 4. Payroll Subsystem API (/api/v1/payroll) */
+
+    /**
+     * Retrieves faculty and staff payroll records by period, department, or status.
+     */
+    async getPayrollRecords(params = {}) {
+      const search = new URLSearchParams();
+      Object.keys(params).forEach((k) => {
+        if (params[k] !== undefined && params[k] !== null && params[k] !== '') {
+          search.set(k, String(params[k]));
+        }
+      });
+      const query = search.toString();
+      return this.request(`/api/v1/payroll${query ? '?' + query : ''}`);
+    }
+
+    /**
+     * Retrieves a single payroll disbursement record.
+     */
+    async getPayrollRecord(payrollId) {
+      if (!payrollId) throw new DmsApiError('Payroll ID is required.', 400);
+      return this.request(`/api/v1/payroll/${encodeURIComponent(payrollId)}`);
+    }
+
+    /**
+     * Ingests a faculty/staff payroll record with deduction breakdown and digital payslip document.
+     */
+    async ingestPayrollRecord(payload, options = {}) {
+      return this.request('/api/v1/payroll', {
+        method: 'POST',
+        body: payload,
+        ...options,
+      });
+    }
+
+    /**
+     * Updates payroll disbursement status (e.g. processed -> disbursed).
+     */
+    async updateDisbursementStatus(payrollId, status, options = {}) {
+      if (!payrollId) throw new DmsApiError('Payroll ID is required.', 400);
+      return this.request(`/api/v1/payroll/${encodeURIComponent(payrollId)}`, {
+        method: 'PATCH',
+        body: { disbursement_status: status },
+        ...options,
+      });
+    }
+
+    /* 5. Universal Documents Repository API (/api/v1/documents) */
+
+    /**
+     * Universal multipart upload with tags, classification, and metadata tagging.
+     */
+    async uploadUniversalDocument(formData, options = {}) {
+      if (!(formData instanceof FormData)) {
+        throw new DmsApiError('Upload requires FormData payload.', 400);
+      }
+      return this.request('/api/v1/documents', {
+        method: 'POST',
+        body: formData,
+        ...options,
+      });
+    }
+
+    /**
+     * Retrieves universal document details including tags, metadata, and version list.
+     */
+    async getUniversalDocument(documentId) {
+      if (!documentId) throw new DmsApiError('Document ID is required.', 400);
+      return this.request(`/api/v1/documents/${encodeURIComponent(documentId)}`);
+    }
+
+    /**
+     * Updates universal document metadata, reference, and tags.
+     */
+    async updateUniversalDocument(documentId, payload, options = {}) {
+      if (!documentId) throw new DmsApiError('Document ID is required.', 400);
+      return this.request(`/api/v1/documents/${encodeURIComponent(documentId)}`, {
+        method: 'PATCH',
+        body: payload,
+        ...options,
+      });
+    }
   }
 
   // Export static factory and default singleton instance

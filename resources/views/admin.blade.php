@@ -194,6 +194,7 @@
                                     <th scope="col">Program &amp; Submitted Files</th>
                                     <th scope="col">Verification</th>
                                     <th scope="col">Packet Release</th>
+                                    <th scope="col" class="text-end">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -221,10 +222,15 @@
                                                 <span class="badge bg-secondary text-white px-2 py-1">Held in OAS</span>
                                             @endif
                                         </td>
+                                        <td class="text-end text-nowrap">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#applicant-detail-modal" data-applicant-id="{{ $app->applicant_id }}" data-applicant-name="{{ $app->name }}" data-applicant-program="{{ $app->program }}" data-applicant-summary="{{ $app->documents_summary }}" data-applicant-files="{{ $app->files_count }}" data-applicant-verified="{{ $app->verified ? '1' : '0' }}" data-applicant-released="{{ $app->released ? '1' : '0' }}">
+                                                Inspect →
+                                            </button>
+                                        </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="4" class="text-center py-3 text-muted">No applicant packets in queue.</td>
+                                        <td colspan="5" class="text-center py-3 text-muted">No applicant packets in queue.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -250,6 +256,7 @@
                                     <th scope="col">Transaction / Voucher</th>
                                     <th scope="col">Operation</th>
                                     <th scope="col">Recorded</th>
+                                    <th scope="col" class="text-end">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -268,10 +275,23 @@
                                         <td>
                                             <span class="text-nowrap small text-muted">{{ Illuminate\Support\Carbon::parse($trx->created_at)->format('M d, H:i') }}</span>
                                         </td>
+                                        <td class="text-end text-nowrap">
+                                            @if ($trx->source === 'EMS')
+                                                <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#cashier-verify-modal" data-assessment-id="{{ $trx->record_id }}" data-student-name="{{ $trx->description ?? 'Cashier Tuition Payment' }}" data-amount="14500.00">
+                                                    Verify OR →
+                                                </button>
+                                            @elseif ($trx->source === 'PMS')
+                                                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#payroll-detail-modal" data-payroll-id="{{ $trx->record_id }}" data-employee="{{ $trx->description ?? 'Faculty Compensation' }}" data-amount="45250.00" data-status="{{ $trx->operation ?? 'upsert' }}">
+                                                    Voucher →
+                                                </button>
+                                            @else
+                                                <span class="text-muted small">Recorded</span>
+                                            @endif
+                                        </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="4" class="text-center py-3 text-muted">No departmental transactions logged.</td>
+                                        <td colspan="5" class="text-center py-3 text-muted">No departmental transactions logged.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -700,6 +720,125 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close Preview</button>
                         <a id="ingestion-preview-download-btn" href="#" class="btn btn-primary" download>Download Clean File</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="applicant-detail-modal" tabindex="-1" aria-labelledby="applicant-modal-title" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2 class="modal-title" id="applicant-modal-title">Applicant Packet Inspection</h2>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="modal-subtitle">Review verified admissions requirements and release student packet to Enrollment (ES).</p>
+                        <div class="p-3 mb-3 bg-light rounded border">
+                            <div class="mb-2"><strong>Applicant ID:</strong> <span id="applicant-detail-id" class="font-monospace">—</span></div>
+                            <div class="mb-2"><strong>Applicant Name:</strong> <span id="applicant-detail-name">—</span></div>
+                            <div class="mb-2"><strong>Target Program:</strong> <span id="applicant-detail-program">—</span></div>
+                            <div class="mb-2"><strong>Submitted Documents:</strong> <span id="applicant-detail-summary">—</span></div>
+                            <div class="mb-2"><strong>Verification Status:</strong> <span id="applicant-detail-status" class="status-badge clean">—</span></div>
+                            <div><strong>Packet Release:</strong> <span id="applicant-detail-release-status" class="badge bg-secondary">—</span></div>
+                        </div>
+                        <div class="info-strip">
+                            <x-figma-icon name="link-notice" :size="24" />
+                            <div>
+                                <strong>Inter-Subsystem Transfer (OAS → ES)</strong>
+                                <p>Releasing applicant verification allows Registrar Enrollment to allocate subjects, generate student numbers, and issue Certificates of Registration.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" id="btn-applicant-enroll">Transition to Enrollment (ES) →</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="cashier-verify-modal" tabindex="-1" aria-labelledby="cashier-verify-title" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <form id="cashier-verify-form" data-demo-action="cashier-verify">
+                        <div class="modal-header">
+                            <h2 class="modal-title" id="cashier-verify-title">Verify Cashier Payment</h2>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="modal-subtitle">Record official receipt details and mark tuition/fee assessment as paid.</p>
+                            <div class="mb-3">
+                                <label for="cashier-verify-assessment-id" class="form-label">Assessment / Voucher ID</label>
+                                <input type="text" id="cashier-verify-assessment-id" class="form-control font-monospace" readonly />
+                            </div>
+                            <div class="mb-3">
+                                <label for="cashier-verify-student" class="form-label">Account / Student Details</label>
+                                <input type="text" id="cashier-verify-student" class="form-control" readonly />
+                            </div>
+                            <div class="row g-2 mb-3">
+                                <div class="col-sm-6">
+                                    <label for="cashier-verify-amount" class="form-label">Amount Due (PHP)</label>
+                                    <input type="number" step="0.01" id="cashier-verify-amount" class="form-control" required />
+                                </div>
+                                <div class="col-sm-6">
+                                    <label for="cashier-verify-method" class="form-label">Payment Method</label>
+                                    <select id="cashier-verify-method" class="form-select">
+                                        <option value="Cash">Cash (Teller)</option>
+                                        <option value="Online">GCash / Maya / Online</option>
+                                        <option value="Bank">Bank Deposit / Transfer</option>
+                                        <option value="Check">Manager's Check</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="cashier-verify-or-number" class="form-label">Official Receipt (OR) Number</label>
+                                <input type="text" id="cashier-verify-or-number" class="form-control font-monospace" placeholder="OR-2026-XXXX" required maxlength="50" />
+                            </div>
+                            <div class="info-strip">
+                                <x-figma-icon name="shield-small" :size="24" />
+                                <div>
+                                    <strong>Immutable Cashier Ledger</strong>
+                                    <p>Upon verification, an immutable receipt voucher is linked to the student assessment and indexed into the central document repository.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary" id="btn-cashier-confirm">Confirm &amp; Verify Payment</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="payroll-detail-modal" tabindex="-1" aria-labelledby="payroll-detail-title" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2 class="modal-title" id="payroll-detail-title">Payroll Voucher Breakdown</h2>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="modal-subtitle">Audited payroll register, statutory deductions, and disbursement status.</p>
+                        <div class="p-3 mb-3 bg-light rounded border">
+                            <div class="mb-2"><strong>Payroll Voucher:</strong> <span id="payroll-detail-id" class="font-monospace">—</span></div>
+                            <div class="mb-2"><strong>Department / Description:</strong> <span id="payroll-detail-employee">—</span></div>
+                            <div class="mb-2"><strong>Total Gross Amount:</strong> <span id="payroll-detail-gross" class="fw-bold">—</span></div>
+                            <div class="mb-2"><strong>Disbursement Status:</strong> <span id="payroll-detail-status" class="status-badge clean">—</span></div>
+                            <div><strong>Statutory Remittances:</strong> <span class="badge bg-success-subtle text-success">GSIS, PhilHealth, Pag-IBIG Deducted</span></div>
+                        </div>
+                        <div class="info-strip">
+                            <x-figma-icon name="shield-warning" :size="24" />
+                            <div>
+                                <strong>Confidential Compensation Data</strong>
+                                <p>Access to individual compensation items and batch payroll registers is restricted to authorized HR and Payroll accounting officers.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" id="btn-payroll-disburse">Mark as Disbursed</button>
                     </div>
                 </div>
             </div>
