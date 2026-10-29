@@ -69,32 +69,56 @@
     <a class="skip-link" href="#main">Skip to content</a>
     <aside class="sidebar" id="sidebar" aria-label="Primary navigation">
         <div class="sidebar-header">
-            <a class="brand" href="/" data-bs-toggle="tooltip" data-bs-placement="right" title="{{ $isSidebarCollapsed ? 'Expand navigation (Ctrl+B)' : 'PLP Documents · Document Management' }}" id="brand-link"
+            <a
+                class="brand"
+                href="/"
+                data-bs-toggle="tooltip"
+                data-bs-placement="right"
+                title="{{ $isSidebarCollapsed ? 'Expand navigation (Ctrl+B)' : 'PLP Documents · Document Management' }}"
+                id="brand-link"
                 ><span class="brand-mark">d.</span><span class="brand-text">PLP Documents<small>DOCUMENT MANAGEMENT</small></span></a
             >
-            <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-label="Collapse navigation sidebar" aria-controls="sidebar" aria-expanded="{{ $isSidebarCollapsed ? 'false' : 'true' }}" data-bs-toggle="tooltip" data-bs-placement="right" title="Collapse navigation (Ctrl+B)">
+            <button
+                type="button"
+                class="sidebar-toggle"
+                id="sidebar-toggle"
+                aria-label="Collapse navigation sidebar"
+                aria-controls="sidebar"
+                aria-expanded="{{ $isSidebarCollapsed ? 'false' : 'true' }}"
+                data-bs-toggle="tooltip"
+                data-bs-placement="right"
+                title="Collapse navigation (Ctrl+B)">
                 <span class="sidebar-toggle-icon" aria-hidden="true">«</span>
             </button>
         </div>
         <div class="workspace-label">{{ $isAdmin ? 'ADMINISTRATION':'YOUR WORKSPACE' }}</div>
-        <div class="workspace-identity" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="right" title="{{ $workspaceName }} · {{ $viewer->campus }} campus" aria-label="{{ $workspaceName }} · {{ $viewer->campus }} campus">
+        <div
+            class="workspace-identity"
+            tabindex="0"
+            data-bs-toggle="tooltip"
+            data-bs-placement="right"
+            title="{{ $workspaceName }} · {{ $viewer->campus }} campus"
+            aria-label="{{ $workspaceName }} · {{ $viewer->campus }} campus">
             <span class="source-icon">{{ $workspaceCode }}</span>
-            <div class="workspace-info">
-                <strong>{{ $workspaceName }}</strong
-                ><small>{{ $viewer->campus }} campus</small>
-            </div>
+            <div class="workspace-info"><strong>{{ $workspaceName }}</strong><small>{{ $viewer->campus }} campus</small></div>
         </div>
         <nav class="main-nav">
             @foreach ($sections as $key=>[$glyph,$label])
-                @continue($key === 'connectors' && ! $viewer->can('connectors.manage'))
-                @continue($key === 'accounts' && ! $viewer->can('accounts.manage'))
-                @continue($key === 'history' && ! $viewer->can('workspace.history'))
-                @continue($key === 'snapshots' && ! $viewer->can('workspace.history'))
+                @continue ($key === 'connectors' && ! $viewer->can('connectors.manage'))
+                @continue ($key === 'accounts' && ! $viewer->can('accounts.manage'))
+                @continue ($key === 'history' && ! $viewer->can('workspace.history'))
+                @continue ($key === 'snapshots' && ! $viewer->can('workspace.history'))
                 @if ($isAdmin && $key==='scans')
                     <span class="nav-caption governance-caption">GOVERNANCE</span>
                 @endif
                 @php $active=$section===$key && ($key!=='documents' || $libraryView==='all'); @endphp
-                <a href="{{ $root }}/{{ $key }}" class="{{ $active?'active':'' }}" @if ($active) aria-current="page" @endif data-bs-toggle="tooltip" data-bs-placement="right" title="{{ $label }}"
+                <a
+                    href="{{ $root }}/{{ $key }}"
+                    class="{{ $active?'active':'' }}"
+                    @if ($active) aria-current="page" @endif
+                    data-bs-toggle="tooltip"
+                    data-bs-placement="right"
+                    title="{{ $label }}"
                     ><x-figma-icon :name="$glyph.($active?'-active':'')" /><span class="nav-label">{{ $label }}</span></a
                 >
             @endforeach
@@ -102,23 +126,48 @@
                 <span class="nav-caption">{{ $viewer->isSuperAdmin() ? 'REPOSITORY':'MY LIBRARY' }}</span>
                 @foreach ($libraryLinks as $key=>[$glyph,$label])
                     @php $active=$section==='documents' && $libraryView===$key; @endphp
-                    <a href="{{ $root }}/documents?view={{ $key }}" class="{{ $active?'active':'' }}" @if ($active) aria-current="page" @endif data-bs-toggle="tooltip" data-bs-placement="right" title="{{ $label }}"
-                        ><x-figma-icon :name="$glyph.($active && in_array($glyph,['users','trash'])?'-active':'')" /><span class="nav-label">{{ $label }}</span></a
+                    <a
+                        href="{{ $root }}/documents?view={{ $key }}"
+                        class="{{ $active?'active':'' }}"
+                        @if ($active) aria-current="page" @endif
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="right"
+                        title="{{ $label }}"
+                        ><x-figma-icon :name="$glyph.($active && in_array($glyph,['users','trash'])?'-active':'')" /><span
+                            class="nav-label"
+                            >{{ $label }}</span
+                        ></a
                     >
                 @endforeach
             @endunless
         </nav>
         <div class="sidebar-bottom">
             @if (($viewer->isSuperAdmin() || $viewer->isAdmin()) && !$isAdmin)
-                <a class="return-admin" href="/admin" data-bs-toggle="tooltip" data-bs-placement="right" title="Administration"><span class="return-text">← Administration</span></a>
+                <a class="return-admin" href="/admin" data-bs-toggle="tooltip" data-bs-placement="right" title="Administration"
+                    ><span class="return-text">← Administration</span></a
+                >
             @endif
 
-            <a href="/approvals" class="return-admin" data-bs-toggle="tooltip" data-bs-placement="right" title="Requests and approvals"><span class="return-text">Requests and approvals</span></a>
+            <a href="/approvals" class="return-admin" data-bs-toggle="tooltip" data-bs-placement="right" title="Requests and approvals"
+                ><span class="return-text">Requests and approvals</span></a
+            >
             @if ($isAdmin)
-                @if ($viewer->isSuperAdmin())<a href="/admin/workspaces" class="return-admin" data-bs-toggle="tooltip" data-bs-placement="right" title="Workspace registry"><span class="return-text">Workspace registry</span></a>@endif
+                @if ($viewer->isSuperAdmin())
+                    <a href="/admin/workspaces" class="return-admin" data-bs-toggle="tooltip" data-bs-placement="right" title="Workspace registry"
+                        ><span class="return-text">Workspace registry</span></a
+                    >
+                @endif
             @endif
-            <a href="/account" class="return-admin" data-bs-toggle="tooltip" data-bs-placement="right" title="My account"><span class="return-text">My account</span></a>
-            <div class="profile" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="right" title="{{ $viewer->name }} · {{ $roleName }}" aria-label="{{ $viewer->name }} · {{ $roleName }}">
+            <a href="/account" class="return-admin" data-bs-toggle="tooltip" data-bs-placement="right" title="My account"
+                ><span class="return-text">My account</span></a
+            >
+            <div
+                class="profile"
+                tabindex="0"
+                data-bs-toggle="tooltip"
+                data-bs-placement="right"
+                title="{{ $viewer->name }} · {{ $roleName }}"
+                aria-label="{{ $viewer->name }} · {{ $roleName }}">
                 <span class="avatar">{{ $initials }}</span>
                 <div class="profile-info"><strong>{{ $viewer->name }}</strong><small>{{ $roleName }}</small></div>
                 <form action="/logout" method="post">

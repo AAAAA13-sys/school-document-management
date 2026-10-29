@@ -11,8 +11,11 @@ class AccountInvitation extends Model
     use HasFactory;
 
     protected $table = 'account_invitations';
+
     protected $primaryKey = 'id';
+
     public $incrementing = false;
+
     protected $keyType = 'string';
 
     protected $fillable = [

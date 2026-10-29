@@ -99,10 +99,7 @@
                   },
                   "operation": {
                     "type": "string",
-                    "enum": [
-                      "upsert",
-                      "delete"
-                    ]
+                    "enum": ["upsert", "delete"]
                   },
                   "payload": {
                     "oneOf": [
@@ -237,11 +234,7 @@
             "multipart/form-data": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "file",
-                  "title",
-                  "classification"
-                ],
+                "required": ["file", "title", "classification"],
                 "properties": {
                   "file": {
                     "type": "string",
@@ -253,11 +246,7 @@
                   },
                   "classification": {
                     "type": "string",
-                    "enum": [
-                      "Internal",
-                      "Confidential",
-                      "Restricted"
-                    ]
+                    "enum": ["Internal", "Confidential", "Restricted"]
                   },
                   "subject": {
                     "type": "string",
@@ -364,10 +353,7 @@
             "multipart/form-data": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "file",
-                  "revision"
-                ],
+                "required": ["file", "revision"],
                 "properties": {
                   "file": {
                     "type": "string",
@@ -533,12 +519,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "event_id",
-                  "applicant_id",
-                  "revision",
-                  "released"
-                ],
+                "required": ["event_id", "applicant_id", "revision", "released"],
                 "properties": {
                   "event_id": {
                     "type": "string",

@@ -92,13 +92,13 @@ if (! class_exists(ReleaseGrant::class, false)) {
         /**
          * Authorize an OAS document or document type for release.
          *
-         * @param string|object $documentOrType
          * @throws HttpException 403 when not permitted
          */
         public function authorize(string|object $documentOrType): void
         {
             if (is_string($documentOrType)) {
                 abort_unless(self::isAllowed($documentOrType), 403, 'Document type not permitted for release. Only OAS applicant documents may be released.');
+
                 return;
             }
 
@@ -120,8 +120,9 @@ if (! class_exists(ReleaseGrant::class, false)) {
         /**
          * Create a release grant for a given document type.
          *
-         * @param array<string, mixed> $attributes
+         * @param  array<string, mixed>  $attributes
          * @return array{grant_id: string, document_type: string, status: string, code: int}
+         *
          * @throws HttpException 403 when type is not an approved OAS document type.
          */
         public function create(array $attributes): array

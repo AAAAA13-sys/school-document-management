@@ -7,63 +7,71 @@ This document is the authoritative API contract between the DMS Backend and the 
 ## 1. Architecture & Authentication
 
 ### 1.1 Base URLs
+
 - **Web / Frontend API**: `http://127.0.0.1:8011` (or local port)
 - **Base Paths**:
   - Web/Session Endpoints: `/documents`, `/workspaces`, `/files`, `/account`, `/folders`
   - ERP Integration Connector API: `/api/v1`
 
 ### 1.2 Authentication & Headers
+
 For all Frontend AJAX / Fetch / Axios requests:
+
 - **Session Authentication**: Browser cookie-based session (authenticated via `/login`).
 - **Required Request Headers**:
   ```http
   Accept: application/json
   X-CSRF-TOKEN: <csrf-token-from-meta-tag>
   ```
-  *(Include `Content-Type: application/json` for JSON bodies; omit `Content-Type` for `FormData` multipart uploads so the browser sets the boundary automatically).*
+  _(Include `Content-Type: application/json` for JSON bodies; omit `Content-Type` for `FormData` multipart uploads so the browser sets the boundary automatically)._
 
 ---
 
 ## 2. Role-Based Access Control (RBAC) Specification
 
 ### 2.1 Role Definitions
-| Role Code | Display Label | Description |
-| :--- | :--- | :--- |
-| `super_admin` | **Super Admin** | Institution-wide oversight (`source = null`). Manages all accounts, connectors, and DMS-held documents across all ERP workspaces within school/campus. Full audit visibility. |
-| `admin` | **Admin** | Workspace/source-scoped administrator (e.g. assigned to `EMS`, `PMS`, `ES`, or `OAS`). Manages Staff accounts, documents, and folders within their assigned source. |
-| `staff` | **Staff** | Working office account. Can upload documents to their assigned source, view source documents, edit/delete owned documents, and access documents explicitly shared with them. Legacy aliases: `employee`, `teacher`, `hr`, `payroll`. |
+
+| Role Code     | Display Label   | Description                                                                                                                                                                                                                          |
+| :------------ | :-------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `super_admin` | **Super Admin** | Institution-wide oversight (`source = null`). Manages all accounts, connectors, and DMS-held documents across all ERP workspaces within school/campus. Full audit visibility.                                                        |
+| `admin`       | **Admin**       | Workspace/source-scoped administrator (e.g. assigned to `EMS`, `PMS`, `ES`, or `OAS`). Manages Staff accounts, documents, and folders within their assigned source.                                                                  |
+| `staff`       | **Staff**       | Working office account. Can upload documents to their assigned source, view source documents, edit/delete owned documents, and access documents explicitly shared with them. Legacy aliases: `employee`, `teacher`, `hr`, `payroll`. |
 
 ### 2.2 Data Classification Levels
+
 1. **`Internal`**: General working documents. Readable by all active users in that source + Super Admin. Folder-level grants inherit access to `Internal` documents.
 2. **`Confidential`**: Sensitive records (e.g. student transcripts, admissions). Readable only by the document owner, source Admin, Super Admin, and explicit document-level recipients. Folder grants **never** widen Confidential access.
 3. **`Restricted`**: Highest sensitivity (e.g. payroll records, executive memos). Readable **only** by the document owner, Super Admin, and explicit document-level recipients. Source Admin has **no** access unless explicitly shared. **Only Super Admin can share or revoke shares on Restricted documents.**
 
 ### 2.3 Document Share Permissions
+
 - **`Viewer`**: Can view document metadata and download clean files.
 - **`Commenter`**: Can view, download, and post comments (max 2,000 characters).
 - **`Editor`**: Can view, download, comment, rename the document, and upload new versions (revision checked). Cannot move, delete, or reshare.
 
 ### 2.4 Permissions Matrix
-| Action | Staff (Owner) | Staff (Non-Owner) | Admin (Same Source) | Admin (Other Source) | Super Admin |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **View Internal** | Yes | Yes (in source) | Yes (in source) | Only via Share | Yes |
-| **View Confidential** | Yes | Only via Share | Yes (in source) | Only via Share | Yes |
-| **View Restricted** | Yes | Only via Share | Only via Share | Only via Share | Yes |
-| **Upload New Document** | Yes (in source) | Yes (in source) | Yes (in source) | No | Yes |
-| **Upload New Version** | Yes | Only if Editor | Yes (Internal/Confidential) | No | Yes |
-| **Rename Document** | Yes | Only if Editor | Yes (Internal/Confidential) | No | Yes |
-| **Move to Folder** | Yes (owned folders) | No | Yes (in source) | No | Yes |
-| **Trash / Delete** | Yes | No | Yes (Internal/Confidential) | No | Yes |
-| **Restore from Trash** | Yes | No | Yes (Internal/Confidential) | No | Yes |
-| **Share (Internal/Confidential)** | Yes | No | Yes (in source) | No | Yes |
-| **Share (Restricted)** | No | No | No | No | **Yes (Exclusive)** |
-| **Comment** | Yes | If Commenter/Editor | Yes | If Shared | Yes |
+
+| Action                            |    Staff (Owner)    |  Staff (Non-Owner)  |     Admin (Same Source)     | Admin (Other Source) |     Super Admin     |
+| :-------------------------------- | :-----------------: | :-----------------: | :-------------------------: | :------------------: | :-----------------: |
+| **View Internal**                 |         Yes         |   Yes (in source)   |       Yes (in source)       |    Only via Share    |         Yes         |
+| **View Confidential**             |         Yes         |   Only via Share    |       Yes (in source)       |    Only via Share    |         Yes         |
+| **View Restricted**               |         Yes         |   Only via Share    |       Only via Share        |    Only via Share    |         Yes         |
+| **Upload New Document**           |   Yes (in source)   |   Yes (in source)   |       Yes (in source)       |          No          |         Yes         |
+| **Upload New Version**            |         Yes         |   Only if Editor    | Yes (Internal/Confidential) |          No          |         Yes         |
+| **Rename Document**               |         Yes         |   Only if Editor    | Yes (Internal/Confidential) |          No          |         Yes         |
+| **Move to Folder**                | Yes (owned folders) |         No          |       Yes (in source)       |          No          |         Yes         |
+| **Trash / Delete**                |         Yes         |         No          | Yes (Internal/Confidential) |          No          |         Yes         |
+| **Restore from Trash**            |         Yes         |         No          | Yes (Internal/Confidential) |          No          |         Yes         |
+| **Share (Internal/Confidential)** |         Yes         |         No          |       Yes (in source)       |          No          |         Yes         |
+| **Share (Restricted)**            |         No          |         No          |             No              |          No          | **Yes (Exclusive)** |
+| **Comment**                       |         Yes         | If Commenter/Editor |             Yes             |      If Shared       |         Yes         |
 
 ---
 
 ## 3. Database Models & Schema Definitions
 
 ### 3.1 `User` (`users` table)
+
 ```json
 {
   "id": 1,
@@ -80,6 +88,7 @@ For all Frontend AJAX / Fetch / Axios requests:
 ```
 
 ### 3.2 `Document` (`documents` table)
+
 ```json
 {
   "id": "e4b105a2-9907-4e3f-a18a-9d9fc9287a91",
@@ -101,6 +110,7 @@ For all Frontend AJAX / Fetch / Axios requests:
 ```
 
 ### 3.3 `DocumentVersion` (`document_versions` table)
+
 ```json
 {
   "id": "f5c317b4-1018-4e4f-b29b-0e0fd0398b02",
@@ -118,6 +128,7 @@ For all Frontend AJAX / Fetch / Axios requests:
 ```
 
 ### 3.4 `Folder` (`folders` table)
+
 ```json
 {
   "id": "89b5d3c8-6623-455b-81f1-32e70e2858b9",
@@ -134,6 +145,7 @@ For all Frontend AJAX / Fetch / Axios requests:
 ```
 
 ### 3.5 `Share` (`shares` table)
+
 ```json
 {
   "id": 12,
@@ -154,6 +166,7 @@ For all Frontend AJAX / Fetch / Axios requests:
 ## 4. Endpoints Specification
 
 ### 4.1 Get Current User Account Profile
+
 Retrieves the logged-in user, assigned source(s), and RBAC capabilities.
 
 - **Method**: `GET`
@@ -184,19 +197,20 @@ Retrieves the logged-in user, assigned source(s), and RBAC capabilities.
 ---
 
 ### 4.2 List Documents (Search & Filter)
+
 Primary API to populate document tables and list views. Supports filters, pagination, and search.
 
 - **Method**: `GET`
 - **Path**: `/documents`
 - **Query Parameters**:
-  | Parameter | Type | Required | Default | Description |
-  | :--- | :--- | :--- | :--- | :--- |
-  | `source` | string | No | User's source | Workspace code: `EMS`, `PMS`, `ES`, `OAS`. |
-  | `view` | string | No | `all` | Filter view: `all`, `mine`, `shared`, `starred`, `trash`. |
-  | `folder_id` | UUID | No | null | Show only documents in this folder. |
-  | `q` | string | No | null | Search text against document title or reference. |
-  | `page` | integer| No | 1 | Page number. |
-  | `per_page` | integer| No | 15 | Items per page (max 100). |
+  | Parameter   | Type    | Required | Default       | Description                                               |
+  | :---------- | :------ | :------- | :------------ | :-------------------------------------------------------- |
+  | `source`    | string  | No       | User's source | Workspace code: `EMS`, `PMS`, `ES`, `OAS`.                |
+  | `view`      | string  | No       | `all`         | Filter view: `all`, `mine`, `shared`, `starred`, `trash`. |
+  | `folder_id` | UUID    | No       | null          | Show only documents in this folder.                       |
+  | `q`         | string  | No       | null          | Search text against document title or reference.          |
+  | `page`      | integer | No       | 1             | Page number.                                              |
+  | `per_page`  | integer | No       | 15            | Items per page (max 100).                                 |
 - **Headers**:
   ```http
   Accept: application/json
@@ -251,6 +265,7 @@ Primary API to populate document tables and list views. Supports filters, pagina
 ---
 
 ### 4.3 Workspace Overview & Dashboard Data
+
 Retrieves workspace stats, folders, documents, and audit counters.
 
 - **Method**: `GET`
@@ -287,7 +302,7 @@ Retrieves workspace stats, folders, documents, and audit counters.
     ],
     "documents": {
       "current_page": 1,
-      "data": [ /* document objects */ ],
+      "data": [/* document objects */],
       "total": 42
     },
     "starred": ["e4b105a2-9907-4e3f-a18a-9d9fc9287a91"]
@@ -297,6 +312,7 @@ Retrieves workspace stats, folders, documents, and audit counters.
 ---
 
 ### 4.4 Upload Document (New Intake)
+
 Uploads a new document file along with its metadata.
 
 - **Method**: `POST`
@@ -307,20 +323,22 @@ Uploads a new document file along with its metadata.
   X-CSRF-TOKEN: <csrf-token>
   ```
 - **Request Body** (`multipart/form-data`):
-  | Field | Type | Required | Description |
-  | :--- | :--- | :--- | :--- |
-  | `file` | File | **Yes** | File binary, max 10MB (10240 KiB). |
-  | `title` | string | **Yes** | Document title (max 200 characters). |
-  | `source` | string | **Yes** | Authorized ERP workspace code (e.g. `EMS`). |
-  | `classification` | string | **Yes** | One of: `Internal`, `Confidential`, `Restricted`. |
-  | `submission_key` | string | **Yes** | Client UUID for idempotency and safe retry. |
-  | `folder_id` | UUID | No | Target folder ID. |
-  | `subject` | string | No | Optional subject (max 200 chars). |
-  | `reference` | string | No | Optional reference number (max 100 chars). |
-  | `category` | string | No | Optional category (max 100 chars). |
-  | `confirm_duplicate`| boolean| No | Set to `1` / `true` to proceed after duplicate file warning. |
+
+  | Field               | Type    | Required | Description                                                  |
+  | :------------------ | :------ | :------- | :----------------------------------------------------------- |
+  | `file`              | File    | **Yes**  | File binary, max 10MB (10240 KiB).                           |
+  | `title`             | string  | **Yes**  | Document title (max 200 characters).                         |
+  | `source`            | string  | **Yes**  | Authorized ERP workspace code (e.g. `EMS`).                  |
+  | `classification`    | string  | **Yes**  | One of: `Internal`, `Confidential`, `Restricted`.            |
+  | `submission_key`    | string  | **Yes**  | Client UUID for idempotency and safe retry.                  |
+  | `folder_id`         | UUID    | No       | Target folder ID.                                            |
+  | `subject`           | string  | No       | Optional subject (max 200 chars).                            |
+  | `reference`         | string  | No       | Optional reference number (max 100 chars).                   |
+  | `category`          | string  | No       | Optional category (max 100 chars).                           |
+  | `confirm_duplicate` | boolean | No       | Set to `1` / `true` to proceed after duplicate file warning. |
 
 - **Response 201 Created**:
+
   ```json
   {
     "document_id": "e4b105a2-9907-4e3f-a18a-9d9fc9287a91",
@@ -331,7 +349,7 @@ Uploads a new document file along with its metadata.
   ```
 
 - **Duplicate File Advisory Conflict (409 Conflict)**:
-  *Triggered when a file with identical SHA-256 exists and user has access to it:*
+  _Triggered when a file with identical SHA-256 exists and user has access to it:_
   ```json
   {
     "code": "duplicate_file",
@@ -347,11 +365,12 @@ Uploads a new document file along with its metadata.
     ]
   }
   ```
-  *To confirm upload as a separate copy: re-submit the same request with `confirm_duplicate=1`.*
+  _To confirm upload as a separate copy: re-submit the same request with `confirm_duplicate=1`._
 
 ---
 
 ### 4.5 Get Document Details
+
 Retrieves complete details of a single document, its versions, activity trail, comments, and shares.
 
 - **Method**: `GET`
@@ -416,6 +435,7 @@ Retrieves complete details of a single document, its versions, activity trail, c
 ---
 
 ### 4.6 Upload New Version to Document
+
 Adds an immutable new version to an existing document.
 
 - **Method**: `POST`
@@ -426,12 +446,13 @@ Adds an immutable new version to an existing document.
   X-CSRF-TOKEN: <csrf-token>
   ```
 - **Request Body** (`multipart/form-data`):
-  | Field | Type | Required | Description |
-  | :--- | :--- | :--- | :--- |
-  | `file` | File | **Yes** | Version file binary, max 10MB. |
-  | `revision` | integer | **Yes** | Document's current revision number (optimistic lock). |
-  | `submission_key` | string | **Yes** | Unique idempotency UUID. |
-  | `confirm_duplicate`| boolean | No | Confirm if identical to a file from another document. |
+
+  | Field               | Type    | Required | Description                                           |
+  | :------------------ | :------ | :------- | :---------------------------------------------------- |
+  | `file`              | File    | **Yes**  | Version file binary, max 10MB.                        |
+  | `revision`          | integer | **Yes**  | Document's current revision number (optimistic lock). |
+  | `submission_key`    | string  | **Yes**  | Unique idempotency UUID.                              |
+  | `confirm_duplicate` | boolean | No       | Confirm if identical to a file from another document. |
 
 - **Response 201 Created**:
   ```json
@@ -446,6 +467,7 @@ Adds an immutable new version to an existing document.
 ---
 
 ### 4.7 Update Document Metadata / Move / Classify
+
 - **Method**: `PATCH`
 - **Path**: `/documents/{document_id}`
 - **Headers**:
@@ -474,7 +496,7 @@ Adds an immutable new version to an existing document.
   }
   ```
 - **Pending Approval (202 Accepted)**:
-  *Occurs when a Staff member requests a sensitive classification change:*
+  _Occurs when a Staff member requests a sensitive classification change:_
   ```json
   {
     "status": "pending",
@@ -485,6 +507,7 @@ Adds an immutable new version to an existing document.
 ---
 
 ### 4.8 Delete / Move to Trash
+
 Moves the document to the trash bin while preserving all immutable versions and files.
 
 - **Method**: `DELETE` or `POST`
@@ -512,6 +535,7 @@ Moves the document to the trash bin while preserving all immutable versions and 
 ---
 
 ### 4.9 Restore from Trash
+
 Restores a trashed document back to active workspace listings.
 
 - **Method**: `POST`
@@ -533,6 +557,7 @@ Restores a trashed document back to active workspace listings.
 ---
 
 ### 4.10 Poll Malware Scan Status
+
 Used by the frontend details page to dynamically update the scan badge without full page reload.
 
 - **Method**: `GET`
@@ -552,6 +577,7 @@ Used by the frontend details page to dynamically update the scan badge without f
 ---
 
 ### 4.11 Download Clean File
+
 Downloads the raw private version file.
 
 - **Method**: `GET`
@@ -572,6 +598,7 @@ Downloads the raw private version file.
 ---
 
 ### 4.12 In-App File Preview
+
 Streams an in-browser preview for supported formats (PDF, PNG, JPG, WebP, Text, CSV, JSON).
 
 - **Method**: `GET`
@@ -582,6 +609,7 @@ Streams an in-browser preview for supported formats (PDF, PNG, JPG, WebP, Text, 
 ---
 
 ### 4.13 Toggle Star
+
 Stars or unstars a document for the current user.
 
 - **Method**: `POST`
@@ -597,6 +625,7 @@ Stars or unstars a document for the current user.
 ---
 
 ### 4.14 Post Comment
+
 Adds an activity comment to a document.
 
 - **Method**: `POST`
@@ -617,6 +646,7 @@ Adds an activity comment to a document.
 ---
 
 ### 4.15 Share Document
+
 Grants a user `Viewer`, `Commenter`, or `Editor` permission to this document.
 
 - **Method**: `POST`
@@ -640,6 +670,7 @@ Grants a user `Viewer`, `Commenter`, or `Editor` permission to this document.
 ---
 
 ### 4.16 Revoke Document Share
+
 Revokes an existing document grant.
 
 - **Method**: `DELETE`
@@ -659,19 +690,21 @@ Revokes an existing document grant.
 The frontend agent should render consistent badges based on backend response values:
 
 ### 5.1 Scan Status (`scan_status`)
-| Status Value | Badge Style | Icon / Label | Client Behavior |
-| :--- | :--- | :--- | :--- |
-| `Pending` | Warning / Yellow pill | ⏳ Scanning queued | Download disabled; poll `/scan-status` every 3s. |
-| `Clean` | Success / Green pill |  Clean · Safe | Download & Preview enabled. |
-| `Failed` | Danger / Red pill | ⚠ Scan failed | Download blocked; retry scan via Admin. |
-| `Quarantined`| Critical / Dark red | 🚫 Blocked threat | Download permanently blocked. |
+
+| Status Value  | Badge Style           | Icon / Label       | Client Behavior                                  |
+| :------------ | :-------------------- | :----------------- | :----------------------------------------------- |
+| `Pending`     | Warning / Yellow pill | ⏳ Scanning queued | Download disabled; poll `/scan-status` every 3s. |
+| `Clean`       | Success / Green pill  | Clean · Safe       | Download & Preview enabled.                      |
+| `Failed`      | Danger / Red pill     | ⚠ Scan failed      | Download blocked; retry scan via Admin.          |
+| `Quarantined` | Critical / Dark red   | 🚫 Blocked threat  | Download permanently blocked.                    |
 
 ### 5.2 Classification Status (`classification`)
-| Classification | Badge Style | Audience Note |
-| :--- | :--- | :--- |
-| `Internal` | Neutral / Blue | All active staff in this ERP source. |
-| `Confidential` | Warning / Amber | Owner, Source Admin, and named recipients. |
-| `Restricted` | Danger / Purple | Owner and named recipients only. Admin excluded. |
+
+| Classification | Badge Style     | Audience Note                                    |
+| :------------- | :-------------- | :----------------------------------------------- |
+| `Internal`     | Neutral / Blue  | All active staff in this ERP source.             |
+| `Confidential` | Warning / Amber | Owner, Source Admin, and named recipients.       |
+| `Restricted`   | Danger / Purple | Owner and named recipients only. Admin excluded. |
 
 ---
 
@@ -683,29 +716,28 @@ All error responses adhere to the standard Laravel JSON error specification:
 {
   "message": "Human-readable description of error.",
   "errors": {
-    "field_name": [
-      "Validation rule failure message."
-    ]
+    "field_name": ["Validation rule failure message."]
   }
 }
 ```
 
-| HTTP Status | Meaning | Typical DMS Scenario |
-| :--- | :--- | :--- |
-| `401 Unauthorized` | Not authenticated | Session expired or invalid connector token. |
-| `403 Forbidden` | Access denied | User's role or scope does not permit this action. |
-| `404 Not Found` | Not found | ID does not exist or belongs to another campus/school. |
-| `409 Conflict` | Write / Replay conflict | Duplicate file uploaded, concurrent edit, or stale revision. |
-| `415 Unsupported` | Format unsupported | Preview requested for an unsupported file format. |
-| `422 Unprocessable`| Validation error | Missing required fields, oversize file (>10MB). |
-| `423 Locked` | Security lock | Download requested for a file that is not `Clean`. |
-| `429 Too Many Req` | Rate limit reached | Exceeded connector (120 req/min) or login throttle. |
+| HTTP Status         | Meaning                 | Typical DMS Scenario                                         |
+| :------------------ | :---------------------- | :----------------------------------------------------------- |
+| `401 Unauthorized`  | Not authenticated       | Session expired or invalid connector token.                  |
+| `403 Forbidden`     | Access denied           | User's role or scope does not permit this action.            |
+| `404 Not Found`     | Not found               | ID does not exist or belongs to another campus/school.       |
+| `409 Conflict`      | Write / Replay conflict | Duplicate file uploaded, concurrent edit, or stale revision. |
+| `415 Unsupported`   | Format unsupported      | Preview requested for an unsupported file format.            |
+| `422 Unprocessable` | Validation error        | Missing required fields, oversize file (>10MB).              |
+| `423 Locked`        | Security lock           | Download requested for a file that is not `Clean`.           |
+| `429 Too Many Req`  | Rate limit reached      | Exceeded connector (120 req/min) or login throttle.          |
 
 ---
 
 ## 7. Approvals Queue & Staff Memos API
 
 ### 7.1 List Approvals
+
 - **Method**: `GET /approvals`
 - **Headers**: `Accept: application/json`
 - **Access**: Staff (views own requested changes), Admin (reviews Staff requests in assigned workspace), Super Admin (reviews Admin requests).
@@ -743,6 +775,7 @@ All error responses adhere to the standard Laravel JSON error specification:
   ```
 
 ### 7.2 Decide Approval (Approve or Reject)
+
 - **Method**: `POST /approvals/{approval}`
 - **Headers**: `Accept: application/json`, `Content-Type: application/json`, `X-CSRF-TOKEN`
 - **Request Body**:
@@ -752,7 +785,7 @@ All error responses adhere to the standard Laravel JSON error specification:
     "reason": "Verified and sanctioned by College Dean."
   }
   ```
-  *(decision can be `approve` or `reject`; reason is mandatory, max 2,000 characters).*
+  _(decision can be `approve` or `reject`; reason is mandatory, max 2,000 characters)._
 - **Response `200 OK`**:
   ```json
   {
@@ -762,6 +795,7 @@ All error responses adhere to the standard Laravel JSON error specification:
   ```
 
 ### 7.3 Publish Staff Memo
+
 - **Method**: `POST /documents/{document}/publish`
 - **Headers**: `Accept: application/json`, `Content-Type: application/json`, `X-CSRF-TOKEN`
 - **Request Body**:
@@ -782,19 +816,21 @@ All error responses adhere to the standard Laravel JSON error specification:
     "revision": 2
   }
   ```
-  *(Returns `202` with `{"approval_id": "...", "status": "pending"}` if submitted by Staff requiring Admin approval).*
+  _(Returns `202` with `{"approval_id": "...", "status": "pending"}` if submitted by Staff requiring Admin approval)._
 
 ---
 
 ## 8. Account Invitations & Account Changes API
 
 ### 8.1 List Account Invitations
+
 - **Method**: `GET /admin/invitations`
 - **Headers**: `Accept: application/json`
 - **Access**: Admin (views own requested staff invitations), Super Admin (views all invitations institution-wide).
 - **Response `200 OK`**: Paginated array of invitations (`id`, `name`, `email`, `role`, `source`, `status`, `expires_at`, `created_at`).
 
 ### 8.2 Request New Invitation
+
 - **Method**: `POST /admin/invitations`
 - **Headers**: `Accept: application/json`, `Content-Type: application/json`, `X-CSRF-TOKEN`
 - **Request Body**:
@@ -816,6 +852,7 @@ All error responses adhere to the standard Laravel JSON error specification:
   ```
 
 ### 8.3 Review Staff Invitation (Super Admin)
+
 - **Method**: `POST /admin/invitations/{invitation}/review`
 - **Request Body**:
   ```json
@@ -833,11 +870,13 @@ All error responses adhere to the standard Laravel JSON error specification:
   ```
 
 ### 8.4 List Account Change Proposals
+
 - **Method**: `GET /admin/account-requests`
 - **Headers**: `Accept: application/json`
 - **Response `200 OK`**: Paginated list of proposed changes to user accounts pending Super Admin review.
 
 ### 8.5 Decide Account Change Proposal
+
 - **Method**: `POST /admin/account-requests/{change}/decide`
 - **Request Body**:
   ```json
@@ -859,6 +898,7 @@ All error responses adhere to the standard Laravel JSON error specification:
 ## 9. Workspace Registry Management API
 
 ### 9.1 List Workspaces & Memberships
+
 - **Method**: `GET /admin/workspaces`
 - **Access**: Super Admin
 - **Headers**: `Accept: application/json`
@@ -890,6 +930,7 @@ All error responses adhere to the standard Laravel JSON error specification:
   ```
 
 ### 9.2 Create Workspace
+
 - **Method**: `POST /admin/workspaces`
 - **Request Body**:
   ```json
@@ -913,6 +954,7 @@ All error responses adhere to the standard Laravel JSON error specification:
   ```
 
 ### 9.3 Update Workspace
+
 - **Method**: `PATCH /admin/workspaces/{workspace}`
 - **Request Body**:
   ```json
@@ -930,6 +972,7 @@ All error responses adhere to the standard Laravel JSON error specification:
   ```
 
 ### 9.4 Assign / Revoke Workspace Membership
+
 - **Method**: `POST /admin/workspaces/{workspace}/membership`
 - **Request Body**:
   ```json
@@ -938,7 +981,7 @@ All error responses adhere to the standard Laravel JSON error specification:
     "action": "grant"
   }
   ```
-  *(action: `grant` or `revoke`)*
+  _(action: `grant` or `revoke`)_
 - **Response `200 OK`**:
   ```json
   {
@@ -954,6 +997,7 @@ All error responses adhere to the standard Laravel JSON error specification:
 ## 10. Admin Console & Connectors API
 
 ### 10.1 Admin Section Summary
+
 - **Method**: `GET /admin/{section}`
 - **Sections**: `overview`, `repository`, `accounts`, `connectors`, `audit`, `scans`
 - **Headers**: `Accept: application/json`
@@ -980,6 +1024,7 @@ All error responses adhere to the standard Laravel JSON error specification:
   ```
 
 ### 10.2 Create Connector
+
 - **Method**: `POST /admin/connectors`
 - **Request Body**:
   ```json
@@ -998,6 +1043,7 @@ All error responses adhere to the standard Laravel JSON error specification:
   ```
 
 ### 10.3 Revoke Connector
+
 - **Method**: `DELETE /admin/connectors/{connector}`
 - **Response `200 OK`**:
   ```json
@@ -1012,12 +1058,14 @@ All error responses adhere to the standard Laravel JSON error specification:
 ## 11. Audit Legal Holds Admin API
 
 ### 11.1 List Legal Holds
+
 - **Method**: `GET /admin/legal-holds`
 - **Access**: Super Admin
 - **Headers**: `Accept: application/json`
 - **Response `200 OK`**: Paginated array of legal holds (`id`, `school_id`, `campus`, `reason`, `released_at`, `created_at`, `actor`).
 
 ### 11.2 Record Legal Hold
+
 - **Method**: `POST /admin/legal-holds`
 - **Request Body**:
   ```json
@@ -1042,6 +1090,7 @@ All error responses adhere to the standard Laravel JSON error specification:
   ```
 
 ### 11.3 Release Legal Hold
+
 - **Method**: `POST /admin/legal-holds/{hold}/release`
 - **Request Body**:
   ```json
@@ -1062,6 +1111,7 @@ All error responses adhere to the standard Laravel JSON error specification:
 ## 12. OAS-to-ES Applicant Packet Integration API (INT-04 & INT-07)
 
 ### 12.1 OAS Receive / Release Applicant Packet
+
 - **Method**: `POST /api/v1/applicant-packets`
 - **Auth**: Connector Bearer Token (`source: OAS`)
 - **Request Body**:
@@ -1073,9 +1123,7 @@ All error responses adhere to the standard Laravel JSON error specification:
     "released": true,
     "admitted": true,
     "verified": true,
-    "version_ids": [
-      "7fa84128-1b20-4b89-a292-628d0113c2c4"
-    ]
+    "version_ids": ["7fa84128-1b20-4b89-a292-628d0113c2c4"]
   }
   ```
 - **Response `201 Created`**:
@@ -1086,9 +1134,10 @@ All error responses adhere to the standard Laravel JSON error specification:
     "applied": true
   }
   ```
-  *(Security enforcement: Release fails with `403` if any document belongs to a medical or clinical category, and fails with `423` if any version is not `Clean`).*
+  _(Security enforcement: Release fails with `403` if any document belongs to a medical or clinical category, and fails with `423` if any version is not `Clean`)._
 
 ### 12.2 ES Retrieve Released Applicant Packet
+
 - **Method**: `GET /api/v1/applicant-packets/{packet}`
 - **Auth**: Connector Bearer Token (`source: ES`)
 - **Response `200 OK`**:
@@ -1109,7 +1158,7 @@ All error responses adhere to the standard Laravel JSON error specification:
   ```
 
 ### 12.3 ES Download Packet Version File
+
 - **Method**: `GET /api/v1/applicant-packets/{packet}/files/{version}`
 - **Auth**: Connector Bearer Token (`source: ES`)
 - **Response `200 OK`**: Binary stream of the clean version file.
-

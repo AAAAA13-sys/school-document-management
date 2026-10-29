@@ -6,7 +6,6 @@ use App\Http\Requests\BatchUploadRequest;
 use App\Http\Requests\UploadRequest;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Validator;
-use Symfony\Component\HttpFoundation\FileBag;
 use Tests\TestCase;
 
 class UploadValidationAndSecurityUnitTest extends TestCase
@@ -113,6 +112,7 @@ class UploadValidationAndSecurityUnitTest extends TestCase
             foreach ($req->after() as $after) {
                 $validator->after($after);
             }
+
             return $validator;
         };
 
@@ -132,7 +132,7 @@ class UploadValidationAndSecurityUnitTest extends TestCase
         $this->assertStringContainsString('Choose a folder with at most 11 nested levels', implode(' ', $vMismatch->errors()->get('paths')));
 
         // Path with more than 11 nested directory levels (total parts > 12)
-        $deepPath = implode('/', array_fill(0, 12, 'sub')) . '/test.pdf'; // 13 parts
+        $deepPath = implode('/', array_fill(0, 12, 'sub')).'/test.pdf'; // 13 parts
         $vDeep = $validateBatch([$file], [$deepPath]);
         $this->assertTrue($vDeep->fails());
         $this->assertStringContainsString('Choose a folder with at most 11 nested levels', implode(' ', $vDeep->errors()->get('paths')));

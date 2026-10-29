@@ -6,7 +6,9 @@ use App\Enums\Role;
 use App\Enums\Source;
 use App\Models\User;
 use App\Services\Access;
+use App\Services\WorkspaceRegistry;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class ActionRequest extends FormRequest
@@ -20,7 +22,8 @@ class ActionRequest extends FormRequest
 
         $route = $this->route()->getName();
         if ($route === 'folders.create' && is_string($this->input('source'))) {
-            $registered = Access::scope(\Illuminate\Support\Facades\DB::table('workspaces'), $user)->where('code', $this->input('source'))->exists();
+            $registered = Access::scope(DB::table('workspaces'), $user)->where('code', $this->input('source'))->exists();
+
             return ! $registered || $user->canAccessSource($this->input('source'));
         }
         if ($route === 'accounts.create') {
@@ -32,7 +35,7 @@ class ActionRequest extends FormRequest
             $source = $this->input('source');
             // Let validation reject malformed source values; only enforce a
             // valid, but out-of-scope, source as a forbidden action here.
-            if (($source === null || Access::scope(\Illuminate\Support\Facades\DB::table('workspaces'), $user)->where('code', $source)->exists()) && ! $user->can('accounts.source', [$source])) {
+            if (($source === null || Access::scope(DB::table('workspaces'), $user)->where('code', $source)->exists()) && ! $user->can('accounts.source', [$source])) {
                 return false;
             }
 
@@ -100,7 +103,7 @@ class ActionRequest extends FormRequest
                 ],
                 'active' => 'required|boolean',
             ],
-            'connectors.create' => ['name' => 'required|string|max:100', 'source' => ['required', Rule::in(\App\Services\WorkspaceRegistry::codes($this->user(), true))]],
+            'connectors.create' => ['name' => 'required|string|max:100', 'source' => ['required', Rule::in(WorkspaceRegistry::codes($this->user(), true))]],
             default => [],
         };
     }

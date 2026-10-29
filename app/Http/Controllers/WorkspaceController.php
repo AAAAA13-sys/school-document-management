@@ -4,17 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\ReadRequest;
 use App\Services\Access;
+use App\Services\DocumentService;
+use App\Services\MemoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 class WorkspaceController extends Controller
 {
-    public function index(ReadRequest $request, string $source, string $section = 'overview')
+    public function index(ReadRequest $request, DocumentService $service, string $source, string $section = 'overview')
     {
         $source = strtoupper($source);
         $user = $request->user();
-        abort_unless(\App\Services\Access::scope(DB::table('workspaces'), $user)->where('code', $source)->where('status', 'active')->exists(), 404);
+        abort_unless(Access::scope(DB::table('workspaces'), $user)->where('code', $source)->where('status', 'active')->exists(), 404);
         Gate::forUser($user)->authorize('workspaces.access', $source);
         abort_unless(in_array($section, ['overview', 'documents', 'history', 'snapshots']), 404);
         if (in_array($section, ['history', 'snapshots'])) {
@@ -28,7 +30,7 @@ class WorkspaceController extends Controller
         $foldersForSharing = Access::inheritedFolderIds($user);
         $stats = ['documents' => (clone $base)->whereNull('trashed_at')->count(),
             'blocked' => DB::table('document_versions')->whereIn('document_id', (clone $base)->select('id'))->where('scan_status', '!=', 'Clean')->count(),
-            'shared' => (clone $base)->where(fn ($q) => $q->whereIn('id', DB::table('shares')->select('document_id')->whereNull('revoked_at')->where(fn ($s) => $s->whereNull('expires_at')->orWhere('expires_at', '>', now())))->orWhereIn('folder_id', $foldersForSharing))->count(),
+            'shared' => (clone $base)->where(fn ($q) => $q->whereIn('id', Access::activeShares()->select('document_id'))->orWhereIn('folder_id', $foldersForSharing))->count(),
             'history' => Gate::forUser($user)->allows('workspace.history')
                 ? Access::scope(DB::table('history_receipts'), $user)->where('source', $source)->count()
                 : null];
@@ -42,7 +44,7 @@ class WorkspaceController extends Controller
             $base->where('owner_id', $user->id);
         }
         if ($view === 'shared') {
-            $base->where(fn ($q) => $q->whereIn('id', DB::table('shares')->select('document_id')->where('recipient_id', $user->id)->whereNull('revoked_at')->where(fn ($s) => $s->whereNull('expires_at')->orWhere('expires_at', '>', now())))->orWhereIn('folder_id', $foldersForSharing));
+            Access::sharedDocuments($base, $user, $foldersForSharing);
         }
         if ($view === 'starred') {
             $base->whereIn('id', DB::table('stars')->select('document_id')->where('user_id', $user->id));
@@ -74,21 +76,7 @@ class WorkspaceController extends Controller
             $base->whereNull('folder_id');
         }
         $documents = $base->orderByDesc('updated_at')->paginate(12)->withQueryString();
-        $versions = DB::table('document_versions')->whereIn('document_id', $documents->pluck('id'))->orderBy('number')->get()->keyBy('document_id');
-        foreach ($documents as $item) {
-            $memoPin = \App\Services\MemoService::circulatedVersion($user, $item);
-            if ($memoPin) {
-                $versions[$item->id] = DB::table('document_versions')->where('id', $memoPin)->first();
-                continue;
-            }
-            if ($item->owner_id === $user->id || Gate::forUser($user)->allows('document.all-versions', $item)) {
-                continue;
-            }
-            $grant = Access::grant($user, $item);
-            if ($grant?->version_id) {
-                $versions[$item->id] = DB::table('document_versions')->where('id', $grant->version_id)->first();
-            }
-        }
+        $versions = $service->listingVersions($user, $documents);
         $starred = DB::table('stars')->where('user_id', $user->id)->pluck('document_id')->all();
         $folders = Access::folders($user)->where('source', $source)
             ->select('folders.*')->selectSub(Access::documents($user)->whereColumn('folder_id', 'folders.id')->whereNull('trashed_at')->selectRaw('COUNT(*)'), 'document_count')
@@ -136,8 +124,10 @@ class WorkspaceController extends Controller
             && ! Gate::forUser($user)->allows('document.all-versions', $doc)) {
             $versions = $versions->where('id', $grant->version_id);
         }
-        $memoPin = \App\Services\MemoService::circulatedVersion($user, $doc);
-        if ($memoPin) $versions = $versions->where('id', $memoPin);
+        $memoPin = MemoService::circulatedVersion($user, $doc);
+        if ($memoPin) {
+            $versions = $versions->where('id', $memoPin);
+        }
         $comments = DB::table('comments')->join('users', 'users.id', '=', 'comments.user_id')->where('document_id', $document)->select('comments.*', 'users.name')->orderByDesc('comments.id')->get();
         $shares = DB::table('shares')->join('users', 'users.id', '=', 'shares.recipient_id')->where('document_id', $document)->select('shares.*', 'users.name', 'users.email')->get();
         $owner = Gate::forUser($user)->allows('document.manage', $doc);
@@ -193,8 +183,11 @@ class WorkspaceController extends Controller
             }
         }
 
-        $memoPin = \App\Services\MemoService::circulatedVersion($user, $doc);
-        if ($memoPin) $query->where('id', $memoPin);
+        $memoPin = MemoService::circulatedVersion($user, $doc);
+        if ($memoPin) {
+            $query->where('id', $memoPin);
+        }
+
         return response()->json(['versions' => $query->get(['id', 'scan_status'])])->header('Cache-Control', 'private, no-store');
     }
 }

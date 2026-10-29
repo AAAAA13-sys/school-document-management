@@ -22,7 +22,9 @@ async function getChromium() {
     const cacheBase = 'C:/Users/PLP/AppData/Local/npm-cache/_npx';
     if (fs.existsSync(cacheBase)) {
       for (const entry of fs.readdirSync(cacheBase)) {
-        const candidate = path.join(cacheBase, entry, 'node_modules/playwright/index.mjs').replace(/\\/g, '/');
+        const candidate = path
+          .join(cacheBase, entry, 'node_modules/playwright/index.mjs')
+          .replace(/\\/g, '/');
         if (fs.existsSync(candidate)) {
           const pw = await import(`file:///${candidate}`);
           return pw.chromium;
@@ -50,9 +52,27 @@ test('responsive layout has no horizontal scroll at 375px, 768px, and 1280px vie
   }
 
   const viewports = [
-    { width: 375, height: 667, name: '375px', label: 'viewport-375px-mobile.png', legacy: 'responsive_375px.png' },
-    { width: 768, height: 1024, name: '768px', label: 'viewport-768px-tablet.png', legacy: 'responsive_768px.png' },
-    { width: 1280, height: 800, name: '1280px', label: 'viewport-1280px-desktop.png', legacy: 'responsive_1280px.png' },
+    {
+      width: 375,
+      height: 667,
+      name: '375px',
+      label: 'viewport-375px-mobile.png',
+      legacy: 'responsive_375px.png',
+    },
+    {
+      width: 768,
+      height: 1024,
+      name: '768px',
+      label: 'viewport-768px-tablet.png',
+      legacy: 'responsive_768px.png',
+    },
+    {
+      width: 1280,
+      height: 800,
+      name: '1280px',
+      label: 'viewport-1280px-desktop.png',
+      legacy: 'responsive_1280px.png',
+    },
   ];
 
   try {
@@ -73,7 +93,8 @@ test('responsive layout has no horizontal scroll at 375px, 768px, and 1280px vie
         return {
           scrollWidth: document.documentElement.scrollWidth,
           clientWidth: document.documentElement.clientWidth,
-          hasHorizontalScroll: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+          hasHorizontalScroll:
+            document.documentElement.scrollWidth > document.documentElement.clientWidth,
         };
       });
 
@@ -170,7 +191,11 @@ test('duplicate warning modal appears on a 409 response', async () => {
     await duplicateModal.waitFor({ state: 'visible', timeout: 5000 });
 
     const isVisible = await duplicateModal.isVisible();
-    assert.strictEqual(isVisible, true, 'Duplicate warning modal must be visible upon 409 response');
+    assert.strictEqual(
+      isVisible,
+      true,
+      'Duplicate warning modal must be visible upon 409 response'
+    );
 
     // Verify document title and owner inside the duplicate warning modal
     const docTitle = await page.locator('#duplicate-modal-doc-title').innerText();
@@ -189,7 +214,11 @@ test('duplicate warning modal appears on a 409 response', async () => {
 
     // Verify presence of "Upload as New Version" button
     const newVersionBtn = page.locator('#duplicate-modal-upload-new-version');
-    assert.strictEqual(await newVersionBtn.isVisible(), true, 'Upload as New Version button must be visible');
+    assert.strictEqual(
+      await newVersionBtn.isVisible(),
+      true,
+      'Upload as New Version button must be visible'
+    );
 
     // Capture screenshot evidence of duplicate warning modal
     const p1 = path.join(screenshotDirs[0], 'duplicate-warning-modal-409.png');

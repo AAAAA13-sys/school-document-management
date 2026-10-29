@@ -279,7 +279,9 @@ a .figma-icon {
   z-index: 1040;
   color: #fff;
   overflow-x: hidden;
-  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), padding 0.25s ease;
+  transition:
+    width 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+    padding 0.25s ease;
 }
 
 .sidebar-header {
@@ -304,7 +306,10 @@ a .figma-icon {
   font-size: 15px;
   line-height: 1;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
   flex-shrink: 0;
 }
 
@@ -500,7 +505,13 @@ a .figma-icon {
   margin-bottom: 3px;
   white-space: nowrap;
   overflow: hidden;
-  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), height 0.25s cubic-bezier(0.4, 0, 0.2, 1), padding 0.25s ease, border-radius 0.25s ease, background 0.15s ease, color 0.15s ease;
+  transition:
+    width 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+    height 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+    padding 0.25s ease,
+    border-radius 0.25s ease,
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .main-nav > a:hover {
@@ -563,7 +574,9 @@ a .figma-icon {
   overflow: hidden;
   text-overflow: ellipsis;
   text-decoration: none;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .return-admin:hover,
@@ -2144,8 +2157,6 @@ main#main {
   margin-left: 8px;
 }
 
-
-
 .toast-container {
   z-index: 1090;
 }
@@ -2357,8 +2368,6 @@ body.login-page {
   right: 10px;
   top: 11px;
 }
-
-
 
 @media (min-width: 1600px) {
   main#main {
@@ -3550,28 +3559,28 @@ body.login-page {
 }
 
 /* QA Responsive verification: data-device="mobile" */
-body[data-device="mobile"] .sidebar {
+body[data-device='mobile'] .sidebar {
   transform: translateX(-100%);
   width: min(300px, 85vw);
 }
 
-body[data-device="mobile"] .sidebar.is-open {
+body[data-device='mobile'] .sidebar.is-open {
   transform: translateX(0);
 }
 
-body[data-device="mobile"] .document-items.is-grid {
+body[data-device='mobile'] .document-items.is-grid {
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
 
-body[data-device="mobile"] .document-items.is-grid .document-row {
+body[data-device='mobile'] .document-items.is-grid .document-row {
   display: flex;
   flex-direction: column;
   width: 100%;
 }
 
-body[data-device="mobile"] .modal-dialog {
+body[data-device='mobile'] .modal-dialog {
   margin: 12px;
   max-width: none;
   width: calc(100% - 24px);
@@ -4890,7 +4899,8 @@ body.login-page .preview-login-link {
 }
 
 @keyframes status-pulse-dot {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.45;
     transform: scale(0.9);
   }
@@ -4935,21 +4945,21 @@ body.login-page .preview-login-link {
 }
 
 .classification.class-confidential,
-.classification[data-class="Confidential"] {
+.classification[data-class='Confidential'] {
   background: #f0fdf4;
   color: #166534;
   border-color: #bbf7d0;
 }
 
 .classification.class-restricted,
-.classification[data-class="Restricted"] {
+.classification[data-class='Restricted'] {
   background: #fffbeb;
   color: #92400e;
   border-color: #fde68a;
 }
 
 .classification.class-internal,
-.classification[data-class="Internal"] {
+.classification[data-class='Internal'] {
   background: #f1f5f9;
   color: #334155;
   border-color: #cbd5e1;
@@ -4983,13 +4993,13 @@ body.login-page .preview-login-link {
   margin-left: 2px;
 }
 
-.sort-header[aria-sort="ascending"] .sort-indicator::after {
+.sort-header[aria-sort='ascending'] .sort-indicator::after {
   content: '▲';
   opacity: 1;
   color: var(--green-800);
 }
 
-.sort-header[aria-sort="descending"] .sort-indicator::after {
+.sort-header[aria-sort='descending'] .sort-indicator::after {
   content: '▼';
   opacity: 1;
   color: var(--green-800);
@@ -4999,7 +5009,9 @@ body.login-page .preview-login-link {
 .stat-card {
   position: relative;
   overflow: hidden;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
   border-top: 3px solid var(--line);
 }
 

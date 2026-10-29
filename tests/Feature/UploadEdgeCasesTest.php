@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Jobs\ScanDocumentVersion;
 use App\Models\User;
 use App\Services\Scanner;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -10,7 +9,6 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class UploadEdgeCasesTest extends TestCase
@@ -240,7 +238,7 @@ class UploadEdgeCasesTest extends TestCase
         $respMismatch->assertStatus(422)->assertJsonValidationErrors('paths');
 
         // 4. Path exceeding 11 nested directory levels (total parts > 12)
-        $deepPath = implode('/', array_fill(0, 12, 'sub')) . '/exploit.pdf';
+        $deepPath = implode('/', array_fill(0, 12, 'sub')).'/exploit.pdf';
         $respDeep = $this->actingAs($actor)->postJson('/documents/batch', [
             'source' => 'EMS',
             'classification' => 'Internal',

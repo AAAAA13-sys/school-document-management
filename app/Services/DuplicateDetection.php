@@ -105,9 +105,8 @@ class DuplicateDetection
             return true;
         }
 
-        return DB::table('shares')->where('document_id', $row->document_id)
-            ->where('recipient_id', $actor->id)->whereNull('revoked_at')->whereNull('version_id')
-            ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+        return Access::activeShares()->where('document_id', $row->document_id)
+            ->where('recipient_id', $actor->id)->whereNull('version_id')
             ->where('permission', 'Editor')->exists();
     }
 }

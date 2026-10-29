@@ -8,14 +8,14 @@ use App\Http\Requests\UploadRequest;
 use App\Services\Access;
 use App\Services\DocumentMoves;
 use App\Services\DocumentService;
-use App\Services\MemoService;
+use App\Services\SensitiveChangeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 class DocumentController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, DocumentService $service)
     {
         $user = $request->user();
         $source = $request->input('source');
@@ -42,7 +42,7 @@ class DocumentController extends Controller
         if ($view === 'mine') {
             $query->where('owner_id', $user->id);
         } elseif ($view === 'shared') {
-            $query->where(fn ($q) => $q->whereIn('id', DB::table('shares')->select('document_id')->where('recipient_id', $user->id)->whereNull('revoked_at')->where(fn ($s) => $s->whereNull('expires_at')->orWhere('expires_at', '>', now())))->orWhereIn('folder_id', $foldersForSharing));
+            Access::sharedDocuments($query, $user, $foldersForSharing);
         } elseif ($view === 'starred') {
             $query->whereIn('id', DB::table('stars')->select('document_id')->where('user_id', $user->id));
         }
@@ -59,26 +59,7 @@ class DocumentController extends Controller
         $perPage = min(max((int) $request->input('per_page', 15), 1), 100);
         $documents = $query->orderByDesc('updated_at')->paginate($perPage)->withQueryString();
 
-        $versions = DB::table('document_versions')
-            ->whereIn('document_id', $documents->pluck('id'))
-            ->orderBy('number')
-            ->get()
-            ->keyBy('document_id');
-
-        foreach ($documents as $item) {
-            $memoPin = MemoService::circulatedVersion($user, $item);
-            if ($memoPin) {
-                $versions[$item->id] = DB::table('document_versions')->where('id', $memoPin)->first();
-                continue;
-            }
-            if ($item->owner_id === $user->id || Gate::forUser($user)->allows('document.all-versions', $item)) {
-                continue;
-            }
-            $grant = Access::grant($user, $item);
-            if ($grant?->version_id) {
-                $versions[$item->id] = DB::table('document_versions')->where('id', $grant->version_id)->first();
-            }
-        }
+        $versions = $service->listingVersions($user, $documents);
 
         $starredIds = DB::table('stars')->where('user_id', $user->id)->pluck('document_id')->all();
 
@@ -153,8 +134,9 @@ class DocumentController extends Controller
         if (! $request->user()->isSuperAdmin() && $request->validated('classification', $current->classification) !== $current->classification) {
             Gate::forUser($request->user())->authorize('document.classify', [$current, $request->validated('classification')]);
             abort_if($request->validated('title') !== $current->title || $request->validated('folder_id', $current->folder_id) !== $current->folder_id, 422, 'Submit a classification request separately from renaming or moving the document.');
-            $result = app(\App\Services\SensitiveChangeService::class)->submit($request->user(), $current, 'classification', $request->validated());
+            $result = app(SensitiveChangeService::class)->submit($request->user(), $current, 'classification', $request->validated());
             $result['message'] = $result['status'] === 'pending' ? 'Classification request submitted. Live document unchanged.' : 'Classification updated.';
+
             return $request->expectsJson() ? response()->json($result, $result['status'] === 'pending' ? 202 : 200) : back()->with('status', $result['message']);
         }
         $result = DB::transaction(function () use ($request, $document) {
@@ -165,7 +147,9 @@ class DocumentController extends Controller
             abort_if($doc->trashed_at, 409, 'Restore this document first.');
             abort_unless($doc->revision === (int) $request->validated('revision'), 409, 'Document changed. Reload and retry.');
             $classification = $request->validated('classification', $doc->classification);
-            if ($classification !== $doc->classification) Gate::forUser($user)->authorize('document.classify', [$doc, $classification]);
+            if ($classification !== $doc->classification) {
+                Gate::forUser($user)->authorize('document.classify', [$doc, $classification]);
+            }
             $previousClassification = $doc->classification;
             $previousFolder = $doc->folder_id;
             $folder = $request->validated('folder_id');
@@ -209,15 +193,19 @@ class DocumentController extends Controller
                 'access_gained' => count($accessChange['gained'])];
         });
 
-        if ($request->expectsJson()) return response()->json($result);
+        if ($request->expectsJson()) {
+            return response()->json($result);
+        }
+
         return back()->with('status', $result['message']);
     }
 
     public function trash(ActionRequest $request, string $document)
     {
         $restore = $request->route()->getName() === 'documents.restore';
-        $result = app(\App\Services\SensitiveChangeService::class)->submit($request->user(), Access::document($request->user(), $document), $restore ? 'restore' : 'trash', $request->validated());
+        $result = app(SensitiveChangeService::class)->submit($request->user(), Access::document($request->user(), $document), $restore ? 'restore' : 'trash', $request->validated());
         $message = $result['status'] === 'pending' ? 'Request submitted. Live document unchanged until approval.' : ($restore ? 'Document restored.' : 'Document moved to trash. All versions preserved.');
+
         return $request->expectsJson() ? response()->json($result + ['message' => $message], $result['status'] === 'pending' ? 202 : 200) : back()->with('status', $message);
     }
 

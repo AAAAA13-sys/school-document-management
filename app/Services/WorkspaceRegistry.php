@@ -23,12 +23,14 @@ class WorkspaceRegistry
                 }
             });
         }
+
         return $query;
     }
 
     public static function labels(?User $actor = null, bool $erpOnly = false, bool $activeOnly = true): array
     {
         $query = $actor ? self::query($actor, $activeOnly) : DB::table('workspaces')->when($activeOnly, fn ($q) => $q->where('status', 'active'));
+
         return $query->when($erpOnly, fn ($q) => $q->where('kind', 'erp'))->orderBy('name')->pluck('name', 'code')->all();
     }
 

@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Services\Scanner;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -17,7 +16,9 @@ class UnauthorizedDownloadsTest extends TestCase
     use RefreshDatabase;
 
     private string $emsToken = 'unauth-download-ems-token';
+
     private string $pmsToken = 'unauth-download-pms-token';
+
     private string $oasToken = 'unauth-download-oas-token';
 
     protected function setUp(): void

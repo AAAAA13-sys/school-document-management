@@ -1,0 +1,368 @@
+{
+  "info": {
+    "name": "DMS ERP API v1 - integration handoff",
+    "description": "Scoped HTTPS connector requests for EMS, PMS, ES, and OAS. Set baseUrl and connectorToken in a private Postman environment. See docs/API.md. Never export real tokens.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{connectorToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "01 - Read history",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/history?after=0&limit=50",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "history"]
+        },
+        "description": "First authentication check. 200 with an empty data array is valid."
+      },
+      "response": []
+    },
+    {
+      "name": "02 - Submit history event",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/history",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "history"]
+        },
+        "description": "Send a complete source snapshot. Retry unchanged with the same event_id.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"event_id\": \"ems:employee:TEST-001:1\",\n  \"record_type\": \"employee\",\n  \"record_id\": \"TEST-001\",\n  \"revision\": 1,\n  \"operation\": \"upsert\",\n  \"payload\": {\n    \"external_id\": \"TEST-001\",\n    \"department\": \"Test office\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "03 - Read snapshot",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/snapshots/{{recordType}}/{{recordId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "snapshots", "{{recordType}}", "{{recordId}}"]
+        },
+        "description": "Set recordType and recordId to values submitted in the history event."
+      },
+      "response": []
+    },
+    {
+      "name": "04 - Upload document",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idempotencyKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/documents",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "documents"]
+        },
+        "description": "Choose a local benign file in Body > form-data. Use a unique Idempotency-Key for each intended upload.",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "title",
+              "value": "Integration test evidence",
+              "type": "text"
+            },
+            {
+              "key": "classification",
+              "value": "Internal",
+              "type": "text"
+            },
+            {
+              "key": "file",
+              "type": "file",
+              "src": ""
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "05 - Read document",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/documents/{{documentId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "documents", "{{documentId}}"]
+        },
+        "description": "Read current version and scan status. Upload receipt may still say Pending."
+      },
+      "response": []
+    },
+    {
+      "name": "06 - Download file",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/files/{{versionId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "files", "{{versionId}}"]
+        },
+        "description": "Requires a Clean version and scope. Postman may show binary response; use Save Response."
+      },
+      "response": []
+    },
+    {
+      "name": "07 - List files",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/files?after=0&limit=50",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "files"]
+        },
+        "description": "Maintain a files cursor independent of other resources."
+      },
+      "response": []
+    },
+    {
+      "name": "08 - List events",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/events?after=0&limit=50",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "events"]
+        },
+        "description": "Maintain an events cursor independent of other resources."
+      },
+      "response": []
+    },
+    {
+      "name": "09 - Upload new version",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{versionIdempotencyKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/documents/{{documentId}}/versions",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "documents", "{{documentId}}", "versions"]
+        },
+        "description": "Use the current document revision, a fresh Idempotency-Key, and a local file.",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "revision",
+              "value": "{{documentRevision}}",
+              "type": "text"
+            },
+            {
+              "key": "file",
+              "type": "file",
+              "src": ""
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "10 - OAS release packet",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applicant-packets",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "applicant-packets"]
+        },
+        "description": "OAS token only. Replace version_ids with exact Clean OAS version UUIDs. admitted and verified are source assertions.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"event_id\": \"oas:applicant:TEST-001:1\",\n  \"applicant_id\": \"TEST-001\",\n  \"revision\": 1,\n  \"released\": true,\n  \"admitted\": true,\n  \"verified\": true,\n  \"version_ids\": [\n    \"{{versionId}}\"\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "11 - ES read packet",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applicant-packets/{{packetId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "applicant-packets", "{{packetId}}"]
+        },
+        "description": "Switch connectorToken to the ES connector. A released packet is scoped to the same school/campus."
+      },
+      "response": []
+    },
+    {
+      "name": "12 - ES download packet file",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applicant-packets/{{packetId}}/files/{{versionId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "applicant-packets", "{{packetId}}", "files", "{{versionId}}"]
+        },
+        "description": "Switch connectorToken to ES. Only exact released versions are accessible."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8011",
+      "type": "string"
+    },
+    {
+      "key": "connectorToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "recordType",
+      "value": "employee",
+      "type": "string"
+    },
+    {
+      "key": "recordId",
+      "value": "TEST-001",
+      "type": "string"
+    },
+    {
+      "key": "idempotencyKey",
+      "value": "integration-test-001",
+      "type": "string"
+    },
+    {
+      "key": "versionIdempotencyKey",
+      "value": "integration-test-version-001",
+      "type": "string"
+    },
+    {
+      "key": "documentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "versionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "documentRevision",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "packetId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

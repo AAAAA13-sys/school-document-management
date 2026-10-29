@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\Access;
 use App\Services\DuplicateDetection;
 use App\Services\Scanner;
+use App\Services\SensitiveChangeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -611,7 +612,7 @@ class Phase4ClassificationTest extends TestCase
         foreach (DB::table('sensitive_changes')->where('status', 'pending')->get() as $change) {
             $requester = User::findOrFail($change->requester_id);
             $reviewer = $this->account(['role' => $requester->isAdmin() ? Role::SuperAdmin->value : Role::Admin->value, 'source' => $requester->source]);
-            app(\App\Services\SensitiveChangeService::class)->decide($reviewer, $change->id, true, 'Approved fixture change for visibility verification.');
+            app(SensitiveChangeService::class)->decide($reviewer, $change->id, true, 'Approved fixture change for visibility verification.');
         }
     }
 

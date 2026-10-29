@@ -4,6 +4,7 @@ storage
 bootstrap/cache
 public/vendor
 public/assets/figma
+resources/preview/*.php
 .phpunit.result.cache
 package-lock.json
 composer.lock

@@ -44,11 +44,7 @@
     <div class="modal fade" id="upload-modal" tabindex="-1" aria-labelledby="upload-title" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered upload-dialog">
             <div class="modal-content">
-                <form
-                    method="post"
-                    action="{{ isset($doc)?'/documents/'.$doc->id.'/versions':'/documents' }}"
-                    enctype="multipart/form-data"
-                    id="upload-form">
+                <form method="post" action="{{ isset($doc)?'/documents/'.$doc->id.'/versions':'/documents' }}" enctype="multipart/form-data" id="upload-form">
                     @csrf
                     <input type="hidden" name="submission_key" value="{{ (string) Illuminate\Support\Str::uuid() }}" /><input
                         type="hidden"
@@ -145,7 +141,7 @@
             </div>
             <div class="modal-body">
                 <p class="modal-subtitle">An identical file already exists in a document you can access.</p>
-                <div class="duplicate-info-card p-3 my-3 rounded" style="background: var(--canvas, #f8f9fa); border: 1px solid var(--line, #e2e8f0);">
+                <div class="duplicate-info-card p-3 my-3 rounded" style="background: var(--canvas, #f8f9fa); border: 1px solid var(--line, #e2e8f0)">
                     <p class="mb-2"><strong>Document Title:</strong> <span id="duplicate-modal-doc-title">—</span></p>
                     <p class="mb-0"><strong>Document Owner:</strong> <span id="duplicate-modal-doc-owner">—</span></p>
                 </div>
@@ -158,5 +154,3 @@
         </div>
     </div>
 </div>
-
-

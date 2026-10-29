@@ -40,8 +40,12 @@ class OperationsReadinessTest extends TestCase
         $this->assertSame('ok', $response->getData(true)['database']);
         $this->assertSame('not_measured', $response->getData(true)['queue']['worker_liveness']);
         $request->setUserResolver(fn () => $this->account('staff'));
-        try { app(OperationsHealthController::class)($request); $this->fail('Staff health access accepted.'); }
-        catch (HttpException $e) { $this->assertSame(403, $e->getStatusCode()); }
+        try {
+            app(OperationsHealthController::class)($request);
+            $this->fail('Staff health access accepted.');
+        } catch (HttpException $e) {
+            $this->assertSame(403, $e->getStatusCode());
+        }
     }
 
     public function test_archive_verification_decrypts_and_checks_every_entry(): void
@@ -61,9 +65,15 @@ class OperationsReadinessTest extends TestCase
             $verified = app(BackupArchive::class)->verify($path);
             $this->assertSame(hash('sha256', $sql), $verified['checksums']['database.sql']);
             config(['operations.backup_password' => str_repeat('W', 40)]);
-            try { app(BackupArchive::class)->verify($path); $this->fail('Wrong password accepted.'); }
-            catch (RuntimeException) { $this->assertTrue(true); }
-        } finally { unlink($path); }
+            try {
+                app(BackupArchive::class)->verify($path);
+                $this->fail('Wrong password accepted.');
+            } catch (RuntimeException) {
+                $this->assertTrue(true);
+            }
+        } finally {
+            unlink($path);
+        }
     }
 
     public function test_legal_hold_records_and_releases_without_deleting_audit_entries(): void

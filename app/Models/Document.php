@@ -15,8 +15,11 @@ class Document extends Model
     use HasFactory;
 
     protected $table = 'documents';
+
     protected $primaryKey = 'id';
+
     public $incrementing = false;
+
     protected $keyType = 'string';
 
     protected $fillable = [

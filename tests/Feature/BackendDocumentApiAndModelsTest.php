@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Enums\Role;
 use App\Models\Comment;
-use App\Models\Connector;
 use App\Models\Document;
 use App\Models\DocumentVersion;
 use App\Models\Folder;
@@ -13,7 +12,6 @@ use App\Models\Star;
 use App\Models\User;
 use App\Models\Workspace;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -23,7 +21,9 @@ class BackendDocumentApiAndModelsTest extends TestCase
     use RefreshDatabase;
 
     private User $superAdmin;
+
     private User $emsAdmin;
+
     private User $emsStaff;
 
     protected function setUp(): void

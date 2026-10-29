@@ -28,8 +28,7 @@ class DocumentMoves
 
         // Recipients whose access does not depend on the folder: explicit document
         // grants always win, and source-wide oversight already sees the document.
-        $explicit = DB::table('shares')->where('document_id', $document->id)->whereNull('revoked_at')
-            ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+        $explicit = Access::activeShares()->where('document_id', $document->id)
             ->pluck('permission', 'recipient_id')->all();
         $alreadySees = $candidates ? DB::table('users')->whereIn('id', $candidates)
             ->where(fn ($q) => $q->where('role', 'super_admin')

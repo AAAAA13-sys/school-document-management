@@ -1,12 +1,92 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Account invitations · DMS</title><link rel="stylesheet" href="/vendor/bootstrap.min.css"></head><body><main class="container py-4"><a href="/admin/accounts">Back to accounts</a><h1>Account invitations</h1>
-@if(session('status'))<p role="status">{{ session('status') }}</p>@endif
-@if($errors->any())<div role="alert">{{ $errors->first() }}</div>@endif
-<form method="post" action="/admin/invitations">@csrf
-<label class="d-block">Name<input class="form-control" name="name" required maxlength="255"></label><label class="d-block">Email<input class="form-control" type="email" name="email" required></label>
-<label class="d-block">Role<select class="form-select" name="role"><option value="staff">Staff</option>@if(auth()->user()->isSuperAdmin())<option value="admin">Admin</option><option value="super_admin">Super Admin</option>@endif</select></label>
-<label class="d-block">Workspace<select class="form-select" name="source"><option value="">None (Super Admin only)</option>@foreach(App\Services\WorkspaceRegistry::labels(auth()->user()) as $code=>$name)<option value="{{ $code }}" @selected(auth()->user()->source === $code)>{{ $name }} ({{ $code }})</option>@endforeach</select><small>Required except for Super Admin.</small></label><button class="btn btn-primary mt-2">{{ auth()->user()->isSuperAdmin() ? 'Send invitation' : 'Propose Staff invitation' }}</button></form>
-<table class="table table-striped mt-4"><caption>Invitation requests and transport state. Sent means accepted by the configured mail transport; delivery and activation are separate.</caption><thead><tr><th>Email</th><th>Role / workspace</th><th>State</th><th>Actions</th></tr></thead><tbody>@foreach($invitations as $invitation)<tr><td>{{ $invitation->email }}</td><td>{{ $invitation->role }} / {{ $invitation->source }}</td><td>{{ $invitation->status }} @if($invitation->expires_at)<br>Expires {{ $invitation->expires_at }}@endif</td><td>@if(auth()->user()->isSuperAdmin())
-@if($invitation->status === 'pending')<form method="post" action="/admin/invitations/{{ $invitation->id }}/review">@csrf<label>Decision reason<input name="reason" required maxlength="2000"></label><button name="approve" value="1">Approve</button><button name="approve" value="0">Reject</button></form>@endif
-@if(in_array($invitation->status,['approved','sent']))<form method="post" action="/admin/invitations/{{ $invitation->id }}/send">@csrf<button>Send / resend invitation</button></form>@endif
-@endif @if(in_array($invitation->status,['pending','approved','sent']))<form method="post" action="/admin/invitations/{{ $invitation->id }}/revoke">@csrf<button>Revoke invitation</button></form>@endif</td></tr>@endforeach</tbody></table>{{ $invitations->links() }}</main></body></html>
-
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Account invitations · DMS</title>
+    <link rel="stylesheet" href="/vendor/bootstrap.min.css" />
+</head>
+<body>
+    <main class="container py-4">
+        <a href="/admin/accounts">Back to accounts</a>
+        <h1>Account invitations</h1>
+        @if (session('status'))
+            <p role="status">{{ session('status') }}</p>
+        @endif
+        @if ($errors->any())
+            <div role="alert">{{ $errors->first() }}</div>
+        @endif
+        <form method="post" action="/admin/invitations">
+            @csrf
+            <label class="d-block">Name<input class="form-control" name="name" required maxlength="255" /></label
+            ><label class="d-block">Email<input class="form-control" type="email" name="email" required /></label>
+            <label class="d-block"
+                >Role<select class="form-select" name="role">
+                    <option value="staff">Staff</option>
+                    @if (auth()->user()->isSuperAdmin())
+                        <option value="admin">Admin</option>
+                        <option value="super_admin">Super Admin</option>
+                    @endif</select
+            ></label>
+            <label class="d-block"
+                >Workspace<select class="form-select" name="source">
+                    <option value="">None (Super Admin only)</option>
+                    @foreach (App\Services\WorkspaceRegistry::labels(auth()->user()) as $code=>$name)
+                        <option value="{{ $code }}" @selected (auth()->user()->source === $code)>{{ $name }} ({{ $code }})</option>
+                    @endforeach</select
+                ><small>Required except for Super Admin.</small></label
+            ><button class="btn btn-primary mt-2">{{ auth()->user()->isSuperAdmin() ? 'Send invitation' : 'Propose Staff invitation' }}</button>
+        </form>
+        <table class="table table-striped mt-4">
+            <caption>
+                Invitation requests and transport state. Sent means accepted by the configured mail transport; delivery and activation are separate.
+            </caption>
+            <thead>
+                <tr>
+                    <th>Email</th>
+                    <th>Role / workspace</th>
+                    <th>State</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($invitations as $invitation)
+                    <tr>
+                        <td>{{ $invitation->email }}</td>
+                        <td>{{ $invitation->role }} / {{ $invitation->source }}</td>
+                        <td>
+                            {{ $invitation->status }}
+                            @if ($invitation->expires_at)
+                                <br Expires {{ $invitation->expires_at }} @endif />
+                        </td>
+                        <td>
+                            @if (auth()->user()->isSuperAdmin())
+                            @if ($invitation->status === 'pending')
+                                <form method="post" action="/admin/invitations/{{ $invitation->id }}/review">
+                                    @csrf
+                                    <label>Decision reason<input name="reason" required maxlength="2000" /></label
+                                    ><button name="approve" value="1">Approve</button><button name="approve" value="0">Reject</button>
+                                </form>
+                            @endif
+                            @if (in_array($invitation->status,['approved','sent']))
+                                <form method="post" action="/admin/invitations/{{ $invitation->id }}/send">
+                                    @csrf
+                                    <button>Send / resend invitation</button>
+                                </form>
+                            @endif
+                            @endif
+                            @if (in_array($invitation->status,['pending','approved','sent']))
+                                <form method="post" action="/admin/invitations/{{ $invitation->id }}/revoke">
+                                    @csrf
+                                    <button>Revoke invitation</button>
+                                </form>
+                            @endif
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+        {{ $invitations->links() }}
+    </main>
+</body>
+</html>

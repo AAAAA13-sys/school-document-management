@@ -14,7 +14,11 @@
 <div class="modal fade" id="share-modal" tabindex="-1" aria-labelledby="share-title" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
-            <form action="{{ !empty($folder) ? '/folders/'.$folder->id.'/shares' : (isset($doc) ? '/documents/'.$doc->id.'/shares' : '#') }}" method="post" data-demo-action="share" id="share-form">
+            <form
+                action="{{ !empty($folder) ? '/folders/'.$folder->id.'/shares' : (isset($doc) ? '/documents/'.$doc->id.'/shares' : '#') }}"
+                method="post"
+                data-demo-action="share"
+                id="share-form">
                 @csrf
                 @if (isset($doc))
                     <input type="hidden" name="revision" value="{{ $doc->revision }}" />
@@ -80,22 +84,14 @@
                     @endif
 
                     {{-- Folder Sharing Checkbox: shown only when a folder is selected; hidden/disabled if flagged confidential/restricted --}}
-                    <div id="folder-sharing-container" @if (!$hasFolder) style="display: none;" @endif>
+                    <div id="folder-sharing-container" @if (!$hasFolder) style="display: none" @endif>
                         @if ($hasFolder && !$hasConfidentialOrRestricted)
                             <div class="form-check mt-3" id="folder-sharing-checkbox-group">
-                                <input
-                                    id="share-apply-folder-files"
-                                    class="form-check-input"
-                                    type="checkbox"
-                                    name="apply_to_folder_files"
-                                    value="1"
-                                />
-                                <label class="form-check-label" for="share-apply-folder-files">
-                                    Apply to all files in this folder (Internal only)
-                                </label>
+                                <input id="share-apply-folder-files" class="form-check-input" type="checkbox" name="apply_to_folder_files" value="1" />
+                                <label class="form-check-label" for="share-apply-folder-files"> Apply to all files in this folder (Internal only) </label>
                             </div>
                         @else
-                            <div class="form-check mt-3" id="folder-sharing-checkbox-group" style="display: none;">
+                            <div class="form-check mt-3" id="folder-sharing-checkbox-group" style="display: none">
                                 <input
                                     id="share-apply-folder-files"
                                     class="form-check-input"
@@ -103,26 +99,22 @@
                                     name="apply_to_folder_files"
                                     value="1"
                                     disabled
-                                    hidden
-                                />
+                                    hidden />
                                 <label class="form-check-label text-muted" for="share-apply-folder-files">
                                     Apply to all files in this folder (Internal only)
                                 </label>
                                 @if ($hasConfidentialOrRestricted)
-                                    <small class="text-muted d-block mt-1">This folder contains Confidential or Restricted documents. Bulk folder sharing applies to Internal documents only.</small>
+                                    <small class="text-muted d-block mt-1"
+                                        >This folder contains Confidential or Restricted documents. Bulk folder sharing applies to Internal documents
+                                        only.</small
+                                    >
                                 @endif
                             </div>
                         @endif
                     </div>
 
                     <label for="share-expiry" class="form-label mt-3">Expires <span>(within 30 days)</span></label>
-                    <input
-                        id="share-expiry"
-                        name="expires_at"
-                        type="text"
-                        class="form-control datepicker"
-                        placeholder="Select a date"
-                        autocomplete="off" />
+                    <input id="share-expiry" name="expires_at" type="text" class="form-control datepicker" placeholder="Select a date" autocomplete="off" />
 
                     <p class="security-note mt-4">Named staff only. No public or anonymous links.</p>
                 </div>

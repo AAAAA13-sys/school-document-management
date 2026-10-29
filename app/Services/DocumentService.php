@@ -6,6 +6,8 @@ use App\Exceptions\DuplicateFileException;
 use App\Jobs\ScanDocumentVersion;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
@@ -13,6 +15,34 @@ use Illuminate\Support\Str;
 
 class DocumentService
 {
+    public function listingVersions(User $user, LengthAwarePaginator $documents): Collection
+    {
+        $documents = $documents->getCollection();
+        $versions = DB::table('document_versions')
+            ->whereIn('document_id', $documents->pluck('id'))
+            ->orderBy('number')
+            ->get()
+            ->keyBy('document_id');
+
+        foreach ($documents as $document) {
+            $memoPin = MemoService::circulatedVersion($user, $document);
+            if ($memoPin) {
+                $versions[$document->id] = DB::table('document_versions')->where('id', $memoPin)->first();
+
+                continue;
+            }
+            if ($document->owner_id === $user->id || Gate::forUser($user)->allows('document.all-versions', $document)) {
+                continue;
+            }
+            $grant = Access::grant($user, $document);
+            if ($grant?->version_id) {
+                $versions[$document->id] = DB::table('document_versions')->where('id', $grant->version_id)->first();
+            }
+        }
+
+        return $versions;
+    }
+
     public function upload(object $actor, array $input, UploadedFile $file, ?string $id = null, ?string $requestKey = null): array
     {
         // The duplicate confirmation is a client decision, not document content: keep it
@@ -191,13 +221,17 @@ class DocumentService
         if ($preview) {
             abort_unless(in_array($version->mime, config('dms.preview_mimes')) && in_array($version->mime, ['application/pdf', 'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'text/plain', 'text/csv', 'application/json']), 415, 'This file format has no in-app preview. Use download.');
 
-            if (in_array($version->mime, ['text/plain','text/csv','application/json'])) {
+            if (in_array($version->mime, ['text/plain', 'text/csv', 'application/json'])) {
                 $headers['Content-Type'] = 'text/html; charset=UTF-8';
                 $headers['Content-Security-Policy'] = "sandbox; default-src 'none'; style-src 'unsafe-inline'";
-                return response()->view('partials.file-text-preview', ['filename'=>$version->filename,'content'=>file_get_contents($path)], 200, $headers);
+
+                return response()->view('partials.file-text-preview', ['filename' => $version->filename, 'content' => file_get_contents($path)], 200, $headers);
             }
             // Native PDF viewers require a document response without the sandbox directive.
-            if ($version->mime === 'application/pdf') $headers['Content-Security-Policy'] = "default-src 'none'; frame-ancestors 'self'";
+            if ($version->mime === 'application/pdf') {
+                $headers['Content-Security-Policy'] = "default-src 'none'; frame-ancestors 'self'";
+            }
+
             return response()->file($path, $headers);
         }
 

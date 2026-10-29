@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use Symfony\Component\HttpKernel\Exception\HttpException;
+
 class ReleaseGrant
 {
     /**
@@ -75,13 +77,13 @@ class ReleaseGrant
      * Hardcoded allowlist: only OAS document types permitted.
      * Rejects other types with 403 Forbidden.
      *
-     * @param string|object $documentOrType
-     * @throws \Symfony\Component\HttpKernel\Exception\HttpException
+     * @throws HttpException
      */
     public function authorize(string|object $documentOrType): void
     {
         if (is_string($documentOrType)) {
             abort_unless(self::isAllowed($documentOrType), 403, 'Document type not permitted for release. Only OAS applicant documents may be released.');
+
             return;
         }
 

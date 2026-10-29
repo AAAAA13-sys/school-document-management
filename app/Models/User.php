@@ -4,7 +4,10 @@ namespace App\Models;
 
 use App\Enums\Role;
 use App\Enums\Source;
+use App\Services\WorkspaceRegistry;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -13,6 +16,7 @@ class User extends Authenticatable
     use HasFactory, Notifiable;
 
     protected $fillable = ['name', 'email', 'password', 'role', 'source', 'school_id', 'campus', 'active'];
+
     protected $hidden = ['password', 'remember_token'];
 
     protected function casts(): array
@@ -75,7 +79,7 @@ class User extends Authenticatable
      */
     public function sources(): array
     {
-        return \App\Services\WorkspaceRegistry::codes($this);
+        return WorkspaceRegistry::codes($this);
     }
 
     public function primarySource(): ?string
@@ -106,84 +110,83 @@ class User extends Authenticatable
         return in_array($this->role, $roles, true);
     }
 
-    public function documents(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function documents(): HasMany
     {
         return $this->hasMany(Document::class, 'owner_id');
     }
 
-    public function folders(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function folders(): HasMany
     {
         return $this->hasMany(Folder::class, 'owner_id');
     }
 
-    public function shares(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function shares(): HasMany
     {
         return $this->hasMany(Share::class, 'recipient_id');
     }
 
-    public function folderShares(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function folderShares(): HasMany
     {
         return $this->hasMany(FolderShare::class, 'recipient_id');
     }
 
-    public function comments(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function comments(): HasMany
     {
         return $this->hasMany(Comment::class, 'user_id');
     }
 
-    public function stars(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function stars(): HasMany
     {
         return $this->hasMany(Star::class, 'user_id');
     }
 
-    public function auditEntries(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function auditEntries(): HasMany
     {
         return $this->hasMany(AuditEntry::class, 'actor_id');
     }
 
-    public function workspaceMemberships(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function workspaceMemberships(): HasMany
     {
         return $this->hasMany(WorkspaceMembership::class, 'user_id');
     }
 
-    public function workspaces(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    public function workspaces(): BelongsToMany
     {
         return $this->belongsToMany(Workspace::class, 'workspace_memberships');
     }
 
-    public function sensitiveChangesRequested(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function sensitiveChangesRequested(): HasMany
     {
         return $this->hasMany(SensitiveChange::class, 'requester_id');
     }
 
-    public function sensitiveChangesReviewed(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function sensitiveChangesReviewed(): HasMany
     {
         return $this->hasMany(SensitiveChange::class, 'reviewer_id');
     }
 
-    public function accountInvitationsRequested(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function accountInvitationsRequested(): HasMany
     {
         return $this->hasMany(AccountInvitation::class, 'requested_by');
     }
 
-    public function accountInvitationsReviewed(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function accountInvitationsReviewed(): HasMany
     {
         return $this->hasMany(AccountInvitation::class, 'reviewed_by');
     }
 
-    public function accountChangesRequested(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function accountChangesRequested(): HasMany
     {
         return $this->hasMany(AccountChange::class, 'requester_id');
     }
 
-    public function accountChangesReviewed(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function accountChangesReviewed(): HasMany
     {
         return $this->hasMany(AccountChange::class, 'reviewer_id');
     }
 
-    public function legalHolds(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function legalHolds(): HasMany
     {
         return $this->hasMany(AuditLegalHold::class, 'actor_id');
     }
 }
-

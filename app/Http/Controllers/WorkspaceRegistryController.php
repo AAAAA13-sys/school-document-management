@@ -25,6 +25,7 @@ class WorkspaceRegistryController extends Controller
                 'memberships' => $memberships,
             ]);
         }
+
         return view('workspaces-registry', compact('workspaces', 'users', 'memberships') + ['section' => 'workspaces', 'source' => 'ALL']);
     }
 
@@ -44,6 +45,7 @@ class WorkspaceRegistryController extends Controller
                 'workspace' => $data + ['status' => 'active'],
             ], 201);
         }
+
         return back()->with('status', 'Workspace created.');
     }
 
@@ -63,6 +65,7 @@ class WorkspaceRegistryController extends Controller
                 'workspace' => array_merge((array) $row, $data),
             ]);
         }
+
         return back()->with('status', 'Workspace updated.');
     }
 
@@ -93,6 +96,7 @@ class WorkspaceRegistryController extends Controller
                 'workspace_id' => $row->id,
             ]);
         }
+
         return back()->with('status', 'Workspace membership updated.');
     }
 }

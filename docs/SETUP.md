@@ -35,7 +35,6 @@ Document previews use locally served PDF.js assets copied by `npm run build`. Ke
 
 GitHub Actions runs the SQLite backend suite, the MySQL `dms_test` suite, frontend tests, asset verification and formatting/encoding checks on every push and pull request. After a merge it also runs a disposable-database smoke test against a live server. The real ClamAV integration test is a separate manual/weekly workflow because it installs the engine and downloads official signatures. See [Continuous integration](CI-CD.md) for the exact commands, isolated database rules and scanner prerequisites.
 
-
 The latest workspace registry, invitation, approval, memo and packet features require the new forward migrations. Preserve APP_KEY and existing data; do not reseed a live deployment. New Workspace registry, Invitations, Requests and approvals, and Account requests links are in the sidebar.
 
 Invitation lifetime and resend interval are configurable with DMS_INVITATION_EXPIRE_MINUTES and DMS_INVITATION_RESEND_SECONDS; the development defaults are 1440 minutes and 60 seconds. Confirm policy values before production. Delivery accepted by SMTP is not proof of receipt.

@@ -4,7 +4,8 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
     public function up(): void
     {
         Schema::table('shares', fn (Blueprint $t) => $t->boolean('memo_generated')->default(false));
@@ -59,7 +60,9 @@ return new class extends Migration {
 
     public function down(): void
     {
-        foreach (['packet_receipts', 'applicant_packets', 'memo_publications', 'sensitive_changes'] as $table) Schema::dropIfExists($table);
+        foreach (['packet_receipts', 'applicant_packets', 'memo_publications', 'sensitive_changes'] as $table) {
+            Schema::dropIfExists($table);
+        }
         Schema::table('shares', fn (Blueprint $t) => $t->dropColumn('memo_generated'));
     }
 };

@@ -11,8 +11,11 @@ class SensitiveChange extends Model
     use HasFactory;
 
     protected $table = 'sensitive_changes';
+
     protected $primaryKey = 'id';
+
     public $incrementing = false;
+
     protected $keyType = 'string';
 
     protected $fillable = [

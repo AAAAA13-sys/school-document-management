@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Services\DocumentTypeRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use Tests\TestCase;
 

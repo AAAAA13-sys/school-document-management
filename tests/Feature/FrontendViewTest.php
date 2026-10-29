@@ -34,7 +34,7 @@ class FrontendViewTest extends TestCase
                 $this->assertStringContainsString('data-source="'.$source.'"', $html);
                 $this->assertStringNotContainsString('www.figma.com/api/mcp/asset', $html);
                 $this->assertStringNotContainsString('Scan file', $html);
-                if (in_array($section, ['overview','documents'])) {
+                if (in_array($section, ['overview', 'documents'])) {
                     $this->assertStringContainsString('data-multi-upload="true"', $html);
                     $this->assertStringNotContainsString('id="upload-name"', $html);
                     $this->assertStringContainsString('id="upload-class" name="classification"', $html);

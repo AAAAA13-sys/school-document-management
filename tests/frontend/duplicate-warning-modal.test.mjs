@@ -50,7 +50,7 @@ test('duplicate warning modal: static contracts and 409 status handling in dms.j
   // Assert force_new_version=true is submitted when user chooses Upload as New Version
   assert.ok(
     jsContent.includes("formData.set('force_new_version', 'true')") ||
-    jsContent.includes('force_new_version') && jsContent.includes('true'),
+      (jsContent.includes('force_new_version') && jsContent.includes('true')),
     'dms.js must send force_new_version=true on upload as new version'
   );
 });
@@ -88,8 +88,12 @@ test('duplicate warning modal: DmsDuplicateModal functional logic and callbacks'
   const mockBootstrap = {
     Modal: {
       getOrCreateInstance: () => ({
-        show: () => { modalShown = true; },
-        hide: () => { modalHidden = true; },
+        show: () => {
+          modalShown = true;
+        },
+        hide: () => {
+          modalHidden = true;
+        },
       }),
     },
   };
@@ -102,10 +106,7 @@ test('duplicate warning modal: DmsDuplicateModal functional logic and callbacks'
   };
 
   // Parse showDuplicateWarningModal function or test via extract
-  assert.ok(
-    jsContent.includes('DmsDuplicateModal'),
-    'dms.js must expose DmsDuplicateModal'
-  );
+  assert.ok(jsContent.includes('DmsDuplicateModal'), 'dms.js must expose DmsDuplicateModal');
 });
 
 test('responsive CSS: data-device=mobile styles prevent horizontal overflow', () => {
@@ -113,7 +114,8 @@ test('responsive CSS: data-device=mobile styles prevent horizontal overflow', ()
 
   // Assert mobile responsive rules exist
   assert.ok(
-    cssContent.includes('body[data-device="mobile"]') || cssContent.includes('@media (max-width: 767px)'),
+    cssContent.includes('body[data-device="mobile"]') ||
+      cssContent.includes('@media (max-width: 767px)'),
     'dms.css must have mobile responsive rules'
   );
   assert.ok(

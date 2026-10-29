@@ -68,6 +68,7 @@ class DocumentType extends Model
     public static function isOasType(string $code): bool
     {
         $normalized = strtoupper(trim(str_replace([' ', '-'], '_', $code)));
+
         return array_key_exists($normalized, self::OAS_TYPES)
             || in_array($normalized, ['PSA', 'FORM_137', 'FORM_138', 'ID', 'VALID_ID', 'PARENT_ID', 'APPLICANT_ID'], true);
     }
@@ -78,6 +79,7 @@ class DocumentType extends Model
     public static function isAllowed(string $code): bool
     {
         $normalized = strtoupper(trim(str_replace([' ', '-'], '_', $code)));
+
         return self::isOasType($normalized) || array_key_exists($normalized, self::INTERNAL_TYPES);
     }
 

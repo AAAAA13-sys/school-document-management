@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use App\Services\SensitiveChangeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -23,20 +22,25 @@ class LatestSddHttpWorkflowTest extends TestCase
     {
         $id = (string) Str::uuid();
         DB::table('documents')->insert(['id' => $id, 'owner_id' => $owner->id, 'source' => 'OAS', 'school_id' => 'PLP', 'campus' => 'Main', 'title' => 'Official memo', 'classification' => 'Internal', 'revision' => 1, 'created_at' => now(), 'updated_at' => now()]);
+
         return DB::table('documents')->where('id', $id)->first();
     }
 
     private function version(object $doc, int $number): string
     {
-        $id = (string) Str::uuid(); $bytes = 'memo-version-'.$number;
+        $id = (string) Str::uuid();
+        $bytes = 'memo-version-'.$number;
         Storage::disk('local')->put('documents/'.$id, $bytes);
         DB::table('document_versions')->insert(['id' => $id, 'document_id' => $doc->id, 'number' => $number, 'filename' => 'memo-v'.$number.'.txt', 'mime' => 'text/plain', 'size' => strlen($bytes), 'checksum' => hash('sha256', $bytes), 'storage_key' => 'documents/'.$id, 'scan_status' => 'Clean', 'created_at' => now()]);
+
         return $id;
     }
 
     public function test_http_sensitive_changes_only_create_pending_requests(): void
     {
-        $owner = $this->account(); $recipient = $this->account(); $doc = $this->document($owner);
+        $owner = $this->account();
+        $recipient = $this->account();
+        $doc = $this->document($owner);
         $this->actingAs($owner)->postJson('/documents/'.$doc->id.'/shares', ['revision' => 1, 'recipient_id' => $recipient->id, 'permission' => 'Viewer'])->assertStatus(202)->assertJsonPath('status', 'pending');
         $this->assertDatabaseCount('shares', 0);
         $this->postJson('/documents/'.$doc->id.'/trash', ['revision' => 1])->assertStatus(202)->assertJsonPath('status', 'pending');
@@ -48,7 +52,10 @@ class LatestSddHttpWorkflowTest extends TestCase
     public function test_memo_http_publication_pins_detail_status_and_downloads(): void
     {
         Storage::fake('local');
-        $owner = $this->account(); $reader = $this->account(); $admin = $this->account('admin'); $doc = $this->document($owner);
+        $owner = $this->account();
+        $reader = $this->account();
+        $admin = $this->account('admin');
+        $doc = $this->document($owner);
         $v1 = $this->version($doc, 1);
         $this->actingAs($owner)->get('/documents/'.$doc->id)->assertOk()->assertSee('Publish an official memo');
         $response = $this->postJson('/documents/'.$doc->id.'/publish', ['revision' => 1, 'version_id' => $v1, 'type' => 'Office memo', 'reference' => 'R-1', 'issuer' => 'Registrar', 'audience' => [$reader->id]])->assertStatus(202);
@@ -63,8 +70,12 @@ class LatestSddHttpWorkflowTest extends TestCase
 
     public function test_packet_http_validation_and_exact_version_reads(): void
     {
-        Storage::fake('local'); $doc = $this->document($this->account()); $version = $this->version($doc, 1);
-        foreach (['OAS', 'ES'] as $source) DB::table('connectors')->insert(['name' => $source, 'source' => $source, 'school_id' => 'PLP', 'campus' => 'Main', 'token_hash' => hash('sha256', 'token-'.$source), 'active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        Storage::fake('local');
+        $doc = $this->document($this->account());
+        $version = $this->version($doc, 1);
+        foreach (['OAS', 'ES'] as $source) {
+            DB::table('connectors')->insert(['name' => $source, 'source' => $source, 'school_id' => 'PLP', 'campus' => 'Main', 'token_hash' => hash('sha256', 'token-'.$source), 'active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        }
         $this->withToken('token-OAS')->postJson('/api/v1/applicant-packets', [])->assertUnprocessable()->assertJsonValidationErrors(['event_id', 'applicant_id', 'revision', 'released']);
         $body = ['event_id' => 'admitted', 'applicant_id' => 'A-100', 'revision' => 1, 'released' => true, 'admitted' => true, 'verified' => true, 'version_ids' => [$version]];
         $release = $this->withToken('token-OAS')->postJson('/api/v1/applicant-packets', $body)->assertCreated();

@@ -25,7 +25,6 @@ Restore into an isolated recovery schema and private directory first. Restore da
 
 The automated feature checks protect version checksums and fail-closed access; MySQL concurrency tests protect receipts. A synthetic local MySQL dump/private-file restore and checksum-verified download were exercised by BackupRestoreTest. A timed restore rehearsal and load/security review on the target host remain required before real school data is introduced. This pass does not choose a retention policy, audit purge schedule, hosting provider, MFA or business approval workflow.
 
-
 ## Application operational controls
 
 `GET /admin/health` requires an active Super Admin session. It reports database health, scan backlog, queue failures and backup status with private/no-store responses. Worker liveness is explicitly not measured. An external authenticated monitor and target-host measurements are needed to establish the 99.5% monthly availability objective.

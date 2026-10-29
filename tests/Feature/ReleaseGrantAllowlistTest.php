@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Services\ApplicantPacketService;
 use App\Services\ReleaseGrant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -39,7 +38,7 @@ class ReleaseGrantAllowlistTest extends TestCase
      */
     public function test_creating_release_grant_for_pms_document_type_returns_403_forbidden(): void
     {
-        $service = new ReleaseGrant();
+        $service = new ReleaseGrant;
 
         // 1. Attempt with standard PMS payslip type
         try {
@@ -81,7 +80,7 @@ class ReleaseGrantAllowlistTest extends TestCase
      */
     public function test_creating_release_grant_for_oas_document_type_returns_201_created(): void
     {
-        $service = new ReleaseGrant();
+        $service = new ReleaseGrant;
 
         // 1. Attempt with OAS PSA birth certificate
         $resultPsa = $service->create([

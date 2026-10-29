@@ -2,13 +2,10 @@
 
 namespace Tests\Feature;
 
-use App\Enums\Role;
-use App\Enums\Source;
 use App\Models\User;
 use App\Services\Access;
 use App\Services\Scanner;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;

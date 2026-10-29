@@ -1,6 +1,19 @@
 # ERP API v1
 
-One contract serves EMS, PMS, ES and OAS. Each ERP team supplies its own adapter/outbox; DMS never connects to their databases. Staff UI and files work without any ERP being connected. Base URL is your deployment's `/api/v1`. [OpenAPI JSON](openapi.json) describes the endpoints.
+One contract serves EMS, PMS, ES and OAS. Each ERP team supplies its own adapter/outbox; DMS never connects to their databases. Staff UI and files work without any ERP being connected. Base URL is your deployment's `/api/v1`. [OpenAPI JSON](openapi.json) describes the endpoints. The API uses HTTP requests over HTTPS in deployment; there is no WebSocket.
+
+## Start with Postman
+
+Postman is a client for sending API requests manually. It is useful for an ERP team's first connection test; the production ERP adapter must make the same requests from its server and maintain an outbox for retries. Import the [DMS ERP v1 collection](postman/DMS-ERP-v1.postman_collection.json) using **Postman → Import → File**. Importing `openapi.json` is also supported, but the collection follows this test sequence.
+
+1. The DMS operator deploys a reachable HTTPS URL and configures the database, queue worker, scheduler and scanner as described in [SETUP.md](SETUP.md). A local `127.0.0.1` URL is only reachable from the same machine. A Super Admin registers an active ERP workspace and creates a separate connector under **Admin → ERP connectors** for each ERP. The token appears once.
+2. In Postman, create a private environment with `baseUrl` and `connectorToken`. Set `baseUrl` to the DMS origin without `/api/v1` or a trailing slash. Store the token as an environment secret/current value. Select that environment. Never export real tokens, personal records or sensitive payloads in a collection or screenshot.
+3. Send **01 - Read history**. HTTP 200 with an empty `data` array proves authentication, not that an ERP event has arrived. HTTP 401 means the token is missing, invalid or revoked; HTTP 403 can mean the connector's ERP workspace is inactive.
+4. Send **02 - Submit history event** with synthetic data. Expect HTTP 201. Send the identical request again and expect HTTP 200, the original `history_id` and `duplicate:true`. Changing content under the same event ID must return 409.
+5. Send **04 - Upload document** with a small benign file selected in **Body → form-data**. Use a unique `Idempotency-Key`, and keep the same key and content for retries. Copy `document_id` and `version_id` into the environment. Use **05 - Read document** until the version is `Clean` before **06 - Download file**. The scan worker must be running. A 409 `duplicate_file` result needs an explicit duplicate decision; `confirm_duplicate=true` permits an intentional second copy with the same key.
+6. Use **07 - List files** and **08 - List events** with independent cursors. Process each page before saving `next_cursor`, and continue while `has_more` is true. OAS may use **10 - OAS release packet** for exact Clean versions; ES must switch to its own connector token for **11 - ES read packet** and **12 - ES download packet file**.
+
+The collection's IDs and payloads are examples. Agree actual record types, fields and document categories with each ERP team before using real data. The DMS repository contains no ERP-side adapter or credentials. A Postman success alone does not establish a live ERP integration.
 
 ## Authentication and limits
 
@@ -61,7 +74,6 @@ For each source, provision a scoped connector; submit/replay an event; reject ch
 Application and MySQL session timestamps use UTC; clients should display them in the appropriate local timezone.
 
 Upload formats (2026-10-17): single-file, version and folder uploads accept any file extension, including extensionless files. The 10 MB per-file limit, actual-file validation, detected MIME metadata, private UUID storage and automatic ClamAV gate still apply. Downloads use attachments; unsupported preview formats remain download-only. Encrypted/oversized-to-scan archives may remain blocked by ClamAV.
-
 
 ## Verified OAS-to-ES applicant packet release
 

@@ -11,9 +11,13 @@ class MemoPublication extends Model
     use HasFactory;
 
     protected $table = 'memo_publications';
+
     protected $primaryKey = 'document_id';
+
     public $incrementing = false;
+
     protected $keyType = 'string';
+
     public $timestamps = false;
 
     protected $fillable = [

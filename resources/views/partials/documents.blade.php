@@ -8,10 +8,18 @@
     </div>
     <div class="document-items {{ request('layout')==='grid'?'is-grid':'' }}" id="document-items">
         <div class="document-column-headings" role="row">
-            <span class="sort-header" data-sort="title" role="columnheader" tabindex="0" aria-sort="none" title="Sort by document name">Document name <span class="sort-indicator" aria-hidden="true"></span></span>
-            <span class="sort-header" data-sort="class" role="columnheader" tabindex="0" aria-sort="none" title="Sort by classification">Classification <span class="sort-indicator" aria-hidden="true"></span></span>
-            <span class="sort-header" data-sort="date" role="columnheader" tabindex="0" aria-sort="none" title="Sort by date updated">Last updated <span class="sort-indicator" aria-hidden="true"></span></span>
-            <span class="sort-header" data-sort="status" role="columnheader" tabindex="0" aria-sort="none" title="Sort by scan status">Scan status <span class="sort-indicator" aria-hidden="true"></span></span>
+            <span class="sort-header" data-sort="title" role="columnheader" tabindex="0" aria-sort="none" title="Sort by document name"
+                >Document name <span class="sort-indicator" aria-hidden="true"></span
+            ></span>
+            <span class="sort-header" data-sort="class" role="columnheader" tabindex="0" aria-sort="none" title="Sort by classification"
+                >Classification <span class="sort-indicator" aria-hidden="true"></span
+            ></span>
+            <span class="sort-header" data-sort="date" role="columnheader" tabindex="0" aria-sort="none" title="Sort by date updated"
+                >Last updated <span class="sort-indicator" aria-hidden="true"></span
+            ></span>
+            <span class="sort-header" data-sort="status" role="columnheader" tabindex="0" aria-sort="none" title="Sort by scan status"
+                >Scan status <span class="sort-indicator" aria-hidden="true"></span
+            ></span>
             <span role="columnheader"></span>
         </div>
         @foreach ($documents as $item)
@@ -35,13 +43,20 @@
                         ><small>{{ $v?number_format($v->size/1024,$v->size%1024===0?0:1).' KB · Version '.$v->number:'No version yet' }}</small>
                     </div>
                 </div>
-                <span class="classification class-{{ strtolower($item->classification) }}" data-class="{{ $item->classification }}">{{ $item->classification }}</span
+                <span
+                    class="classification class-{{ strtolower($item->classification) }}"
+                    data-class="{{ $item->classification }}"
+                    >{{ $item->classification }}</span
                 ><time
                     class="modified-date"
                     datetime="{{ $item->updated_at }}"
                     >{{ Illuminate\Support\Carbon::parse($item->updated_at)->format('M d, Y') }}</time
                 >
-                <span class="status-badge {{ strtolower($v?->scan_status??'Pending') }}" data-status="{{ $v?->scan_status??'Pending' }}">{{ $v?->scan_status??'Pending' }}</span>
+                <span
+                    class="status-badge {{ strtolower($v?->scan_status??'Pending') }}"
+                    data-status="{{ $v?->scan_status??'Pending' }}"
+                    >{{ $v?->scan_status??'Pending' }}</span
+                >
                 <div class="dropdown document-actions">
                     <button
                         class="icon-button document-menu-toggle"
@@ -81,33 +96,33 @@
                         @endif
                         @if ($viewer->can('document.manage',$item))
                             @if ($canMove)
-                                    <li>
-                                        <button
-                                            type="button"
-                                            class="dropdown-item"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#move-document-modal"
-                                            data-move-document="{{ $item->id }}">
-                                            <x-figma-icon name="folder" />Move to folder
-                                        </button>
-                                    </li>
-                                @endif
-                                <li><hr class="dropdown-divider" /></li>
                                 <li>
-                                    <form
-                                        method="post"
-                                        action="/documents/{{ $item->id }}/{{ $item->trashed_at?'restore':'trash' }}"
-                                        data-document-id="{{ $item->id }}"
-                                        data-confirm="{{ $item->trashed_at?'Restore this document?':'Move this document to trash? All versions will be preserved.' }}">
-                                        @csrf
-                                        <input type="hidden" name="revision" value="{{ $item->revision }}" /><button
-                                            type="submit"
-                                            class="dropdown-item {{ $item->trashed_at?'':'text-danger' }}">
-                                            <x-figma-icon name="trash" />{{ $item->trashed_at?'Restore document':'Move to trash' }}
-                                        </button>
-                                    </form>
+                                    <button
+                                        type="button"
+                                        class="dropdown-item"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#move-document-modal"
+                                        data-move-document="{{ $item->id }}">
+                                        <x-figma-icon name="folder" />Move to folder
+                                    </button>
                                 </li>
                             @endif
+                            <li><hr class="dropdown-divider" /></li>
+                            <li>
+                                <form
+                                    method="post"
+                                    action="/documents/{{ $item->id }}/{{ $item->trashed_at?'restore':'trash' }}"
+                                    data-document-id="{{ $item->id }}"
+                                    data-confirm="{{ $item->trashed_at?'Restore this document?':'Move this document to trash? All versions will be preserved.' }}">
+                                    @csrf
+                                    <input type="hidden" name="revision" value="{{ $item->revision }}" /><button
+                                        type="submit"
+                                        class="dropdown-item {{ $item->trashed_at?'':'text-danger' }}">
+                                        <x-figma-icon name="trash" />{{ $item->trashed_at?'Restore document':'Move to trash' }}
+                                    </button>
+                                </form>
+                            </li>
+                        @endif
                     </ul>
                 </div>
             </article>

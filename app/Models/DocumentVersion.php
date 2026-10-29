@@ -11,9 +11,13 @@ class DocumentVersion extends Model
     use HasFactory;
 
     protected $table = 'document_versions';
+
     protected $primaryKey = 'id';
+
     public $incrementing = false;
+
     protected $keyType = 'string';
+
     public $timestamps = false;
 
     protected static function booted(): void

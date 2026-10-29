@@ -135,4 +135,3 @@ class InvitationService
         abort_unless(in_array($transport, ['smtp', 'sendmail', 'ses', 'ses-v2', 'postmark', 'resend', 'mailgun']), 503, 'Configure an outbound email transport before sending account links.');
     }
 }
-

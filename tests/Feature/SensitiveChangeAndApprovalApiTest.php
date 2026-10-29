@@ -12,8 +12,8 @@ use App\Models\MemoPublication;
 use App\Models\PacketReceipt;
 use App\Models\SensitiveChange;
 use App\Models\User;
-use App\Models\Workspace;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -22,7 +22,9 @@ class SensitiveChangeAndApprovalApiTest extends TestCase
     use RefreshDatabase;
 
     private User $superAdmin;
+
     private User $admin;
+
     private User $staff;
 
     protected function setUp(): void
@@ -233,7 +235,7 @@ class SensitiveChangeAndApprovalApiTest extends TestCase
     public function test_invitations_json_endpoints(): void
     {
         config(['mail.default' => 'smtp', 'mail.mailers.smtp.transport' => 'smtp']);
-        \Illuminate\Support\Facades\Mail::fake();
+        Mail::fake();
 
         $response = $this->actingAs($this->superAdmin)
             ->postJson('/admin/invitations', [

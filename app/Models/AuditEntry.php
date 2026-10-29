@@ -11,6 +11,7 @@ class AuditEntry extends Model
     use HasFactory;
 
     protected $table = 'audit_entries';
+
     public $timestamps = false;
 
     protected $fillable = [

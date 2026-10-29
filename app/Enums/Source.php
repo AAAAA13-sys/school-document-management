@@ -2,6 +2,9 @@
 
 namespace App\Enums;
 
+use App\Models\User;
+use App\Services\WorkspaceRegistry;
+
 enum Source: string
 {
     case EMS = 'EMS';
@@ -12,19 +15,20 @@ enum Source: string
     /**
      * @return array<int, string>
      */
-    public static function values(?\App\Models\User $actor = null, bool $erpOnly = false): array
+    public static function values(?User $actor = null, bool $erpOnly = false): array
     {
-        return $actor ? \App\Services\WorkspaceRegistry::codes($actor, $erpOnly) : array_map(fn (self $source) => $source->value, self::cases());
+        return $actor ? WorkspaceRegistry::codes($actor, $erpOnly) : array_map(fn (self $source) => $source->value, self::cases());
     }
 
-    public static function labels(?\App\Models\User $actor = null, bool $erpOnly = false): array
+    public static function labels(?User $actor = null, bool $erpOnly = false): array
     {
-        return $actor ? \App\Services\WorkspaceRegistry::labels($actor, $erpOnly) : ['EMS' => 'Employee Management', 'PMS' => 'Payroll Management', 'ES' => 'Enrollment', 'OAS' => 'Online Admission'];
+        return $actor ? WorkspaceRegistry::labels($actor, $erpOnly) : ['EMS' => 'Employee Management', 'PMS' => 'Payroll Management', 'ES' => 'Enrollment', 'OAS' => 'Online Admission'];
     }
 
     public static function normalize(?string $value): ?string
     {
         $value = strtoupper(trim($value ?? ''));
+
         return preg_match('/^[A-Z][A-Z0-9_-]{0,63}$/D', $value) ? $value : null;
     }
 

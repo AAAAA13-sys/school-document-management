@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\ActionRequest;
 use App\Services\Access;
+use App\Services\SensitiveChangeService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
@@ -15,15 +16,17 @@ class ShareController extends Controller
         if ($request->has('folder_inheritance')) {
             $payload['folder_inheritance'] = $request->boolean('folder_inheritance');
         }
-        $result = app(\App\Services\SensitiveChangeService::class)->submit($request->user(), Access::document($request->user(), $document), 'share.grant', $payload);
+        $result = app(SensitiveChangeService::class)->submit($request->user(), Access::document($request->user(), $document), 'share.grant', $payload);
         $message = $result['status'] === 'pending' ? 'Access request submitted. Existing access is unchanged until approval.' : 'Access grant saved.';
+
         return $request->expectsJson() ? response()->json($result + ['message' => $message], $result['status'] === 'pending' ? 202 : 200) : back()->with('status', $message);
     }
 
     public function revoke(ActionRequest $request, string $document, string $share)
     {
-        $result = app(\App\Services\SensitiveChangeService::class)->submit($request->user(), Access::document($request->user(), $document), 'share.revoke', $request->validated() + ['share_id' => $share]);
+        $result = app(SensitiveChangeService::class)->submit($request->user(), Access::document($request->user(), $document), 'share.revoke', $request->validated() + ['share_id' => $share]);
         $message = $result['status'] === 'pending' ? 'Revocation request submitted. Existing access is unchanged until approval.' : 'Access revoked.';
+
         return $request->expectsJson() ? response()->json($result + ['message' => $message], $result['status'] === 'pending' ? 202 : 200) : back()->with('status', $message);
     }
 

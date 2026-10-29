@@ -10,8 +10,11 @@ class ApplicantPacket extends Model
     use HasFactory;
 
     protected $table = 'applicant_packets';
+
     protected $primaryKey = 'id';
+
     public $incrementing = false;
+
     protected $keyType = 'string';
 
     protected $fillable = [

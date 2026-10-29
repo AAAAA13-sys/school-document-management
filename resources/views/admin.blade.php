@@ -79,8 +79,11 @@
         </nav>
         <div class="filter-pills-bar mb-3">
             <button type="button" data-staff-filter="all" class="filter-pill active" aria-pressed="true">All staff ({{ $accounts->count() }})</button
-            ><button type="button" data-staff-filter="active" class="filter-pill" aria-pressed="false">Active ({{ $accounts->where('active', true)->count() }})</button
-            ><button type="button" data-staff-filter="inactive" class="filter-pill" aria-pressed="false">Inactive ({{ $accounts->where('active', false)->count() }})</button>
+            ><button type="button" data-staff-filter="active" class="filter-pill" aria-pressed="false">
+                Active ({{ $accounts->where('active', true)->count() }})</button
+            ><button type="button" data-staff-filter="inactive" class="filter-pill" aria-pressed="false">
+                Inactive ({{ $accounts->where('active', false)->count() }})
+            </button>
         </div>
         <form class="document-toolbar" data-search-form>
             <div class="search-field">
@@ -224,8 +227,7 @@
                 <option value="">All classifications</option>
                 <option>Internal</option>
                 <option>Confidential</option>
-                <option>Restricted</option>
-            </select
+                <option>Restricted</option></select
             ><label class="visually-hidden" for="repository-status">Status</label
             ><select id="repository-status" name="status" class="form-select filter-select">
                 <option value="">All statuses</option>
@@ -239,16 +241,29 @@
                 <table class="table table-zebra table-sticky table-striped" data-filter-table>
                     <thead>
                         <tr>
-                            <th scope="col" class="sort-header" data-sort-table="0" role="columnheader" tabindex="0" aria-sort="none">Document <span class="sort-indicator" aria-hidden="true"></span></th>
-                            <th scope="col" class="sort-header" data-sort-table="1" role="columnheader" tabindex="0" aria-sort="none">Source <span class="sort-indicator" aria-hidden="true"></span></th>
-                            <th scope="col" class="sort-header" data-sort-table="2" role="columnheader" tabindex="0" aria-sort="none">Classification <span class="sort-indicator" aria-hidden="true"></span></th>
-                            <th scope="col" class="sort-header" data-sort-table="3" role="columnheader" tabindex="0" aria-sort="none">Status <span class="sort-indicator" aria-hidden="true"></span></th>
-                            <th scope="col" class="sort-header" data-sort-table="4" role="columnheader" tabindex="0" aria-sort="none">Updated <span class="sort-indicator" aria-hidden="true"></span></th>
+                            <th scope="col" class="sort-header" data-sort-table="0" role="columnheader" tabindex="0" aria-sort="none">
+                                Document <span class="sort-indicator" aria-hidden="true"></span>
+                            </th>
+                            <th scope="col" class="sort-header" data-sort-table="1" role="columnheader" tabindex="0" aria-sort="none">
+                                Source <span class="sort-indicator" aria-hidden="true"></span>
+                            </th>
+                            <th scope="col" class="sort-header" data-sort-table="2" role="columnheader" tabindex="0" aria-sort="none">
+                                Classification <span class="sort-indicator" aria-hidden="true"></span>
+                            </th>
+                            <th scope="col" class="sort-header" data-sort-table="3" role="columnheader" tabindex="0" aria-sort="none">
+                                Status <span class="sort-indicator" aria-hidden="true"></span>
+                            </th>
+                            <th scope="col" class="sort-header" data-sort-table="4" role="columnheader" tabindex="0" aria-sort="none">
+                                Updated <span class="sort-indicator" aria-hidden="true"></span>
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse ($documents as $item)
-                            <tr data-source="{{ $item->source }}" data-classification="{{ $item->classification }}" data-doc-status="{{ $item->trashed_at?'Trashed':'Active' }}">
+                            <tr
+                                data-source="{{ $item->source }}"
+                                data-classification="{{ $item->classification }}"
+                                data-doc-status="{{ $item->trashed_at?'Trashed':'Active' }}">
                                 <td>
                                     <a class="document-title" href="/documents/{{ $item->id }}">{{ $item->title }}</a>
                                 </td>

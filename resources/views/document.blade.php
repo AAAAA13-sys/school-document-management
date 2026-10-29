@@ -28,8 +28,8 @@
         @if ($doc->trashed_at)
             <div class="alert alert-warning">This document is in trash. Restore it before editing or downloading.</div>
         @endif
-        @include('partials.memo-publication')
-    <div id="document-tabs" class="file-detail-tabs">
+        @include ('partials.memo-publication')
+        <div id="document-tabs" class="file-detail-tabs">
             <ul class="file-detail-tab-list" aria-label="Document sections">
                 <li><a href="#file-details">Details</a></li>
                 <li><a href="#file-versions">Version history</a></li>
@@ -200,11 +200,7 @@
                                                         >Preview</a
                                                     >
                                                 @endif
-                                                <a
-                                                    class="btn btn-outline-secondary"
-                                                    href="/files/{{ $v->id }}"
-                                                    >Download</a
-                                                >
+                                                <a class="btn btn-outline-secondary" href="/files/{{ $v->id }}">Download</a>
                                             @else
                                                 <button type="button" class="btn btn-outline-secondary" disabled>Blocked</button>
                                             @endif
@@ -250,8 +246,9 @@
                             @if ($sharer && !$share->revoked_at && !$doc->trashed_at)
                                 <form action="/documents/{{ $doc->id }}/shares/{{ $share->id }}" method="post">
                                     @csrf
-                            <input type="hidden" name="revision" value="{{ $doc->revision }}" />
-                                    @method ('DELETE')<input type="hidden" name="revision" value="{{ $doc->revision }}" />
+                                    <input type="hidden" name="revision" value="{{ $doc->revision }}" />
+                                    @method ('DELETE')
+                                    <input type="hidden" name="revision" value="{{ $doc->revision }}" />
                                     <button type="submit" class="text-button" aria-label="Revoke access for {{ $share->name }}">Revoke</button>
                                 </form>
                             @endif
@@ -269,9 +266,7 @@
         <footer class="file-detail-footer">
             <a class="btn btn-outline-secondary" href="{{ $detailClose }}">Close</a>
             @if ($canDownload)
-                <a class="btn btn-primary" id="detail-download" href="/files/{{ $previewVersion->id }}"
-                    >Download</a
-                >
+                <a class="btn btn-primary" id="detail-download" href="/files/{{ $previewVersion->id }}">Download</a>
             @else
                 <button type="button" class="btn btn-primary" disabled>Download unavailable</button>
             @endif
@@ -343,7 +338,7 @@
                 <div class="modal-content">
                     <form action="/documents/{{ $doc->id }}/shares" method="post">
                         @csrf
-                            <input type="hidden" name="revision" value="{{ $doc->revision }}" />
+                        <input type="hidden" name="revision" value="{{ $doc->revision }}" />
                         <div class="modal-header">
                             <h2 class="modal-title" id="share-title">Share with school staff</h2>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>

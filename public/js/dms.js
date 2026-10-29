@@ -19,7 +19,8 @@
     update: function (el, status) {
       const $el = $(el);
       const s = String(status || '').toLowerCase();
-      $el.removeClass('clean pending failed quarantined neutral')
+      $el
+        .removeClass('clean pending failed quarantined neutral')
         .addClass(s)
         .text(status)
         .attr('data-status', status);
@@ -163,7 +164,9 @@
       if (enabled && typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
         $('#sidebar [data-bs-toggle="tooltip"]').each(function () {
           try {
-            sidebarTooltips.push(new bootstrap.Tooltip(this, { container: 'body', trigger: 'hover focus' }));
+            sidebarTooltips.push(
+              new bootstrap.Tooltip(this, { container: 'body', trigger: 'hover focus' })
+            );
           } catch (_e) {}
         });
       }
@@ -174,11 +177,13 @@
       $('body').toggleClass('sidebar-collapsed', collapsed);
       $('#sidebar').toggleClass('is-collapsed', collapsed);
       const label = collapsed ? 'Expand navigation sidebar' : 'Collapse navigation sidebar';
-      const tooltipTitle = collapsed ? 'Expand navigation (Ctrl+B)' : 'Collapse navigation (Ctrl+B)';
+      const tooltipTitle = collapsed
+        ? 'Expand navigation (Ctrl+B)'
+        : 'Collapse navigation (Ctrl+B)';
       sidebarToggle.attr({
         'aria-expanded': String(!collapsed),
         'aria-label': label,
-        'title': tooltipTitle,
+        title: tooltipTitle,
       });
       sidebarToggle.find('.sidebar-toggle-icon').text(collapsed ? '»' : '«');
 
@@ -186,21 +191,26 @@
       const brand = $('.brand');
       if (collapsed) {
         brand.attr({
-          'title': 'Expand navigation (Ctrl+B)',
+          title: 'Expand navigation (Ctrl+B)',
           'aria-label': 'Expand navigation sidebar',
-          'role': 'button',
+          role: 'button',
         });
       } else {
-        brand.attr({
-          'title': 'PLP Documents · Document Management',
-          'aria-label': 'PLP Documents home',
-        }).removeAttr('role');
+        brand
+          .attr({
+            title: 'PLP Documents · Document Management',
+            'aria-label': 'PLP Documents home',
+          })
+          .removeAttr('role');
       }
 
       if (userInitiated) {
         try {
           localStorage.setItem('dms_sidebar_collapsed', collapsed ? 'true' : 'false');
-          document.cookie = 'dms_sidebar_collapsed=' + (collapsed ? 'true' : 'false') + ';path=/;max-age=31536000;SameSite=Lax';
+          document.cookie =
+            'dms_sidebar_collapsed=' +
+            (collapsed ? 'true' : 'false') +
+            ';path=/;max-age=31536000;SameSite=Lax';
         } catch (_e) {}
       }
       updateSidebarTooltips(collapsed);
@@ -223,7 +233,8 @@
 
     // PLP Documents icon: when collapsed, clicking it expands the sidebar (like Gemini website)
     $('.brand').on('click', function (event) {
-      const isCollapsed = $('html').hasClass('sidebar-collapsed') || $('body').hasClass('sidebar-collapsed');
+      const isCollapsed =
+        $('html').hasClass('sidebar-collapsed') || $('body').hasClass('sidebar-collapsed');
       if (isCollapsed) {
         event.preventDefault();
         setSidebarCollapsed(false, true);
@@ -231,22 +242,28 @@
     });
 
     sidebarToggle.on('click', () => {
-      const isCurrentlyCollapsed = $('html').hasClass('sidebar-collapsed') || $('body').hasClass('sidebar-collapsed');
+      const isCurrentlyCollapsed =
+        $('html').hasClass('sidebar-collapsed') || $('body').hasClass('sidebar-collapsed');
       setSidebarCollapsed(!isCurrentlyCollapsed, true);
     });
 
     $(document).on('keydown', (event) => {
-      if ((event.ctrlKey || event.metaKey || event.altKey) && (event.key === 'b' || event.key === 'B')) {
+      if (
+        (event.ctrlKey || event.metaKey || event.altKey) &&
+        (event.key === 'b' || event.key === 'B')
+      ) {
         if (!$(event.target).is('input, textarea, select')) {
           event.preventDefault();
-          const isCurrentlyCollapsed = $('html').hasClass('sidebar-collapsed') || $('body').hasClass('sidebar-collapsed');
+          const isCurrentlyCollapsed =
+            $('html').hasClass('sidebar-collapsed') || $('body').hasClass('sidebar-collapsed');
           setSidebarCollapsed(!isCurrentlyCollapsed, true);
         }
       }
     });
 
     function updateDeviceMode() {
-      if (typeof window === 'undefined' || typeof document === 'undefined' || !document.body) return;
+      if (typeof window === 'undefined' || typeof document === 'undefined' || !document.body)
+        return;
       const width = typeof window.innerWidth === 'number' ? window.innerWidth : 1024;
       const isMobile = width < 768;
       if (isMobile) {
@@ -609,8 +626,14 @@
         const rowClass = row.find('.classification').text().trim();
         const rowStatus = row.attr('data-status') || '';
         const matchesClass = !filterClass || rowClass === filterClass;
-        const matchesStatus = !filterStatus || rowStatus.toLowerCase() === filterStatus.toLowerCase();
-        const show = matches && visibleByState && (view !== 'starred' || starred) && matchesClass && matchesStatus;
+        const matchesStatus =
+          !filterStatus || rowStatus.toLowerCase() === filterStatus.toLowerCase();
+        const show =
+          matches &&
+          visibleByState &&
+          (view !== 'starred' || starred) &&
+          matchesClass &&
+          matchesStatus;
         row.prop('hidden', !show);
         if (show) visible++;
       });
@@ -643,7 +666,9 @@
       filterTimer = setTimeout(filter, 180);
     };
     $('[data-search-form] input[type="search"]').on('input', filterSoon);
-    $('#repository-source,#repository-class,#repository-status,#audit-source,#document-class,#document-status').on('change', filter);
+    $(
+      '#repository-source,#repository-class,#repository-status,#audit-source,#document-class,#document-status'
+    ).on('change', filter);
     $('[data-staff-filter]').on('click', function () {
       staffFilter = this.dataset.staffFilter;
       $('[data-staff-filter]').removeClass('active').attr('aria-pressed', 'false');
@@ -660,19 +685,26 @@
       history.replaceState(null, '', url);
     });
 
-    $('.document-column-headings .sort-header').on('click keydown', function (event) {
+    function sortDirection(event, header, headers) {
       if (event.type === 'keydown' && !['Enter', ' '].includes(event.key)) return;
       if (event.type === 'keydown') event.preventDefault();
-      const column = this.dataset.sort;
-      const currentSort = this.getAttribute('aria-sort');
+      const currentSort = header.getAttribute('aria-sort');
       const newSort = currentSort === 'ascending' ? 'descending' : 'ascending';
-      $('.document-column-headings .sort-header').attr('aria-sort', 'none');
-      this.setAttribute('aria-sort', newSort);
+      headers.attr('aria-sort', 'none');
+      header.setAttribute('aria-sort', newSort);
+      return newSort;
+    }
+
+    $('.document-column-headings .sort-header').on('click keydown', function (event) {
+      const newSort = sortDirection(event, this, $('.document-column-headings .sort-header'));
+      if (!newSort) return;
+      const column = this.dataset.sort;
 
       const items = $('#document-items');
       const rows = items.children('.document-row').get();
       rows.sort((a, b) => {
-        let valA = '', valB = '';
+        let valA = '',
+          valB = '';
         if (column === 'title') {
           valA = (a.dataset.title || '').toLowerCase();
           valB = (b.dataset.title || '').toLowerCase();
@@ -701,13 +733,9 @@
     });
 
     $('table[data-filter-table] th.sort-header').on('click keydown', function (event) {
-      if (event.type === 'keydown' && !['Enter', ' '].includes(event.key)) return;
-      if (event.type === 'keydown') event.preventDefault();
+      const newSort = sortDirection(event, this, $(this).closest('tr').find('th.sort-header'));
+      if (!newSort) return;
       const colIndex = parseInt(this.dataset.sortTable, 10);
-      const currentSort = this.getAttribute('aria-sort');
-      const newSort = currentSort === 'ascending' ? 'descending' : 'ascending';
-      $(this).closest('tr').find('th.sort-header').attr('aria-sort', 'none');
-      this.setAttribute('aria-sort', newSort);
 
       const table = $(this).closest('table');
       const tbody = table.find('tbody');
@@ -807,20 +835,20 @@
                 if (xhr.responseJSON?.code === 'duplicate_file') {
                   item.duplicates = xhr.responseJSON.duplicates || [];
                 }
-                const duplicateData = (xhr.responseJSON?.duplicates && xhr.responseJSON.duplicates[0])
-                  || xhr.responseJSON?.existing_document
-                  || { title: 'Existing document', owner: 'Document owner' };
-                showDuplicateWarningModal(
-                  duplicateData,
-                  () => {
-                    item.force_new_version = true;
-                    item.confirm = true;
-                    item.status = 'pending';
-                    item.error = '';
-                    renderUploads();
-                    startUploads();
-                  }
-                );
+                const duplicateData = (xhr.responseJSON?.duplicates &&
+                  xhr.responseJSON.duplicates[0]) ||
+                  xhr.responseJSON?.existing_document || {
+                    title: 'Existing document',
+                    owner: 'Document owner',
+                  };
+                showDuplicateWarningModal(duplicateData, () => {
+                  item.force_new_version = true;
+                  item.confirm = true;
+                  item.status = 'pending';
+                  item.error = '';
+                  renderUploads();
+                  startUploads();
+                });
               }
               throw new Error(
                 xhr.responseJSON?.errors
@@ -997,28 +1025,37 @@
       }
 
       const title = existingDoc?.title || 'Untitled document';
-      const owner = existingDoc?.owner || existingDoc?.owner_name || existingDoc?.owner_email || (existingDoc?.owner_id ? ('User #' + existingDoc.owner_id) : 'Document owner');
+      const owner =
+        existingDoc?.owner ||
+        existingDoc?.owner_name ||
+        existingDoc?.owner_email ||
+        (existingDoc?.owner_id ? 'User #' + existingDoc.owner_id : 'Document owner');
 
       $('#duplicate-modal-doc-title').text(title);
       $('#duplicate-modal-doc-owner').text(owner);
 
-      const bsModal = typeof bootstrap !== 'undefined' && bootstrap.Modal
-        ? bootstrap.Modal.getOrCreateInstance(modalEl)
-        : null;
+      const bsModal =
+        typeof bootstrap !== 'undefined' && bootstrap.Modal
+          ? bootstrap.Modal.getOrCreateInstance(modalEl)
+          : null;
 
-      $('#duplicate-modal-upload-new-version').off('click').on('click', function () {
-        if (bsModal) bsModal.hide();
-        if (typeof onUploadNewVersion === 'function') {
-          onUploadNewVersion();
-        }
-      });
+      $('#duplicate-modal-upload-new-version')
+        .off('click')
+        .on('click', function () {
+          if (bsModal) bsModal.hide();
+          if (typeof onUploadNewVersion === 'function') {
+            onUploadNewVersion();
+          }
+        });
 
-      $('#duplicate-modal-cancel').off('click').on('click', function () {
-        if (bsModal) bsModal.hide();
-        if (typeof onCancel === 'function') {
-          onCancel();
-        }
-      });
+      $('#duplicate-modal-cancel')
+        .off('click')
+        .on('click', function () {
+          if (bsModal) bsModal.hide();
+          if (typeof onCancel === 'function') {
+            onCancel();
+          }
+        });
 
       if (bsModal) {
         bsModal.show();
@@ -1027,7 +1064,9 @@
     window.DmsDuplicateModal = { show: showDuplicateWarningModal };
 
     function updateFolderShareCheckbox(folderObj) {
-      const container = $('#folder-sharing-container, #folder-sharing-checkbox-group, #folder-share-apply-all-group');
+      const container = $(
+        '#folder-sharing-container, #folder-sharing-checkbox-group, #folder-share-apply-all-group'
+      );
       const checkbox = container.find('input[type="checkbox"]');
       if (!folderObj) {
         container.hide();
@@ -1073,7 +1112,6 @@
       $('#upload-confirm-duplicate').val('0');
       $('#upload-duplicates').prop('hidden', false);
     }
-
 
     $('#upload-duplicate-confirm').on('click', () => {
       $('#upload-confirm-duplicate').val('1');
@@ -1155,13 +1193,13 @@
             progress.prop('hidden', true);
             form.find('button[type="submit"]').prop('disabled', false);
 
-            const duplicateData = (xhr.responseJSON?.duplicates && xhr.responseJSON.duplicates[0])
-              || xhr.responseJSON?.existing_document
-              || xhr.responseJSON?.document
-              || {
+            const duplicateData = (xhr.responseJSON?.duplicates &&
+              xhr.responseJSON.duplicates[0]) ||
+              xhr.responseJSON?.existing_document ||
+              xhr.responseJSON?.document || {
                 title: xhr.responseJSON?.title || 'Existing document',
                 owner: xhr.responseJSON?.owner || xhr.responseJSON?.owner_name || 'Document owner',
-                document_id: xhr.responseJSON?.document_id
+                document_id: xhr.responseJSON?.document_id,
               };
 
             showDuplicateWarningModal(
@@ -1195,7 +1233,9 @@
                     return retryXhr;
                   },
                 })
-                  .done((result) => location.assign('/documents/' + encodeURIComponent(result.document_id)))
+                  .done((result) =>
+                    location.assign('/documents/' + encodeURIComponent(result.document_id))
+                  )
                   .fail((retryErr) => {
                     const msg = retryErr.responseJSON?.message || 'Upload failed.';
                     progress.find('small').text(msg);

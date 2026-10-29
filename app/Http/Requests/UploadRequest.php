@@ -3,19 +3,25 @@
 namespace App\Http\Requests;
 
 use App\Enums\Source;
+use App\Services\Access;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\DB;
 
 class UploadRequest extends FormRequest
 {
     public function authorize(): bool
     {
         if ($this->route('document') && ! $this->is('api/*')) {
-            $doc = \App\Services\Access::document($this->user(), (string) $this->route('document'));
+            $doc = Access::document($this->user(), (string) $this->route('document'));
+
             return $this->user()->can('document.edit', $doc);
         }
         $source = $this->input('source');
-        if ($this->is('api/*') || ! is_string($source)) return true;
-        $registered = \App\Services\Access::scope(\Illuminate\Support\Facades\DB::table('workspaces'), $this->user())->where('code', $source)->exists();
+        if ($this->is('api/*') || ! is_string($source)) {
+            return true;
+        }
+        $registered = Access::scope(DB::table('workspaces'), $this->user())->where('code', $source)->exists();
+
         return ! $registered || $this->user()->canAccessSource($source);
     }
 
@@ -28,7 +34,7 @@ class UploadRequest extends FormRequest
     {
         $new = ! $this->route('document');
 
-        $sources = $new ? Source::values($this->user()) : \App\Services\Access::scope(\Illuminate\Support\Facades\DB::table('workspaces'), $this->user() ?? $this->attributes->get('connector'))->pluck('code')->all();
+        $sources = $new ? Source::values($this->user()) : Access::scope(DB::table('workspaces'), $this->user() ?? $this->attributes->get('connector'))->pluck('code')->all();
 
         return ['file' => ['required', 'file', 'max:10240'],
             'title' => [$new ? 'required' : 'sometimes', 'string', 'max:200'], 'source' => [$this->is('api/*') ? 'prohibited' : 'required', 'in:'.implode(',', $sources)],

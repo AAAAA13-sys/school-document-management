@@ -6,9 +6,12 @@ use App\Enums\Role;
 use App\Enums\Source;
 use App\Http\Requests\ActionRequest;
 use App\Http\Requests\ReadRequest;
+use App\Models\AuditLegalHold;
 use App\Services\Access;
 use App\Services\AccountChangeService;
 use App\Services\InvitationService;
+use App\Services\WorkspaceRegistry;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -121,7 +124,7 @@ class AdminController extends Controller
     {
         $user = $request->user();
         Gate::forUser($user)->authorize('connectors.manage');
-        abort_unless(in_array($request->validated('source'), \App\Services\WorkspaceRegistry::codes($user, true), true), 422, 'Choose an active ERP workspace.');
+        abort_unless(in_array($request->validated('source'), WorkspaceRegistry::codes($user, true), true), 422, 'Choose an active ERP workspace.');
         $token = Str::random(64);
         $id = null;
         DB::transaction(function () use ($user, $request, $token, &$id) {
@@ -160,11 +163,11 @@ class AdminController extends Controller
         return back()->with('status', 'Connector revoked.');
     }
 
-    public function legalHolds(\Illuminate\Http\Request $request)
+    public function legalHolds(Request $request)
     {
         $actor = $request->user();
         abort_unless($actor->isSuperAdmin(), 403, 'Legal holds require Super Admin authority.');
-        $holds = \App\Models\AuditLegalHold::where('school_id', $actor->school_id)
+        $holds = AuditLegalHold::where('school_id', $actor->school_id)
             ->where('campus', $actor->campus)
             ->with('actor:id,name,email')
             ->orderByDesc('created_at')
@@ -177,7 +180,7 @@ class AdminController extends Controller
         return view('admin-legal-holds', compact('holds'));
     }
 
-    public function storeLegalHold(\Illuminate\Http\Request $request)
+    public function storeLegalHold(Request $request)
     {
         $actor = $request->user();
         abort_unless($actor->isSuperAdmin(), 403, 'Legal holds require Super Admin authority.');
@@ -195,6 +198,7 @@ class AdminController extends Controller
                 'updated_at' => now(),
             ]);
             Access::audit($actor, 'audit.legal_hold.created', null, ['hold_id' => $id, 'reason' => $data['reason']]);
+
             return DB::table('audit_legal_holds')->where('id', $id)->first();
         });
 
@@ -208,7 +212,7 @@ class AdminController extends Controller
         return back()->with('status', 'Legal hold recorded.');
     }
 
-    public function releaseLegalHold(\Illuminate\Http\Request $request, int $hold)
+    public function releaseLegalHold(Request $request, int $hold)
     {
         $actor = $request->user();
         abort_unless($actor->isSuperAdmin(), 403, 'Legal holds require Super Admin authority.');

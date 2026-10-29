@@ -13,6 +13,7 @@ class ApplicantPacketController extends Controller
             'revision' => 'required|integer|min:1', 'released' => 'required|boolean', 'admitted' => 'sometimes|boolean', 'verified' => 'sometimes|boolean',
             'version_ids' => 'sometimes|array|max:50', 'version_ids.*' => 'required|uuid|distinct']);
         [$body, $status] = $service->receive($request->attributes->get('connector'), $data);
+
         return response()->json($body, $status);
     }
 

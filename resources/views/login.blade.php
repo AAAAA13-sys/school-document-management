@@ -43,7 +43,9 @@
             <span class="eyebrow">Staff access</span>
             <h2>Sign in to your account</h2>
             <p class="section-description mb-4">Sign in with your invited email address and DMS password.</p>
-            @if (session('status'))<div class="alert alert-info" role="status">{{ session('status') }}</div>@endif
+            @if (session('status'))
+                <div class="alert alert-info" role="status">{{ session('status') }}</div>
+            @endif
             @if ($errors->any())
                 <div class="alert alert-danger" role="alert">{{ $errors->first() }}</div>
             @endif

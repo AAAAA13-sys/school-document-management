@@ -55,13 +55,18 @@
                         @if (!$hasConfidentialOrRestricted)
                             <div class="form-check mt-3" id="folder-share-apply-all-group">
                                 <input id="folder-share-apply-all" class="form-check-input" type="checkbox" name="apply_to_folder_files" value="1" />
-                                <label class="form-check-label" for="folder-share-apply-all">
-                                    Apply to all files in this folder (Internal only)
-                                </label>
+                                <label class="form-check-label" for="folder-share-apply-all"> Apply to all files in this folder (Internal only) </label>
                             </div>
                         @else
-                            <div class="form-check mt-3" id="folder-share-apply-all-group" style="display: none;">
-                                <input id="folder-share-apply-all" class="form-check-input" type="checkbox" name="apply_to_folder_files" value="1" disabled hidden />
+                            <div class="form-check mt-3" id="folder-share-apply-all-group" style="display: none">
+                                <input
+                                    id="folder-share-apply-all"
+                                    class="form-check-input"
+                                    type="checkbox"
+                                    name="apply_to_folder_files"
+                                    value="1"
+                                    disabled
+                                    hidden />
                                 <label class="form-check-label text-muted" for="folder-share-apply-all">
                                     Apply to all files in this folder (Internal only)
                                 </label>

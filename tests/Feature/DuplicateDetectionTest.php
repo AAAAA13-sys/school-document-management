@@ -54,7 +54,7 @@ class DuplicateDetectionTest extends TestCase
         $actor = $this->staffUser('OAS');
 
         // Create a unique file payload
-        $fileContent = "Canonical test content for SHA-256 duplicate detection ".microtime(true);
+        $fileContent = 'Canonical test content for SHA-256 duplicate detection '.microtime(true);
         $file1 = UploadedFile::fake()->createWithContent('applicant_id.pdf', $fileContent);
 
         // First upload must succeed (201 Created or 200 OK)
@@ -104,7 +104,7 @@ class DuplicateDetectionTest extends TestCase
     public function test_force_new_version_creates_new_version_of_existing_document(): void
     {
         $actor = $this->staffUser('OAS');
-        $fileContent = "Document content for versioning test ".microtime(true);
+        $fileContent = 'Document content for versioning test '.microtime(true);
         $file1 = UploadedFile::fake()->createWithContent('form137.pdf', $fileContent);
 
         // 1. First upload

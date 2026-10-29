@@ -80,9 +80,8 @@ class Access
 
                 // Named document shares cross source boundaries by design and
                 // apply to every classification.
-                $q->orWhereIn($prefix.'id', DB::table('shares')->select('document_id')
-                    ->where('recipient_id', $actor->id)->whereNull('revoked_at')
-                    ->where(fn ($s) => $s->whereNull('expires_at')->orWhere('expires_at', '>', now())));
+                $q->orWhereIn($prefix.'id', self::activeShares()->select('document_id')
+                    ->where('recipient_id', $actor->id));
 
                 // Folder grants are inherited, but only for Internal documents.
                 // Confidential and Restricted need a document-level share.
@@ -104,7 +103,9 @@ class Access
             ->when(in_array($actor->source, ['OAS', 'ES'], true), function ($q) use ($prefix) {
                 $q->where(function ($q) use ($prefix) {
                     $q->whereNull($prefix.'category')->orWhere(function ($q) use ($prefix) {
-                        foreach (['medical', 'health', 'clinical', 'diagnos', 'vaccin'] as $term) $q->whereRaw('LOWER('.$prefix.'category) NOT LIKE ?', ['%'.$term.'%']);
+                        foreach (['medical', 'health', 'clinical', 'diagnos', 'vaccin'] as $term) {
+                            $q->whereRaw('LOWER('.$prefix.'category) NOT LIKE ?', ['%'.$term.'%']);
+                        }
                     });
                 });
             });
@@ -113,6 +114,19 @@ class Access
     public static function documents(User $user): Builder
     {
         return self::visibleTo(DB::table('documents'), $user);
+    }
+
+    public static function sharedDocuments(Builder $query, User $user, array $folderIds): Builder
+    {
+        return $query->where(fn (Builder $q) => $q
+            ->whereIn('id', self::activeShares()->select('document_id')->where('recipient_id', $user->id))
+            ->orWhereIn('folder_id', $folderIds));
+    }
+
+    public static function activeShares(): Builder
+    {
+        return DB::table('shares')->whereNull('revoked_at')
+            ->where(fn (Builder $query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()));
     }
 
     public static function folders(User $user): Builder
@@ -145,8 +159,8 @@ class Access
      */
     public static function grant(User $user, object $document): ?object
     {
-        return DB::table('shares')->where('document_id', $document->id)->where('recipient_id', $user->id)->whereNull('revoked_at')
-            ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))->first();
+        return self::activeShares()->where('document_id', $document->id)
+            ->where('recipient_id', $user->id)->first();
     }
 
     /**

@@ -12,8 +12,11 @@ class Folder extends Model
     use HasFactory;
 
     protected $table = 'folders';
+
     protected $primaryKey = 'id';
+
     public $incrementing = false;
+
     protected $keyType = 'string';
 
     protected $fillable = [

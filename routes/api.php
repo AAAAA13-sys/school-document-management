@@ -1,12 +1,13 @@
 <?php
 
 use App\Http\Controllers\ApiController;
+use App\Http\Controllers\ApplicantPacketController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->middleware(['connector', 'throttle:connector'])->group(function () {
-    Route::post('/applicant-packets', [\App\Http\Controllers\ApplicantPacketController::class, 'receive']);
-    Route::get('/applicant-packets/{packet}', [\App\Http\Controllers\ApplicantPacketController::class, 'show']);
-    Route::get('/applicant-packets/{packet}/files/{version}', [\App\Http\Controllers\ApplicantPacketController::class, 'download']);
+    Route::post('/applicant-packets', [ApplicantPacketController::class, 'receive']);
+    Route::get('/applicant-packets/{packet}', [ApplicantPacketController::class, 'show']);
+    Route::get('/applicant-packets/{packet}/files/{version}', [ApplicantPacketController::class, 'download']);
     Route::post('/history', [ApiController::class, 'history']);
     Route::post('/documents', [ApiController::class, 'upload']);
     Route::post('/documents/{document}/versions', [ApiController::class, 'upload']);

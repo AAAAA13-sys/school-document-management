@@ -25,6 +25,7 @@ class OperationsHealthController extends Controller
             $disk = Storage::disk('local');
             $operations = $disk->exists('operations/status.json') ? json_decode($disk->get('operations/status.json'), true) : [];
             $state = $scans['stuck'] || $scans['failed'] || $queue['failed_jobs'] ? 'degraded' : 'ok';
+
             return response()->json(['status' => $state, 'database' => 'ok', 'scans' => $scans, 'queue' => $queue,
                 'backup_enabled' => config('operations.backup_enabled'), 'operations' => $operations,
                 'targets' => ['monthly_availability' => '99.5%', 'rpo_hours' => 24, 'rto_hours' => 8, 'audit_retention_years' => 3]], 200)->header('Cache-Control', 'private, no-store');

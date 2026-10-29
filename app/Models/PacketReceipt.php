@@ -10,6 +10,7 @@ class PacketReceipt extends Model
     use HasFactory;
 
     protected $table = 'packet_receipts';
+
     public $timestamps = false;
 
     protected $fillable = [

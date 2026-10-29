@@ -89,11 +89,11 @@ Confidential — enrollment/admission documents, received history payloads, audi
 Internal — general office working files
 
 5. Roles & Permissions
-   | Role | Own/source documents | Shared documents | Received history | Accounts and audit |
-   | --- | --- | --- | --- | --- |
-   | Super Admin | Read every source; no document/folder writes | Read via oversight | All sources | Manage all accounts and connectors; full audit |
-   | Admin | Manage documents/folders in the assigned source | Read named grants; no cross-source management | Assigned source | Manage Staff in the assigned source; source-scoped audit; no connectors |
-   | Staff | Upload; read all documents in the assigned source; edit/delete owned documents | Viewer/Commenter/Editor grants; Editor can edit but not delete | No | No |
+   | Role        | Own/source documents                                                           | Shared documents                                               | Received history | Accounts and audit                                                      |
+   | ----------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------- | ---------------- | ----------------------------------------------------------------------- |
+   | Super Admin | Read every source; no document/folder writes                                   | Read via oversight                                             | All sources      | Manage all accounts and connectors; full audit                          |
+   | Admin       | Manage documents/folders in the assigned source                                | Read named grants; no cross-source management                  | Assigned source  | Manage Staff in the assigned source; source-scoped audit; no connectors |
+   | Staff       | Upload; read all documents in the assigned source; edit/delete owned documents | Viewer/Commenter/Editor grants; Editor can edit but not delete | No               | No                                                                      |
 
 Share permissions: Viewer, Commenter, Editor.
 
