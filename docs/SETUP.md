@@ -27,6 +27,8 @@ Single files are limited to 10 MB. Folder batches contain at most 50 files and p
 
 Public self-registration, student accounts and SSO/MFA are outside the agreed scope. An administrator can reset a staff password using the account edit form; staff can change their own password with their current password under My account. To recover a locked-out installation, an authorized server operator can provision a separate administrator with the CLI, then repair the original account through the audited UI.
 
+Staff invitation backend (Batch 1): apply the new migration with `php artisan migrate`. `DMS_INVITATION_EXPIRY_HOURS` optionally overrides the 24-hour lifetime and must be a positive integer. The service has no routes, screens or mail sender yet; existing direct account creation remains available. See [the backend contract](INVITATIONS.md) before integrating delivery or registration.
+
 `npm run preview` runs the synthetic read-only frontend at port 8012; it is not the app. `npm run dev` or `composer dev` starts only the real web server, so a scan worker and scheduler must also run.
 
 Document previews use locally served PDF.js assets copied by `npm run build`. Keep `public/pdf-viewer.html`, `public/js/pdf-viewer.mjs` and `public/vendor/pdfjs/` in deployments. `DMS_PREVIEW_MIMES` enables the supported PDF/image/text MIME types; files must be Clean and pass the same access/checksum rules as downloads. Office files and archives have no in-app renderer.

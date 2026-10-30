@@ -2,9 +2,11 @@
 
 namespace App\Providers;
 
+use App\Models\EmployeeInvitation;
 use App\Models\User;
 use App\Policies\ConnectorPolicy;
 use App\Policies\DocumentPolicy;
+use App\Policies\EmployeeInvitationPolicy;
 use App\Policies\FolderPolicy;
 use App\Policies\UserPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -23,6 +25,7 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('signin', fn (Request $r) => [Limit::perMinute(5)->by(strtolower((string) $r->input('email')).'|'.$r->ip()), Limit::perMinute(30)->by('signin-ip:'.$r->ip())]);
 
         Gate::policy(User::class, UserPolicy::class);
+        Gate::policy(EmployeeInvitation::class, EmployeeInvitationPolicy::class);
 
         // Administrative sections and account/connector management.
         Gate::define('admin.access', [UserPolicy::class, 'viewAdmin']);
