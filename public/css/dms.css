@@ -379,37 +379,6 @@ a .figma-icon {
   white-space: nowrap;
 }
 
-.workspace-label {
-  height: 24px;
-  padding-top: 6px;
-  font-size: 11px;
-  line-height: 16px;
-  color: #fff;
-  opacity: 0.5;
-  letter-spacing: 0.05em;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.workspace-identity {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 44px;
-  padding: 8px 8px;
-  margin-bottom: 4px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-
-.workspace-identity:focus-visible {
-  outline: 2px solid var(--yellow-400);
-  outline-offset: 2px;
-}
-
 .source-icon {
   display: inline-flex;
   align-items: center;
@@ -428,34 +397,6 @@ a .figma-icon {
   white-space: nowrap;
 }
 
-.workspace-info {
-  max-width: 172px;
-  font-size: 13px;
-  line-height: 18px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.workspace-info strong {
-  display: block;
-  font-weight: 500;
-  color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.workspace-info small {
-  display: block;
-  font-size: 12px;
-  line-height: 16px;
-  color: #fff;
-  opacity: 0.6;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
 .main-nav {
   overflow-y: auto;
@@ -689,30 +630,6 @@ body.sidebar-collapsed .brand-text {
 html.sidebar-collapsed .sidebar-toggle,
 body.sidebar-collapsed .sidebar-toggle {
   display: none !important;
-}
-
-html.sidebar-collapsed .workspace-label,
-body.sidebar-collapsed .workspace-label {
-  display: none !important;
-  opacity: 0;
-  width: 0;
-  pointer-events: none;
-}
-
-html.sidebar-collapsed .workspace-identity,
-body.sidebar-collapsed .workspace-identity {
-  justify-content: center;
-  min-height: 40px;
-  padding: 2px 0;
-  cursor: pointer;
-}
-
-html.sidebar-collapsed .workspace-info,
-body.sidebar-collapsed .workspace-info {
-  display: none !important;
-  opacity: 0;
-  width: 0;
-  pointer-events: none;
 }
 
 html.sidebar-collapsed .main-nav > a,
@@ -2561,15 +2478,6 @@ body.login-page {
     transform: translateX(0);
   }
 
-  .sidebar .workspace-label {
-    height: 36px;
-    padding-top: 12px;
-  }
-
-  .sidebar .workspace-identity {
-    min-height: 74px;
-  }
-
   .sidebar .main-nav > a {
     margin-bottom: 4px;
     height: 40px;
@@ -2603,10 +2511,6 @@ body.login-page {
 
   html.sidebar-collapsed .brand-text,
   body.sidebar-collapsed .brand-text,
-  html.sidebar-collapsed .workspace-label,
-  body.sidebar-collapsed .workspace-label,
-  html.sidebar-collapsed .workspace-info,
-  body.sidebar-collapsed .workspace-info,
   html.sidebar-collapsed .main-nav > a .nav-label,
   body.sidebar-collapsed .main-nav > a .nav-label,
   html.sidebar-collapsed .profile-info,
@@ -3206,7 +3110,6 @@ body.login-page {
   opacity: 0.8;
 }
 
-.workspace-label {
   opacity: 0.8;
 }
 
@@ -5132,3 +5035,4 @@ body.login-page .preview-login-link {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+

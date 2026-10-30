@@ -52,7 +52,7 @@ class FrontendViewTest extends TestCase
     {
         foreach (['overview', 'repository', 'accounts', 'connectors', 'scans', 'audit'] as $section) {
             $html = $this->renderScreen('/admin/'.$section, 'ALL', $section);
-            $this->assertStringContainsString('ADMINISTRATION', $html);
+            $this->assertStringContainsString('PLP Documents', $html);
             $this->assertValidMarkup($html);
             if ($section === 'scans') {
                 $this->assertStringContainsString('Scanning runs automatically in the background', $html);
