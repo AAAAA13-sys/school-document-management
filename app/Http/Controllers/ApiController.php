@@ -58,8 +58,17 @@ class ApiController extends Controller
                 ->get(['v.cursor', 'v.id', 'v.document_id', 'v.number', 'v.filename', 'v.mime', 'v.size', 'v.checksum', 'v.scan_status', 'v.created_at']);
             $more = $rows->count() > $limit;
             $rows = $rows->take($limit);
+            $nextCursor = $more ? ($rows->last()?->cursor ?? (int) $after) : null;
 
-            return response()->json(['data' => $rows->values(), 'next_cursor' => $rows->last()?->cursor ?? (int) $after, 'has_more' => $more]);
+            return response()->json([
+                'data' => $rows->values(),
+                'meta' => [
+                    'next_cursor' => $nextCursor,
+                    'has_more' => $more,
+                ],
+                'next_cursor' => $nextCursor,
+                'has_more' => $more,
+            ]);
         }
         $query = Access::scope(DB::table($table), $actor)->where('source', $actor->source);
         if ($resource === 'documents') {
@@ -71,8 +80,17 @@ class ApiController extends Controller
             $more = $events->count() > $limit;
             $events = $events->take($limit);
             $docs = Access::visibleTo(DB::table('documents'), $actor)->whereIn('id', $events->pluck('document_id')->filter())->get();
+            $nextCursor = $more ? ($events->last()?->id ?? (int) $after) : null;
 
-            return response()->json(['data' => $docs, 'next_cursor' => $events->last()?->id ?? (int) $after, 'has_more' => $more]);
+            return response()->json([
+                'data' => $docs,
+                'meta' => [
+                    'next_cursor' => $nextCursor,
+                    'has_more' => $more,
+                ],
+                'next_cursor' => $nextCursor,
+                'has_more' => $more,
+            ]);
         }
         if ($resource === 'events') {
             $query->whereIn('document_id', Access::visibleTo(DB::table('documents'), $actor)->select('id'));
@@ -90,8 +108,17 @@ class ApiController extends Controller
                 $row->payload = json_decode($row->payload);
             } unset($row->request_hash,$row->scope_key,$row->record_key);
         }
+        $nextCursor = $more ? ($rows->last()?->id ?? (int) $after) : null;
 
-        return response()->json(['data' => $rows->values(), 'next_cursor' => $rows->last()?->id ?? (int) $after, 'has_more' => $more]);
+        return response()->json([
+            'data' => $rows->values(),
+            'meta' => [
+                'next_cursor' => $nextCursor,
+                'has_more' => $more,
+            ],
+            'next_cursor' => $nextCursor,
+            'has_more' => $more,
+        ]);
     }
 
     public function document(Request $request, string $document)

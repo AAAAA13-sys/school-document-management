@@ -2,25 +2,74 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Password recovery · DMS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content="{{ csrf_token() }}" />
+    <title>Password recovery · PLP Documents</title>
     <link rel="stylesheet" href="/vendor/bootstrap.min.css" />
+    <link rel="stylesheet" href="/css/dms.css" />
+    <script defer src="/vendor/jquery.min.js"></script>
+    <script defer src="/vendor/jquery-ui.min.js"></script>
+    <script defer src="/vendor/bootstrap.bundle.min.js"></script>
+    <script defer src="/js/dms.js"></script>
 </head>
-<body>
-    <main class="container py-5">
-        <h1>Recover your account</h1>
-        @if (session('status'))
-            <p role="status">{{ session('status') }}</p>
-        @endif
-        @if ($errors->any())
-            <p role="alert">{{ $errors->first() }}</p>
-        @endif
-        <form method="post" action="/forgot-password">
-            @csrf
-            <label>Email<input class="form-control" name="email" type="email" required autocomplete="email" /></label
-            ><button class="btn btn-primary mt-3">Send recovery email</button>
-        </form>
-        <a href="/login">Back to sign in</a>
+<body class="login-page">
+    <div class="login-story">
+        <a class="brand" href="/login">
+            <span class="brand-mark">d.</span><span>PLP Documents<small>DOCUMENT MANAGEMENT SYSTEM</small></span>
+        </a>
+        <div class="login-message">
+            <span class="eyebrow">Pamantasan ng Lungsod ng Pasig</span>
+            <h1>A home for every<br />official university record.</h1>
+            <p>Store department files securely, track every version, and keep a permanent record of university documents.</p>
+            <div class="login-features">
+                <div class="login-feature-item">
+                    <span class="login-feature-dot"></span>
+                    <span><strong>Private and secure</strong> · Every upload is scanned before it's available</span>
+                </div>
+                <div class="login-feature-item">
+                    <span class="login-feature-dot"></span>
+                    <span><strong>Permanent version history</strong> · Each file is verified with a checksum</span>
+                </div>
+                <div class="login-feature-item">
+                    <span class="login-feature-dot"></span>
+                    <span><strong>Role-based access</strong> · Every view and change is logged</span>
+                </div>
+            </div>
+        </div>
+        <span class="login-school">PAMANTASAN NG LUNGSOD NG PASIG · CENTRAL DOCUMENT REPOSITORY</span>
+    </div>
+    <main class="login-form">
+        <div class="login-form-inner">
+            <span class="eyebrow">Staff access</span>
+            <h2>Recover your account</h2>
+            <p class="section-description mb-4">Enter your PLP staff email address to receive a single-use password reset link.</p>
+            @if (session('status'))
+                <div class="alert alert-info" role="status">{{ session('status') }}</div>
+            @endif
+            @if ($errors->any())
+                <div class="alert alert-danger" role="alert">{{ $errors->first() }}</div>
+            @endif
+            <form method="post" action="/forgot-password">
+                @csrf
+                <div class="mb-4">
+                    <label for="email" class="form-label">Email address</label>
+                    <input
+                        class="form-control"
+                        id="email"
+                        name="email"
+                        type="email"
+                        value="{{ old('email') }}"
+                        required
+                        autocomplete="email"
+                        placeholder="you@plp.edu.ph" />
+                </div>
+                <button class="btn btn-primary w-100" type="submit">Send recovery email</button>
+            </form>
+            <p class="login-help text-center mt-4">
+                <a href="/login">← Back to sign in</a>
+            </p>
+            <p class="login-policy">For authorized PLP personnel only. Activity is logged.</p>
+        </div>
     </main>
 </body>
 </html>

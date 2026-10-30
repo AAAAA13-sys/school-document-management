@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 class AdminController extends Controller
 {
@@ -105,19 +106,34 @@ class AdminController extends Controller
         }
         $service = app(InvitationService::class);
         $id = $service->request($actor, $data);
+        $status = $actor->isSuperAdmin() ? 'delivered' : 'pending';
+        $message = $actor->isSuperAdmin() ? 'Invitation email sent.' : 'Staff invitation submitted for Super Admin approval.';
+
         if ($actor->isSuperAdmin()) {
-            $service->deliver($actor, $id);
+            try {
+                $service->deliver($actor, $id);
+            } catch (HttpExceptionInterface $e) {
+                if ($e->getStatusCode() === 503) {
+                    $status = 'approved';
+                    $message = 'Invitation created and approved. Outbound email is not configured or failed to deliver; invitation can be sent once mail transport is active.';
+                } else {
+                    throw $e;
+                }
+            } catch (\Throwable $e) {
+                $status = 'approved';
+                $message = 'Invitation created and approved. Outbound email is not configured or failed to deliver; invitation can be sent once mail transport is active.';
+            }
         }
 
         if ($request->expectsJson()) {
             return response()->json([
                 'id' => $id,
-                'status' => $actor->isSuperAdmin() ? 'delivered' : 'pending',
-                'message' => $actor->isSuperAdmin() ? 'Invitation email sent.' : 'Staff invitation submitted for Super Admin approval.',
+                'status' => $status,
+                'message' => $message,
             ], 201);
         }
 
-        return back()->with('status', $actor->isSuperAdmin() ? 'Invitation email sent.' : 'Staff invitation submitted for Super Admin approval.');
+        return back()->with('status', $message);
     }
 
     public function connector(ActionRequest $request)
