@@ -1,5 +1,27 @@
 @charset "UTF-8";
 
+.invitation-heading,
+.invitation-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.invitation-heading > div { flex: 1 1 20rem; }
+.invitation-form {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1.5fr) minmax(12rem, 1fr) auto;
+  gap: 1rem;
+  align-items: end;
+  padding: 0 1.25rem 1.25rem;
+}
+.invitation-form > p { grid-column: 1 / -1; }
+.invitation-table { min-width: 880px; }
+.invitation-actions form { margin: 0; }
+@media (max-width: 767px) {
+  .invitation-form { grid-template-columns: 1fr; }
+}
+
 @font-face {
   font-family: Inter;
   src: url('/vendor/fonts/inter-400.woff2') format('woff2');

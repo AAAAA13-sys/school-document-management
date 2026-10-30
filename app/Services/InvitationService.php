@@ -112,6 +112,8 @@ class InvitationService
                 $invitation->forceFill([
                     'token_hash' => hash('sha256', $token), 'expires_at' => $this->expiration(),
                     'pending_email' => $invitation->email,
+                    'delivery_status' => 'not_sent', 'delivery_attempted_at' => null,
+                    'sent_at' => null, 'delivery_error_code' => null,
                 ])->save();
                 $this->audit($actor, 'invitation.rotated', $invitation);
 
@@ -247,7 +249,7 @@ class InvitationService
 
     private function protectedFields(bool $accepting = false): array
     {
-        $fields = ['role', 'school_id', 'campus', 'active', 'invited_by', 'token_hash', 'pending_email', 'expires_at', 'accepted_at', 'accepted_user_id', 'revoked_at'];
+        $fields = ['role', 'school_id', 'campus', 'active', 'invited_by', 'token_hash', 'pending_email', 'expires_at', 'accepted_at', 'accepted_user_id', 'revoked_at', 'delivery_status', 'delivery_attempted_at', 'sent_at', 'delivery_error_code'];
         if ($accepting) {
             $fields[] = 'source';
         }

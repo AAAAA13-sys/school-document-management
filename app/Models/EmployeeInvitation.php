@@ -21,6 +21,8 @@ class EmployeeInvitation extends Model
             'expires_at' => 'immutable_datetime',
             'accepted_at' => 'immutable_datetime',
             'revoked_at' => 'immutable_datetime',
+            'delivery_attempted_at' => 'immutable_datetime',
+            'sent_at' => 'immutable_datetime',
         ];
     }
 
@@ -42,6 +44,26 @@ class EmployeeInvitation extends Model
     public function isPending(): bool
     {
         return $this->accepted_at === null && $this->revoked_at === null && ! $this->hasExpired();
+    }
+
+    public function statusLabel(): string
+    {
+        return match (true) {
+            $this->accepted_at !== null => 'Accepted',
+            $this->revoked_at !== null => 'Revoked',
+            $this->hasExpired() => 'Expired',
+            default => 'Pending',
+        };
+    }
+
+    public function deliveryLabel(): string
+    {
+        return match ($this->delivery_status) {
+            'sending' => 'Sending',
+            'sent' => 'Submitted to SMTP',
+            'failed' => 'Delivery Failed',
+            default => 'Not sent',
+        };
     }
 
     public function __debugInfo(): array

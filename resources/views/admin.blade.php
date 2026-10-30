@@ -121,6 +121,9 @@
                 <p>Students are not DMS users. You cannot demote or deactivate your own account.</p>
             </div>
         </div>
+        @if (isset($invitations))
+            @include ('partials.invitations')
+        @endif
     @elseif ($section==='connectors')
         @if (session('connector_token'))
             <div class="alert alert-warning" role="status">

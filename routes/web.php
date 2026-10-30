@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\AdminInvitationController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BatchUploadController;
 use App\Http\Controllers\DocumentController;
@@ -72,6 +73,12 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     Route::get('/admin/{section?}', [AdminController::class, 'index'])
         ->middleware('can:admin.access');
+    Route::middleware('can:accounts.manage')->group(function () {
+        Route::get('/admin/invitations/preview', [AdminInvitationController::class, 'preview'])->name('invitations.preview');
+        Route::post('/admin/invitations', [AdminInvitationController::class, 'store'])->name('invitations.store')->middleware('throttle:invitations');
+        Route::post('/admin/invitations/{invitation}/resend', [AdminInvitationController::class, 'resend'])->name('invitations.resend')->middleware('throttle:invitations');
+        Route::post('/admin/invitations/{invitation}/revoke', [AdminInvitationController::class, 'revoke'])->name('invitations.revoke');
+    });
     Route::post('/admin/accounts', [AdminController::class, 'account'])
         ->name('accounts.create')
         ->middleware('can:accounts.manage');
