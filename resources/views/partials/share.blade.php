@@ -114,7 +114,14 @@
                     </div>
 
                     <label for="share-expiry" class="form-label mt-3">Expires <span>(within 30 days)</span></label>
-                    <input id="share-expiry" name="expires_at" type="date" class="form-control datepicker" aria-describedby="share-expiry-help" min="{{ now()->addDay()->format('Y-m-d') }}" max="{{ now()->addDays(30)->format('Y-m-d') }}" />
+                    <input
+                        id="share-expiry"
+                        name="expires_at"
+                        type="date"
+                        class="form-control datepicker"
+                        aria-describedby="share-expiry-help"
+                        min="{{ now()->addDay()->format('Y-m-d') }}"
+                        max="{{ now()->addDays(30)->format('Y-m-d') }}" />
                     <p id="share-expiry-help" class="form-text security-note mt-4">Named staff only. No public or anonymous links. Share link expires within 30 days.</p>
                 </div>
                 <div class="modal-footer">

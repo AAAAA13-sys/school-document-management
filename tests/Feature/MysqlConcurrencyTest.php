@@ -49,7 +49,7 @@ class MysqlConcurrencyTest extends TestCase
         $env = ['APP_ENV' => 'testing', 'DB_CONNECTION' => 'mysql', 'DB_DATABASE' => 'dms_test', 'DB_HOST' => $connection['host'], 'DB_PORT' => (string) $connection['port'], 'DB_USERNAME' => $connection['username'], 'DB_PASSWORD' => $connection['password'], 'CACHE_STORE' => 'array'];
         $workers = [];
         foreach ($events as $event) {
-            $process = new Process([PHP_BINARY, base_path('tests/support/history-worker.php')], base_path(), $env, json_encode(compact('connector', 'event')), 20);
+            $process = new Process([PHP_BINARY, base_path('tests/support/history-worker.php')], base_path('tests/support'), $env, json_encode(compact('connector', 'event')), 20);
             $process->start();
             $workers[] = $process;
         }
@@ -94,7 +94,7 @@ class MysqlConcurrencyTest extends TestCase
         $env = ['APP_ENV' => 'testing', 'DB_CONNECTION' => 'mysql', 'DB_DATABASE' => 'dms_test', 'DB_HOST' => $connection['host'], 'DB_PORT' => (string) $connection['port'], 'DB_USERNAME' => $connection['username'], 'DB_PASSWORD' => $connection['password'], 'CACHE_STORE' => 'array'];
         $workers = [];
         foreach ($uploads as $upload) {
-            $process = new Process([PHP_BINARY, base_path('tests/support/upload-worker.php')], base_path(), $env,
+            $process = new Process([PHP_BINARY, base_path('tests/support/upload-worker.php')], base_path('tests/support'), $env,
                 json_encode($upload + ['content' => $content, 'release_at' => $releaseAt]), 30);
             $process->start();
             $workers[] = $process;

@@ -7,7 +7,7 @@ use App\Enums\Source;
 use App\Jobs\ScanDocumentVersion;
 use App\Models\User;
 use App\Services\AccountChangeService;
-use App\Services\InvitationService;
+use App\Services\HierarchicalInvitationService as InvitationService;
 use App\Services\Scanner;
 use App\Services\SensitiveChangeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;

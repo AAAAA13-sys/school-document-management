@@ -2,136 +2,293 @@
 
 namespace App\Services;
 
+use App\Enums\Role;
+use App\Enums\Source;
+use App\Exceptions\InvitationUnavailableException;
+use App\Models\EmployeeInvitation;
 use App\Models\User;
+use App\Policies\UserPolicy;
 use Illuminate\Database\QueryException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
+use SensitiveParameter;
 
+/** Staff onboarding foundation (FR-05/NFR-01); deliberately has no HTTP or mail entry point. */
 class InvitationService
 {
-    public function request(User $actor, array $data): string
+    public function create(User $actor, array $attributes): IssuedInvitation
     {
-        abort_unless($actor->active && ($actor->isAdmin() || $actor->isSuperAdmin()), 403);
-        Gate::forUser($actor)->authorize('accounts.role', $data['role']);
-        Gate::forUser($actor)->authorize('accounts.source', $data['source'] ?? null);
-        abort_if($data['role'] !== 'super_admin' && empty($data['source']), 422, 'A workspace is required.');
-        $data['email'] = strtolower(trim($data['email']));
-        abort_if(User::whereRaw('LOWER(email) = ?', [$data['email']])->exists(), 422, 'An account already exists.');
-        abort_if(DB::table('account_invitations')->where('email', $data['email'])->whereIn('status', ['pending', 'approved', 'sent'])->exists(), 409, 'An active invitation already exists for this email.');
-        $id = (string) Str::uuid();
         try {
-            DB::transaction(function () use ($actor, $data, $id) {
+            return DB::transaction(function () use ($actor, $attributes) {
                 $actor = User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
-                abort_unless($actor->active, 403);
-                Gate::forUser($actor)->authorize('accounts.role', $data['role']);
-                Gate::forUser($actor)->authorize('accounts.source', $data['source'] ?? null);
-                DB::table('account_invitations')->insert([
-                    'id' => $id, 'requested_by' => $actor->id, 'name' => $data['name'],
-                    'email' => strtolower($data['email']), 'active_email' => $data['email'], 'role' => $data['role'],
-                    'source' => $data['role'] === 'super_admin' ? null : $data['source'],
+                Gate::forUser($actor)->authorize('create', EmployeeInvitation::class);
+                $data = Validator::make($this->normalize($attributes), [
+                    'email' => 'required|email|max:255',
+                    'source' => ['required', Rule::in(Access::scope(DB::table('workspaces'), $actor)->where('status', 'active')->pluck('code')->all())],
+                ] + $this->protectedFields())->validate();
+                Gate::forUser($actor)->authorize('accounts.source', $data['source']);
+                $this->ensureAvailableEmail($data['email']);
+                $this->releaseExpiredReservations($data['email']);
+                $this->ensureNoPendingInvitation($data['email']);
+
+                $token = bin2hex(random_bytes(32));
+                $invitation = new EmployeeInvitation;
+                $invitation->forceFill([
+                    'email' => $data['email'], 'pending_email' => $data['email'],
+                    'role' => Role::Staff->value, 'source' => $data['source'],
                     'school_id' => $actor->school_id, 'campus' => $actor->campus,
-                    'status' => $actor->isSuperAdmin() ? 'approved' : 'pending',
-                    'created_at' => now(), 'updated_at' => now(),
-                ]);
-                Access::audit($actor, 'invitation.requested', details: ['invitation_id' => $id]);
-            });
+                    'invited_by' => $actor->id, 'token_hash' => hash('sha256', $token),
+                    'expires_at' => $this->expiration(),
+                ])->save();
+                $this->audit($actor, 'invitation.created', $invitation);
 
-        } catch (QueryException $e) {
-            if (in_array((string) $e->getCode(), ['23000', '23505']) && DB::table('account_invitations')->where('active_email', $data['email'])->exists()) {
-                abort(409, 'An active invitation already exists for this email.');
-            }
-            throw $e;
+                return new IssuedInvitation($invitation, $token);
+            }, 3);
+        } catch (UniqueConstraintViolationException) {
+            // Do not propagate SQL/bindings containing credential hashes.
+            throw ValidationException::withMessages(['email' => 'An account or pending invitation already exists for this email.']);
+        } catch (QueryException) {
+            throw new \RuntimeException('Invitation storage is unavailable.');
         }
-
-        return $id;
     }
 
-    public function review(User $actor, string $id, bool $approve, string $reason): void
+    /** Read-only validation: opening a link never consumes it. */
+    public function validateToken(#[SensitiveParameter] string $token): EmployeeInvitation
     {
-        abort_unless(trim($reason) !== '' && mb_strlen($reason) <= 2000, 422);
-        DB::transaction(function () use ($actor, $id, $approve, $reason) {
-            $actor = User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
-            $row = $this->scoped($actor, $id)->lockForUpdate()->first() ?? abort(404);
-            abort_unless($actor->active && $actor->isSuperAdmin() && $row->requested_by !== $actor->id, 403);
-            abort_unless($row->status === 'pending', 409, 'This invitation has already been reviewed.');
-            $requester = User::whereKey($row->requested_by)->lockForUpdate()->first();
-            abort_unless($requester?->active && $requester->isAdmin() && in_array($row->source, $requester->sources(), true), 409, 'Requester authority has changed.');
-            DB::table('account_invitations')->where('id', $id)->update(['status' => $approve ? 'approved' : 'rejected', 'active_email' => $approve ? $row->email : null, 'reason' => $reason, 'reviewed_by' => $actor->id, 'updated_at' => now()]);
-            Access::audit($actor, $approve ? 'invitation.approved' : 'invitation.rejected', details: ['invitation_id' => $id, 'reason' => $reason]);
-        });
+        try {
+            $invitation = $this->findToken($token);
+            $this->ensureUsable($invitation);
+            $this->ensureIssuerAuthority($invitation, $invitation->inviter);
+            $this->ensureAvailableEmail($invitation->email);
+
+            return $invitation;
+        } catch (QueryException) {
+            // No previous exception: query bindings can contain token hashes.
+            throw new \RuntimeException('Invitation storage is unavailable.');
+        }
     }
 
-    public function deliver(User $actor, string $id): void
+    public function revoke(User $actor, string $id): EmployeeInvitation
     {
-        $this->requireMail();
-        DB::transaction(function () use ($actor, $id) {
-            $actor = User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
-            $row = $this->scoped($actor, $id)->lockForUpdate()->first() ?? abort(404);
-            abort_unless($actor->active && $actor->isSuperAdmin(), 403);
-            abort_unless(in_array($row->status, ['approved', 'sent']), 409);
-            abort_if($row->sent_at && Carbon::parse($row->sent_at)->addSeconds((int) config('invitations.resend_after_seconds', 60))->isFuture(), 429, 'Please wait before resending this invitation.');
-            $this->assertAuthority($row);
-            $token = Str::random(64);
-            DB::table('account_invitations')->where('id', $id)->update(['token_hash' => hash('sha256', $token), 'expires_at' => now()->addMinutes((int) config('invitations.expire', 1440)), 'status' => 'sent', 'sent_at' => now(), 'updated_at' => now()]);
-            Mail::raw('Set your DMS password: '.url('/invitations/accept/'.$token), fn ($message) => $message->to($row->email)->subject('Your DMS invitation'));
-            Access::audit($actor, 'invitation.sent', details: ['invitation_id' => $id]);
-        });
+        try {
+            return DB::transaction(function () use ($actor, $id) {
+                $actor = User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+                $invitation = $this->manageable($actor, $id);
+                if ($invitation->accepted_at !== null) {
+                    $this->invalidInvitation();
+                }
+                if ($invitation->revoked_at === null) {
+                    $invitation->forceFill(['revoked_at' => now(), 'pending_email' => null])->save();
+                    $this->audit($actor, 'invitation.revoked', $invitation);
+                }
+
+                return $invitation;
+            }, 3);
+        } catch (QueryException) {
+            throw new \RuntimeException('Invitation storage is unavailable.');
+        }
     }
 
-    public function accept(string $token, string $password): User
+    /** Rotates credentials and extends expiry; does not send mail or revive revoked invitations. */
+    public function rotateToken(User $actor, string $id): IssuedInvitation
     {
-        return DB::transaction(function () use ($token, $password) {
-            $row = DB::table('account_invitations')->where('token_hash', hash('sha256', $token))->lockForUpdate()->first() ?? abort(404);
-            abort_unless($row->status === 'sent' && $row->expires_at > now() && ! $row->accepted_at, 410, 'Invitation expired or already used.');
-            abort_if(User::where('email', $row->email)->exists(), 409, 'This email already has an account.');
-            $this->assertAuthority($row);
-            $user = User::create(['name' => $row->name, 'email' => $row->email, 'role' => $row->role, 'source' => $row->source, 'school_id' => $row->school_id, 'campus' => $row->campus, 'active' => true, 'password' => $password]);
-            if ($user->source) {
+        try {
+            return DB::transaction(function () use ($actor, $id) {
+                $actor = User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+                $invitation = $this->manageable($actor, $id);
+                if ($invitation->accepted_at !== null || $invitation->revoked_at !== null) {
+                    $this->invalidInvitation();
+                }
+                $this->ensureIssuerAuthority($invitation, $invitation->inviter);
+                $this->ensureAvailableEmail($invitation->email);
+                $this->releaseExpiredReservations($invitation->email, $invitation->id);
+                $this->ensureNoPendingInvitation($invitation->email, $invitation->id);
+                $token = bin2hex(random_bytes(32));
+                $invitation->forceFill([
+                    'token_hash' => hash('sha256', $token), 'expires_at' => $this->expiration(),
+                    'pending_email' => $invitation->email,
+                    'delivery_status' => 'not_sent', 'delivery_attempted_at' => null,
+                    'sent_at' => null, 'delivery_error_code' => null,
+                ])->save();
+                $this->audit($actor, 'invitation.rotated', $invitation);
+
+                return new IssuedInvitation($invitation, $token);
+            }, 3);
+        } catch (UniqueConstraintViolationException) {
+            throw ValidationException::withMessages(['email' => 'An account or pending invitation already exists for this email.']);
+        } catch (QueryException) {
+            throw new \RuntimeException('Invitation storage is unavailable.');
+        }
+    }
+
+    public function accept(#[SensitiveParameter] string $token, #[SensitiveParameter] array $attributes): User
+    {
+        try {
+            return DB::transaction(function () use ($token, $attributes) {
+                $candidate = $this->findToken($token);
+                // Use the same user-before-invitation lock order as administration.
+                $issuer = User::whereKey($candidate->invited_by)->lockForUpdate()->first();
+                $invitation = EmployeeInvitation::whereKey($candidate->id)->lockForUpdate()->first();
+                if (! $invitation || ! hash_equals($invitation->token_hash, hash('sha256', $token))) {
+                    $this->invalidInvitation();
+                }
+                $this->ensureUsable($invitation);
+                $this->ensureIssuerAuthority($invitation, $issuer);
+                $this->ensureAvailableEmail($invitation->email);
+                $data = Validator::make($this->normalize($attributes), [
+                    'name' => 'required|string|max:255',
+                    'email' => ['sometimes', 'required', 'email', Rule::in([$invitation->email])],
+                    'password' => ['bail', 'required', 'string', 'max:255', 'confirmed', function ($attribute, $value, $fail) {
+                        if (str_contains($value, "\0")) {
+                            $fail('The password contains an unsupported character.');
+                        } elseif (Hash::getDefaultDriver() === 'bcrypt' && strlen($value) > 72) {
+                            $fail('The password must not exceed 72 bytes with the current password hashing configuration.');
+                        }
+                    }, Password::min(12)->mixedCase()->numbers()->symbols()],
+                ] + $this->protectedFields(true))->validate();
+                $user = new User;
+                $user->name = $data['name'];
+                // Treat all submitted passwords as plaintext, even strings that
+                // look like hashes (the User cast otherwise accepts pre-hashed values).
+                $user->password = Hash::make($data['password']);
+                $user->email = $invitation->email;
+                $user->role = Role::Staff->value;
+                $user->source = $invitation->source;
+                $user->school_id = $invitation->school_id;
+                $user->campus = $invitation->campus;
+                $user->active = true;
+                // Email verification remains unchanged until that policy is agreed.
+                $user->save();
                 WorkspaceRegistry::assign($user, $user->source);
-            }
-            DB::table('account_invitations')->where('id', $row->id)->update(['status' => 'accepted', 'active_email' => null, 'accepted_at' => now(), 'token_hash' => null, 'updated_at' => now()]);
-            Access::audit($user, 'invitation.accepted', details: ['invitation_id' => $row->id]);
+                $invitation->forceFill([
+                    'accepted_at' => now(), 'accepted_user_id' => $user->id, 'pending_email' => null,
+                ])->save();
+                $this->audit($issuer, 'invitation.accepted', $invitation);
+                Access::audit($user, 'account.created', details: ['invitation_id' => $invitation->id], source: $invitation->source);
 
-            return $user;
-        });
-    }
-
-    public function revoke(User $actor, string $id): void
-    {
-        DB::transaction(function () use ($actor, $id) {
-            $actor = User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
-            $row = $this->scoped($actor, $id)->lockForUpdate()->first() ?? abort(404);
-            abort_unless($actor->active && ($actor->isSuperAdmin() || ($actor->isAdmin() && $row->requested_by === $actor->id)), 403);
-            abort_unless(in_array($row->status, ['pending', 'approved', 'sent']), 409);
-            DB::table('account_invitations')->where('id', $id)->update(['status' => 'revoked', 'active_email' => null, 'token_hash' => null, 'updated_at' => now()]);
-            Access::audit($actor, 'invitation.revoked', details: ['invitation_id' => $id]);
-        });
-    }
-
-    private function assertAuthority(object $row): void
-    {
-        $requester = User::whereKey($row->requested_by)->lockForUpdate()->first();
-        abort_unless($requester?->active && $requester->school_id === $row->school_id && $requester->campus === $row->campus, 409, 'Invitation authority has changed.');
-        if ($requester->isSuperAdmin()) {
-            return;
+                return $user;
+            }, 3);
+        } catch (UniqueConstraintViolationException) {
+            throw ValidationException::withMessages(['email' => 'An account already exists for this email.']);
+        } catch (QueryException) {
+            throw new \RuntimeException('Invitation storage is unavailable.');
         }
-        $reviewer = User::whereKey($row->reviewed_by)->lockForUpdate()->first();
-        abort_unless($requester->isAdmin() && $row->role === 'staff' && in_array($row->source, $requester->sources(), true)
-            && $reviewer?->active && $reviewer->isSuperAdmin() && $reviewer->school_id === $row->school_id && $reviewer->campus === $row->campus,
-            409, 'Invitation authority has changed.');
     }
 
-    public function scoped(User $actor, string $id)
+    private function findToken(#[SensitiveParameter] string $token): EmployeeInvitation
     {
-        return DB::table('account_invitations')->where('id', $id)->where('school_id', $actor->school_id)->where('campus', $actor->campus);
+        if (! preg_match('/\A[a-f0-9]{64}\z/D', $token)) {
+            $this->invalidInvitation();
+        }
+        $invitation = EmployeeInvitation::where('token_hash', hash('sha256', $token))->first();
+        if (! $invitation) {
+            $this->invalidInvitation();
+        }
+
+        return $invitation;
     }
 
-    public function requireMail(): void
+    private function manageable(User $actor, string $id): EmployeeInvitation
     {
-        $transport = config('mail.mailers.'.config('mail.default').'.transport');
-        abort_unless(in_array($transport, ['smtp', 'sendmail', 'ses', 'ses-v2', 'postmark', 'resend', 'mailgun']), 503, 'Configure an outbound email transport before sending account links.');
+        Gate::forUser($actor)->authorize('create', EmployeeInvitation::class);
+        $query = Access::administrationScope(EmployeeInvitation::query()->getQuery(), $actor);
+        $row = $query->where('id', $id)->lockForUpdate()->first() ?? abort(404);
+        $invitation = (new EmployeeInvitation)->newFromBuilder((array) $row);
+        Gate::forUser($actor)->authorize('manage', $invitation);
+
+        return $invitation;
+    }
+
+    private function ensureUsable(EmployeeInvitation $invitation): void
+    {
+        if ($invitation->accepted_at !== null) {
+            $this->invalidInvitation('used');
+        }
+        if ($invitation->revoked_at !== null) {
+            $this->invalidInvitation('revoked');
+        }
+        if ($invitation->hasExpired()) {
+            $this->invalidInvitation('expired');
+        }
+    }
+
+    private function ensureIssuerAuthority(EmployeeInvitation $invitation, ?User $issuer): void
+    {
+        $policy = new UserPolicy;
+        if (! $issuer || ! $issuer->active || $invitation->role !== Role::Staff->value
+            || ! in_array($invitation->source, Source::values($issuer), true)
+            || $issuer->school_id !== $invitation->school_id || $issuer->campus !== $invitation->campus
+            || ! $policy->createRole($issuer, Role::Staff->value) || ! $policy->createSource($issuer, $invitation->source)) {
+            $this->invalidInvitation();
+        }
+    }
+
+    private function ensureAvailableEmail(string $email): void
+    {
+        if (User::whereRaw('LOWER(email) = ?', [$email])->exists()) {
+            throw ValidationException::withMessages(['email' => 'An account already exists for this email.']);
+        }
+    }
+
+    private function ensureNoPendingInvitation(string $email, ?string $except = null): void
+    {
+        if (EmployeeInvitation::where('pending_email', $email)->when($except, fn ($q) => $q->where('id', '!=', $except))->exists()) {
+            throw ValidationException::withMessages(['email' => 'A pending invitation already exists for this email.']);
+        }
+    }
+
+    private function releaseExpiredReservations(string $email, ?string $except = null): void
+    {
+        EmployeeInvitation::where('pending_email', $email)->where('expires_at', '<=', now())
+            ->when($except, fn ($q) => $q->where('id', '!=', $except))->update(['pending_email' => null]);
+    }
+
+    private function normalize(#[SensitiveParameter] array $data): array
+    {
+        if (isset($data['email']) && is_string($data['email'])) {
+            $data['email'] = mb_strtolower(trim($data['email']));
+        }
+        if (isset($data['source']) && is_string($data['source'])) {
+            $data['source'] = strtoupper(trim($data['source']));
+        }
+
+        return $data;
+    }
+
+    private function protectedFields(bool $accepting = false): array
+    {
+        $fields = ['role', 'school_id', 'campus', 'active', 'invited_by', 'token_hash', 'pending_email', 'expires_at', 'accepted_at', 'accepted_user_id', 'revoked_at', 'delivery_status', 'delivery_attempted_at', 'sent_at', 'delivery_error_code'];
+        if ($accepting) {
+            $fields[] = 'source';
+        }
+
+        return array_fill_keys($fields, 'prohibited');
+    }
+
+    private function expiration(): Carbon
+    {
+        $hours = config('invitations.expires_in_hours');
+        if (! is_int($hours) || $hours < 1) {
+            throw new \LogicException('Invitation expiration must be a positive number of hours.');
+        }
+
+        return now()->addHours($hours);
+    }
+
+    private function audit(User $actor, string $action, EmployeeInvitation $invitation): void
+    {
+        Access::audit($actor, $action, details: ['invitation_id' => $invitation->id, 'account_id' => $invitation->accepted_user_id], source: $invitation->source);
+    }
+
+    private function invalidInvitation(string $reason = 'invalid'): never
+    {
+        throw new InvitationUnavailableException($reason);
     }
 }

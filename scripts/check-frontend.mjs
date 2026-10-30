@@ -17,8 +17,8 @@ const required = [
 ];
 for (const file of required) assert(fs.statSync(file).size > 0, `Missing asset: ${file}`);
 assert(fs.readFileSync('public/vendor/jquery.min.js', 'utf8').includes('jQuery v3.7.1'));
-assert(fs.readFileSync('public/vendor/jquery-ui.min.js', 'utf8').includes('1.14.1'));
-assert(/Bootstrap\s+v5\.3\.3/.test(fs.readFileSync('public/vendor/bootstrap.min.css', 'utf8')));
+assert(fs.readFileSync('public/vendor/jquery-ui.min.js', 'utf8').includes('1.14.2'));
+assert(/Bootstrap\s+v5\.3\.8/.test(fs.readFileSync('public/vendor/bootstrap.min.css', 'utf8')));
 for (const name of fs.readdirSync('public/assets/figma').filter((n) => n.endsWith('.svg'))) {
   const svg = fs.readFileSync(path.join('public/assets/figma', name), 'utf8');
   assert(svg.includes('<svg'), name);

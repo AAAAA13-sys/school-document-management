@@ -14,6 +14,7 @@ if (! app()->environment('testing') || config('database.default') !== 'mysql' ||
     exit(2);
 }
 $input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
+require __DIR__.'/require-isolated-mysql.php';
 // Align both workers on one instant so their checksum locks actually overlap.
 $releaseAt = (float) ($input['release_at'] ?? 0);
 if ($releaseAt > 0) {

@@ -157,25 +157,6 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Install Chromium for Playwright
-        run: npx playwright install chromium
-
-      - name: Start Laravel application
-        run: |
-          php artisan serve --host=127.0.0.1 --port=8011 > /tmp/laravel-server.log 2>&1 &
-          echo $! > /tmp/laravel-server.pid
-          for i in {1..30}; do
-            if curl -fsS http://127.0.0.1:8011/up > /dev/null 2>&1; then
-              break
-            fi
-            sleep 1
-          done
-          if ! curl -fsS http://127.0.0.1:8011/up > /dev/null 2>&1; then
-            echo "Laravel server failed to start"
-            cat /tmp/laravel-server.log
-            exit 1
-          fi
-
       - name: Run frontend tests
         run: npm test
 

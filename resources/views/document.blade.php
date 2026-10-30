@@ -111,7 +111,8 @@
                                     required
                                     placeholder="Write a note for your colleagues…"></textarea>
                                 <div class="comment-submit">
-                                    <button type="submit" class="btn btn-primary">Post comment</button><small><span id="comment-count">{{ strlen(old('body','')) }}</span> / 2,000</small>
+                                    <button type="submit" class="btn btn-primary">Post comment</button
+                                    ><small><span id="comment-count">{{ strlen(old('body','')) }}</span> / 2,000</small>
                                 </div>
                             </form>
                         @endif

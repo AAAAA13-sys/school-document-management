@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AccountInvitation;
 use App\Models\User;
 use App\Services\Access;
-use App\Services\InvitationService;
+use App\Services\HierarchicalInvitationService as InvitationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;

@@ -12,6 +12,7 @@ if (! app()->environment('testing') || config('database.connections.mysql.databa
     exit(2);
 }
 $input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
+require __DIR__.'/require-isolated-mysql.php';
 $actor = DB::table('connectors')->where('id', $input['connector'])->first();
 try {
     [$body,$status] = app(HistoryService::class)->receive($actor, $input['event']);

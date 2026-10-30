@@ -517,8 +517,12 @@
         $(this).autocomplete('search', this.value);
       })
       .attr('aria-expanded', 'false')
-      .on('autocompleteopen', function () { $(this).attr('aria-expanded', 'true'); })
-      .on('autocompleteclose', function () { $(this).attr('aria-expanded', 'false'); });
+      .on('autocompleteopen', function () {
+        $(this).attr('aria-expanded', 'true');
+      })
+      .on('autocompleteclose', function () {
+        $(this).attr('aria-expanded', 'false');
+      });
     function permission() {
       const pinned = $('#share-version').val() !== '';
       const editor = $('#share-permission option[value="Editor"]');
@@ -913,7 +917,7 @@
       })
       .on('hidden.bs.modal', () => {
         if (multiUpload && uploads.some((item) => item.status === 'saved')) {
-          if (!preview) location.reload();
+          location.reload();
         }
       });
     function selectedFile() {
@@ -1129,15 +1133,45 @@
       $('#upload-confirm-duplicate').val('1');
       $('#upload-form').trigger('submit');
     });
+    window.addEventListener('pageshow', () => {
+      document.querySelectorAll('[data-invitation-submit]').forEach((form) => {
+        if (form.dataset.invitationSubmitting !== 'true') return;
+        form.dataset.invitationSubmitting = 'false';
+        form.removeAttribute('aria-busy');
+        const button = form.querySelector('button[type="submit"]');
+        if (button) {
+          button.disabled = false;
+          button.textContent = button.dataset.invitationOriginalLabel;
+        }
+        const progress = form.querySelector('[data-invitation-progress]');
+        if (progress) progress.textContent = '';
+      });
+    });
     $('form').on('submit', function (event) {
       if (this.id === 'upload-form' && multiUpload) {
         event.preventDefault();
         return;
       }
       if (event.isDefaultPrevented() || !this.checkValidity()) return;
+      if (this.dataset.invitationSubmitting === 'true') {
+        event.preventDefault();
+        return;
+      }
       if (this.dataset.confirm && !window.confirm(this.dataset.confirm)) {
         event.preventDefault();
         return;
+      }
+      if (this.hasAttribute('data-invitation-submit')) {
+        this.dataset.invitationSubmitting = 'true';
+        this.setAttribute('aria-busy', 'true');
+        const button = this.querySelector('button[type="submit"]');
+        if (button) {
+          button.dataset.invitationOriginalLabel = button.textContent;
+          button.disabled = true;
+          button.textContent = 'Processing…';
+        }
+        const progress = this.querySelector('[data-invitation-progress]');
+        if (progress) progress.textContent = 'Please wait while your request is processed.';
       }
       if (this.dataset.ajaxMove === 'true') {
         event.preventDefault();

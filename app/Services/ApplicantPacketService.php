@@ -49,6 +49,8 @@ class ApplicantPacketService
                 $id = $packet->id;
             }
             $body = ['packet_id' => $id, 'revision' => (int) $p['revision'], 'applied' => $applied];
+            // Normalize JSON key order for database engines that canonicalize JSON columns.
+            ksort($body);
             DB::table('packet_receipts')->insert(['scope_key' => $scope, 'event_id' => $p['event_id'], 'applicant_id' => $p['applicant_id'], 'revision' => $p['revision'], 'request_hash' => $hash, 'payload' => json_encode($p), 'response' => json_encode($body), 'created_at' => now()]);
             Access::audit($connector, 'packet.received', null, $body + ['released' => $p['released']]);
 

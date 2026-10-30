@@ -15,6 +15,7 @@ for (const hasTabs of [true, false]) {
     const values = {};
     const $ = (selector) => ({
       length: selector === '#document-tabs' && !hasTabs ? 0 : 1,
+      resizable: () => {},
       tabs: (...args) => {
         if (typeof args[0] === 'object') options = args[0];
         else selected = args[2];

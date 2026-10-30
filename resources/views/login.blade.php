@@ -44,6 +44,12 @@
             @if (session('status'))
                 <div class="alert alert-info" role="status">{{ session('status') }}</div>
             @endif
+            @if (session('registration_complete'))
+                <div class="alert alert-success" role="status">
+                    <strong>Your account has been created.</strong><br />Sign in with your invited email and the password you chose.
+                    <a class="alert-link" href="#email">Go to Login</a>
+                </div>
+            @endif
             @if ($errors->any())
                 <div class="alert alert-danger" role="alert">{{ $errors->first() }}</div>
             @endif
@@ -59,18 +65,24 @@
                         value="{{ old('email') }}"
                         autocomplete="email"
                         required
-                        @error('email') aria-invalid="true" aria-describedby="email-error" @enderror
+                        @error ('email') aria-invalid="true" aria-describedby="email-error" @enderror
                         placeholder="you@plp.edu.ph" />
-                    @error('email')
-                    <p id="email-error" class="form-text text-danger" role="alert">{{ $message }}</p>
+                    @error ('email')
+                        <p id="email-error" class="form-text text-danger" role="alert">{{ $message }}</p>
                     @enderror
                 </div>
                 <div class="mb-4">
                     <label for="password" class="form-label">Password</label
-                    ><input class="form-control @error('password') is-invalid @enderror" id="password" type="password" name="password" autocomplete="current-password" required
-                    @error('password') aria-invalid="true" aria-describedby="password-error" @enderror />
-                    @error('password')
-                    <p id="password-error" class="form-text text-danger" role="alert">{{ $message }}</p>
+                    ><input
+                        class="form-control @error('password') is-invalid @enderror"
+                        id="password"
+                        type="password"
+                        name="password"
+                        autocomplete="current-password"
+                        required
+                        @error ('password') aria-invalid="true" aria-describedby="password-error" @enderror />
+                    @error ('password')
+                        <p id="password-error" class="form-text text-danger" role="alert">{{ $message }}</p>
                     @enderror
                 </div>
                 <button class="btn btn-primary w-100" type="submit">Sign in</button>

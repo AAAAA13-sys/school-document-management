@@ -5,12 +5,14 @@ use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\RequestsApprovalController;
 use App\Http\Controllers\ApprovalController;
+use App\Http\Controllers\AdminInvitationController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BatchUploadController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\FolderController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\OperationsHealthController;
+use App\Http\Controllers\InvitationRegistrationController;
 use App\Http\Controllers\ShareController;
 use App\Http\Controllers\WorkspaceController;
 use App\Http\Controllers\WorkspaceRegistryController;
@@ -24,6 +26,11 @@ Route::middleware('guest')->group(function () {
     Route::get('/reset-password/{token}', [InvitationController::class, 'resetForm'])->name('password.reset');
     Route::post('/reset-password', [InvitationController::class, 'reset'])->middleware('throttle:6,1');
 });
+Route::get('/invitations/{token}', [InvitationRegistrationController::class, 'show'])
+    ->middleware('throttle:invitation-page')->name('invitations.accept');
+Route::post('/invitations/{token}', [InvitationRegistrationController::class, 'register'])
+    ->middleware('throttle:invitation-registration')->name('invitations.register');
+
 Route::get('/login', fn () => view('login'))->middleware('guest')->name('login');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:signin');
 Route::middleware(['auth', 'active'])->group(function () {
@@ -98,6 +105,12 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/admin/legal-holds', [AdminController::class, 'legalHolds'])->name('admin.legal_holds');
     Route::post('/admin/legal-holds', [AdminController::class, 'storeLegalHold'])->name('admin.legal_holds.store');
     Route::post('/admin/legal-holds/{hold}/release', [AdminController::class, 'releaseLegalHold'])->name('admin.legal_holds.release');
+    Route::middleware('can:accounts.manage')->group(function () {
+        Route::get('/admin/employee-invitations/preview', [AdminInvitationController::class, 'preview'])->name('invitations.preview');
+        Route::post('/admin/employee-invitations', [AdminInvitationController::class, 'store'])->name('invitations.store')->middleware('throttle:invitations');
+        Route::post('/admin/employee-invitations/{invitation}/resend', [AdminInvitationController::class, 'resend'])->name('invitations.resend')->middleware('throttle:invitations');
+        Route::post('/admin/employee-invitations/{invitation}/revoke', [AdminInvitationController::class, 'revoke'])->name('invitations.revoke');
+    });
     Route::get('/admin/{section?}', [AdminController::class, 'index'])
         ->middleware('can:admin.access');
     Route::post('/admin/accounts', [AdminController::class, 'account'])

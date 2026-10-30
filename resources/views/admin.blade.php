@@ -120,13 +120,15 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="6">
-                                <div class="empty-state">
-                                    <x-figma-icon name="users" :size="48" />
-                                    <h3>No staff accounts yet</h3>
-                                    <p>Invite your first staff member to get started.</p>
-                                </div>
-                            </td></tr>
+                            <tr>
+                                <td colspan="6">
+                                    <div class="empty-state">
+                                        <x-figma-icon name="users" :size="48" />
+                                        <h3>No staff accounts yet</h3>
+                                        <p>Invite your first staff member to get started.</p>
+                                    </div>
+                                </td>
+                            </tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -139,6 +141,9 @@
                 <p>Recipients choose their own password. Scoped Admin proposals require Super Admin approval before dispatch.</p>
             </div>
         </div>
+        @if (isset($invitations))
+            @include ('partials.invitations')
+        @endif
     @elseif ($section==='connectors')
         @if (session('connector_token'))
             <div class="alert alert-warning" role="status">
@@ -228,19 +233,19 @@
             ><select id="repository-source" name="source" class="form-select filter-select">
                 <option value="">All workspaces</option>
                 @foreach (($workspaceLabels ?? App\Services\WorkspaceRegistry::labels($viewer)) as $code=>$label)
-                    <option value="{{ $code }}" @selected(request('source')===$code)>{{ $code }}</option>
+                    <option value="{{ $code }}" @selected (request('source')===$code)>{{ $code }}</option>
                 @endforeach</select
             ><label class="visually-hidden" for="repository-class">Classification</label
             ><select id="repository-class" name="classification" class="form-select filter-select">
                 <option value="">All classifications</option>
-                <option value="Internal" @selected(request('classification')==='Internal')>Internal</option>
-                <option value="Confidential" @selected(request('classification')==='Confidential')>Confidential</option>
-                <option value="Restricted" @selected(request('classification')==='Restricted')>Restricted</option></select
+                <option value="Internal" @selected (request('classification')==='Internal')>Internal</option>
+                <option value="Confidential" @selected (request('classification')==='Confidential')>Confidential</option>
+                <option value="Restricted" @selected (request('classification')==='Restricted')>Restricted</option></select
             ><label class="visually-hidden" for="repository-status">Status</label
             ><select id="repository-status" name="status" class="form-select filter-select">
                 <option value="">All statuses</option>
-                <option value="Active" @selected(request('status')==='Active')>Active</option>
-                <option value="Trashed" @selected(request('status')==='Trashed')>Trashed</option>
+                <option value="Active" @selected (request('status')==='Active')>Active</option>
+                <option value="Trashed" @selected (request('status')==='Trashed')>Trashed</option>
             </select>
         </form>
         <section class="panel">
@@ -355,7 +360,7 @@
             ><select class="form-select filter-select" id="audit-source" name="source">
                 <option value="">All sources</option>
                 @foreach (($workspaceLabels ?? App\Services\WorkspaceRegistry::labels($viewer)) as $code=>$name)
-                    <option value="{{ $code }}" @selected(request('source')===$code)>{{ $code }}</option>
+                    <option value="{{ $code }}" @selected (request('source')===$code)>{{ $code }}</option>
                 @endforeach
             </select>
         </form>
