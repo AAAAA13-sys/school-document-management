@@ -126,4 +126,236 @@ class InvitationTest extends TestCase
         }
         $this->assertDatabaseHas('account_invitations', ['id' => $id, 'status' => 'approved', 'token_hash' => null]);
     }
+
+    public function test_super_admin_store_invitation_with_log_mailer_is_graceful_and_records_approved(): void
+    {
+        config(['mail.default' => 'log']);
+        $superAdmin = $this->user('super_admin');
+
+        // Test JSON request
+        $jsonResp = $this->actingAs($superAdmin)
+            ->postJson('/admin/invitations', [
+                'name' => 'Graceful User',
+                'email' => 'graceful@plp.edu.ph',
+                'role' => 'staff',
+                'source' => 'EMS',
+            ]);
+
+        $jsonResp->assertStatus(201)
+            ->assertJson([
+                'status' => 'approved',
+            ])
+            ->assertJsonStructure(['id', 'status', 'message']);
+
+        $this->assertDatabaseHas('account_invitations', [
+            'email' => 'graceful@plp.edu.ph',
+            'status' => 'approved',
+            'token_hash' => null,
+        ]);
+
+        // Test Web request
+        $webResp = $this->actingAs($superAdmin)
+            ->post('/admin/invitations', [
+                'name' => 'Graceful Web User',
+                'email' => 'graceful-web@plp.edu.ph',
+                'role' => 'staff',
+                'source' => 'EMS',
+            ]);
+
+        $webResp->assertRedirect();
+        $webResp->assertSessionHas('status');
+        $this->assertDatabaseHas('account_invitations', [
+            'email' => 'graceful-web@plp.edu.ph',
+            'status' => 'approved',
+        ]);
+    }
+
+    public function test_super_admin_account_creation_with_log_mailer_is_graceful(): void
+    {
+        config(['mail.default' => 'log']);
+        $superAdmin = $this->user('super_admin');
+
+        $response = $this->actingAs($superAdmin)
+            ->postJson('/admin/accounts', [
+                'name' => 'Account User',
+                'email' => 'account-user@plp.edu.ph',
+                'role' => 'staff',
+                'source' => 'EMS',
+                'active' => true,
+            ]);
+
+        $response->assertStatus(201)
+            ->assertJson([
+                'status' => 'approved',
+            ])
+            ->assertJsonStructure(['id', 'status', 'message']);
+
+        $this->assertDatabaseHas('account_invitations', [
+            'email' => 'account-user@plp.edu.ph',
+            'status' => 'approved',
+        ]);
+    }
+
+    public function test_admin_proposes_staff_invitation_creates_pending_status(): void
+    {
+        $admin = $this->user('admin', 'EMS');
+        $superAdmin = $this->user('super_admin');
+
+        // Propose invitation as admin
+        $response = $this->actingAs($admin)
+            ->postJson('/admin/invitations', [
+                'name' => 'Proposed Staff',
+                'email' => 'proposed@plp.edu.ph',
+                'role' => 'staff',
+                'source' => 'EMS',
+            ]);
+
+        $response->assertStatus(201)
+            ->assertJson([
+                'status' => 'pending',
+                'message' => 'Staff invitation submitted for Super Admin approval.',
+            ]);
+
+        $invitationId = $response->json('id');
+        $this->assertDatabaseHas('account_invitations', [
+            'id' => $invitationId,
+            'status' => 'pending',
+        ]);
+
+        // Super Admin reviews and approves
+        $reviewResp = $this->actingAs($superAdmin)
+            ->postJson("/admin/invitations/{$invitationId}/review", [
+                'approve' => true,
+                'reason' => 'Approved for EMS operations',
+            ]);
+
+        $reviewResp->assertOk()
+            ->assertJson([
+                'status' => 'approved',
+                'message' => 'Invitation decision recorded.',
+            ]);
+
+        $this->assertDatabaseHas('account_invitations', [
+            'id' => $invitationId,
+            'status' => 'approved',
+            'reason' => 'Approved for EMS operations',
+        ]);
+    }
+
+    public function test_send_invitation_with_log_mailer_is_graceful(): void
+    {
+        config(['mail.default' => 'log']);
+        $superAdmin = $this->user('super_admin');
+        $service = app(InvitationService::class);
+        $id = $service->request($superAdmin, [
+            'name' => 'Send Test',
+            'email' => 'send-test@plp.edu.ph',
+            'role' => 'staff',
+            'source' => 'EMS',
+        ]);
+
+        $response = $this->actingAs($superAdmin)
+            ->postJson("/admin/invitations/{$id}/send");
+
+        $response->assertOk()
+            ->assertJson([
+                'status' => 'approved',
+            ])
+            ->assertJsonStructure(['status', 'message']);
+
+        $this->assertDatabaseHas('account_invitations', [
+            'id' => $id,
+            'status' => 'approved',
+        ]);
+    }
+
+    public function test_send_invitation_resend_throttling_within_60_seconds(): void
+    {
+        config(['mail.default' => 'smtp', 'mail.mailers.smtp.transport' => 'smtp']);
+        Mail::fake();
+
+        $superAdmin = $this->user('super_admin');
+        $service = app(InvitationService::class);
+        $id = $service->request($superAdmin, [
+            'name' => 'Throttle Test',
+            'email' => 'throttle-test@plp.edu.ph',
+            'role' => 'staff',
+            'source' => 'EMS',
+        ]);
+
+        // First send succeeds
+        $this->actingAs($superAdmin)
+            ->postJson("/admin/invitations/{$id}/send")
+            ->assertOk()
+            ->assertJson(['status' => 'delivered']);
+
+        // Second send immediately should be throttled (429)
+        $this->actingAs($superAdmin)
+            ->postJson("/admin/invitations/{$id}/send")
+            ->assertStatus(429);
+    }
+
+    public function test_invitation_json_form_and_acceptance(): void
+    {
+        $superAdmin = $this->user('super_admin');
+        $service = app(InvitationService::class);
+        $id = $service->request($superAdmin, [
+            'name' => 'JSON Accept',
+            'email' => 'json-accept@plp.edu.ph',
+            'role' => 'staff',
+            'source' => 'EMS',
+        ]);
+
+        $token = 'test-token-abcdef1234567890abcdef1234567890';
+        DB::table('account_invitations')->where('id', $id)->update([
+            'status' => 'sent',
+            'token_hash' => hash('sha256', $token),
+            'expires_at' => now()->addHours(24),
+        ]);
+
+        // GET invitation form as JSON
+        $formResp = $this->getJson("/invitations/accept/{$token}");
+        $formResp->assertOk()
+            ->assertJson([
+                'email' => 'json-accept@plp.edu.ph',
+                'name' => 'JSON Accept',
+                'role' => 'staff',
+                'source' => 'EMS',
+            ]);
+
+        // POST acceptance with JSON
+        $acceptResp = $this->postJson("/invitations/accept/{$token}", [
+            'password' => 'ValidPass123!@#',
+            'password_confirmation' => 'ValidPass123!@#',
+        ]);
+
+        $acceptResp->assertOk()
+            ->assertJson([
+                'message' => 'Account activated. Sign in with your chosen password.',
+            ])
+            ->assertJsonStructure([
+                'message',
+                'user' => ['id', 'name', 'email', 'role'],
+            ]);
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'json-accept@plp.edu.ph',
+            'active' => true,
+        ]);
+
+        $this->assertDatabaseHas('account_invitations', [
+            'id' => $id,
+            'status' => 'accepted',
+            'token_hash' => null,
+        ]);
+
+        // Attempting to reuse the token now fails because token_hash was wiped
+        $this->getJson("/invitations/accept/{$token}")
+            ->assertStatus(410);
+
+        $this->postJson("/invitations/accept/{$token}", [
+            'password' => 'ValidPass123!@#',
+            'password_confirmation' => 'ValidPass123!@#',
+        ])->assertStatus(404);
+    }
 }

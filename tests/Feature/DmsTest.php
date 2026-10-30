@@ -155,7 +155,12 @@ class DmsTest extends TestCase
     {
         $this->api($this->event())->assertCreated();
         $this->api($this->event(['event_id' => 'event-2', 'revision' => 2]))->assertCreated();
-        $first = $this->withToken($this->token)->getJson('/api/v1/history?limit=1')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('has_more', true)->json('next_cursor');
+        $response = $this->withToken($this->token)->getJson('/api/v1/history?limit=1')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('meta.has_more', true)
+            ->assertJsonPath('has_more', true);
+        $first = $response->json('meta.next_cursor') ?? $response->json('next_cursor');
         $this->withToken($this->token)->getJson('/api/v1/history?after='.$first)->assertOk()->assertJsonCount(1, 'data')->assertJsonMissingPath('data.0.request_hash');
         $this->withToken($this->token)->getJson('/api/v1/history?limit=1000')->assertUnprocessable();
     }

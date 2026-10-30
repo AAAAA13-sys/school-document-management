@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AccountInvitation;
 use App\Models\User;
 use App\Services\Access;
 use App\Services\InvitationService;
@@ -11,6 +12,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password as PasswordRule;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 class InvitationController extends Controller
 {
@@ -18,8 +20,13 @@ class InvitationController extends Controller
     {
         $actor = $request->user();
         abort_unless($actor->isSuperAdmin() || $actor->isAdmin(), 403);
-        $invitations = DB::table('account_invitations')->where('school_id', $actor->school_id)->where('campus', $actor->campus)
-            ->when(! $actor->isSuperAdmin(), fn ($q) => $q->where('requested_by', $actor->id))->latest()->paginate(30);
+        $invitations = AccountInvitation::query()
+            ->where('school_id', $actor->school_id)
+            ->where('campus', $actor->campus)
+            ->when(! $actor->isSuperAdmin(), fn ($q) => $q->where('requested_by', $actor->id))
+            ->with(['requester:id,name,email', 'reviewer:id,name,email'])
+            ->latest()
+            ->paginate(30);
 
         if ($request->expectsJson()) {
             return response()->json($invitations);
@@ -30,21 +37,43 @@ class InvitationController extends Controller
 
     public function store(Request $request, InvitationService $service)
     {
-        $data = $request->validate(['name' => 'required|string|max:255', 'email' => 'required|email|max:255', 'role' => 'required|in:staff,admin,super_admin', 'source' => 'nullable|string|max:50']);
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255',
+            'role' => 'required|in:staff,admin,super_admin',
+            'source' => 'nullable|string|max:50',
+        ]);
         $id = $service->request($request->user(), $data);
+        $status = 'pending';
+        $message = 'Staff invitation submitted for Super Admin approval.';
+
         if ($request->user()->isSuperAdmin()) {
-            $service->deliver($request->user(), $id);
+            $status = 'delivered';
+            $message = 'Invitation email sent.';
+            try {
+                $service->deliver($request->user(), $id);
+            } catch (HttpExceptionInterface $e) {
+                if ($e->getStatusCode() === 503) {
+                    $status = 'approved';
+                    $message = 'Invitation created and approved. Outbound email is not configured or failed to deliver; invitation can be sent once mail transport is active.';
+                } else {
+                    throw $e;
+                }
+            } catch (\Throwable $e) {
+                $status = 'approved';
+                $message = 'Invitation created and approved. Outbound email is not configured or failed to deliver; invitation can be sent once mail transport is active.';
+            }
         }
 
         if ($request->expectsJson()) {
             return response()->json([
                 'id' => $id,
-                'status' => $request->user()->isSuperAdmin() ? 'delivered' : 'pending',
-                'message' => $request->user()->isSuperAdmin() ? 'Invitation email sent.' : 'Staff invitation submitted for Super Admin approval.',
+                'status' => $status,
+                'message' => $message,
             ], 201);
         }
 
-        return back()->with('status', $request->user()->isSuperAdmin() ? 'Invitation email sent.' : 'Staff invitation submitted for Super Admin approval.');
+        return back()->with('status', $message);
     }
 
     public function review(Request $request, string $invitation, InvitationService $service)
@@ -64,16 +93,31 @@ class InvitationController extends Controller
 
     public function send(Request $request, string $invitation, InvitationService $service)
     {
-        $service->deliver($request->user(), $invitation);
+        $status = 'delivered';
+        $message = 'Invitation email sent; previous invitation links are invalid.';
+
+        try {
+            $service->deliver($request->user(), $invitation);
+        } catch (HttpExceptionInterface $e) {
+            if ($e->getStatusCode() === 503) {
+                $status = 'approved';
+                $message = 'Invitation approved. Outbound email is not configured or failed to deliver; invitation can be sent once mail transport is active.';
+            } else {
+                throw $e;
+            }
+        } catch (\Throwable $e) {
+            $status = 'approved';
+            $message = 'Invitation approved. Outbound email is not configured or failed to deliver; invitation can be sent once mail transport is active.';
+        }
 
         if ($request->expectsJson()) {
             return response()->json([
-                'status' => 'delivered',
-                'message' => 'Invitation email sent.',
+                'status' => $status,
+                'message' => $status === 'delivered' ? 'Invitation email sent.' : $message,
             ]);
         }
 
-        return back()->with('status', 'Invitation email sent; previous invitation links are invalid.');
+        return back()->with('status', $message);
     }
 
     public function revoke(Request $request, string $invitation, InvitationService $service)
@@ -90,9 +134,23 @@ class InvitationController extends Controller
         return back()->with('status', 'Invitation revoked.');
     }
 
-    public function form(string $token)
+    public function form(Request $request, string $token)
     {
-        $row = DB::table('account_invitations')->where('token_hash', hash('sha256', $token))->where('status', 'sent')->where('expires_at', '>', now())->first() ?? abort(410, 'Invitation expired or already used.');
+        $row = DB::table('account_invitations')
+            ->where('token_hash', hash('sha256', $token))
+            ->where('status', 'sent')
+            ->where('expires_at', '>', now())
+            ->first() ?? abort(410, 'Invitation expired or already used.');
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'email' => $row->email,
+                'name' => $row->name,
+                'role' => $row->role,
+                'source' => $row->source,
+                'expires_at' => $row->expires_at,
+            ]);
+        }
 
         return response()->view('invitations.password', ['token' => $token, 'email' => $row->email, 'mode' => 'invite'])->header('Referrer-Policy', 'no-referrer')->header('Cache-Control', 'no-store');
     }
@@ -100,7 +158,19 @@ class InvitationController extends Controller
     public function accept(Request $request, string $token, InvitationService $service)
     {
         $data = $request->validate(['password' => ['required', 'confirmed', PasswordRule::min(12)->mixedCase()->numbers()->symbols()]]);
-        $service->accept($token, $data['password']);
+        $user = $service->accept($token, $data['password']);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Account activated. Sign in with your chosen password.',
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                ],
+            ]);
+        }
 
         return redirect('/login')->with('status', 'Account activated. Sign in with your chosen password.');
     }
