@@ -11,6 +11,7 @@ use App\Services\Access;
 use App\Services\AccountChangeService;
 use App\Services\InvitationService;
 use App\Services\WorkspaceRegistry;
+use App\Models\AuditLegalHold;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;

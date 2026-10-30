@@ -16,6 +16,7 @@
   },
   "devDependencies": {
     "prettier": "^3.9.10",
-    "prettier-plugin-blade": "^3.3.3"
+    "prettier-plugin-blade": "^3.3.3",
+    "playwright": "^1.50.0"
   }
 }
