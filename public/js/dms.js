@@ -510,12 +510,15 @@
           event.preventDefault();
           $(this).val(ui.item.label);
           $('#share-recipient').val(ui.item.value);
+          $(this).trigger('change');
         },
-        focus: (event) => event.preventDefault(),
       })
       .on('focus', function () {
         $(this).autocomplete('search', this.value);
-      });
+      })
+      .attr('aria-expanded', 'false')
+      .on('autocompleteopen', function () { $(this).attr('aria-expanded', 'true'); })
+      .on('autocompleteclose', function () { $(this).attr('aria-expanded', 'false'); });
     function permission() {
       const pinned = $('#share-version').val() !== '';
       const editor = $('#share-permission option[value="Editor"]');

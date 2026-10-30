@@ -31,10 +31,10 @@
         @include ('partials.memo-publication')
         <div id="document-tabs" class="file-detail-tabs">
             <ul class="file-detail-tab-list" aria-label="Document sections">
-                <li><a href="#file-details" id="tab-details">Details</a></li>
-                <li><a href="#file-versions" id="tab-versions">Version history</a></li>
-                <li><a href="#file-preview" id="tab-preview">Preview</a></li>
-                <li><a href="#file-shares" id="tab-shares">Shares</a></li>
+                <li><a href="#file-details" id="tab-details" aria-controls="file-details">Details</a></li>
+                <li><a href="#file-versions" id="tab-versions" aria-controls="file-versions">Version history</a></li>
+                <li><a href="#file-preview" id="tab-preview" aria-controls="file-preview">Preview</a></li>
+                <li><a href="#file-shares" id="tab-shares" aria-controls="file-shares">Shares</a></li>
             </ul>
             <section id="file-details" aria-labelledby="tab-details" aria-label="Document details">
                 <dl class="file-detail-metadata">
@@ -380,11 +380,12 @@
                             ><input
                                 id="share-expiry"
                                 name="expires_at"
-                                type="text"
+                                type="date"
                                 class="form-control datepicker"
-                                placeholder="Select a date"
-                                autocomplete="off" />
-                            <p class="security-note mt-4">Named staff only. No public or anonymous links.</p>
+                                aria-describedby="share-expiry-help"
+                                min="{{ now()->addDay()->format('Y-m-d') }}"
+                                max="{{ now()->addDays(30)->format('Y-m-d') }}" />
+                            <p id="share-expiry-help" class="form-text security-note mt-4">Named staff only. No public or anonymous links. Share link expires within 30 days.</p>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button

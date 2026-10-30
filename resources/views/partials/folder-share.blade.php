@@ -77,10 +77,12 @@
                         ><input
                             id="folder-share-expiry"
                             name="expires_at"
-                            type="text"
+                            type="date"
                             class="form-control datepicker"
-                            placeholder="Select a date"
-                            autocomplete="off" />
+                            aria-describedby="folder-share-expiry-help"
+                            min="{{ now()->addDay()->format('Y-m-d') }}"
+                            max="{{ now()->addDays(30)->format('Y-m-d') }}" />
+                        <p id="folder-share-expiry-help" class="form-text security-note mt-4">No public or anonymous links. Share link expires within 30 days.</p>
                     </form>
                     <p class="security-note mt-4">No public or anonymous links. Revoking a folder grant leaves independent document grants in place.</p>
                 </div>

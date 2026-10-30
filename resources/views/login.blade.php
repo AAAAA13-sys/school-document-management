@@ -10,6 +10,7 @@
     <script defer src="/vendor/bootstrap.bundle.min.js"></script>
 </head>
 <body class="login-page">
+    <a class="skip-link" href="#login-form">Skip to sign-in form</a>
     <div class="login-story">
         <a class="brand" href="/login"
             ><span class="brand-mark">d.</span><span>PLP Documents<small>DOCUMENT MANAGEMENT SYSTEM</small></span></a
@@ -46,23 +47,31 @@
             @if ($errors->any())
                 <div class="alert alert-danger" role="alert">{{ $errors->first() }}</div>
             @endif
-            <form method="post" action="/login">
+            <form method="post" action="/login" id="login-form">
                 @csrf
                 <div class="mb-4">
                     <label for="email" class="form-label">Email address</label
                     ><input
-                        class="form-control"
+                        class="form-control @error('email') is-invalid @enderror"
                         id="email"
                         type="email"
                         name="email"
                         value="{{ old('email') }}"
                         autocomplete="email"
                         required
+                        @error('email') aria-invalid="true" aria-describedby="email-error" @enderror
                         placeholder="you@plp.edu.ph" />
+                    @error('email')
+                    <p id="email-error" class="form-text text-danger" role="alert">{{ $message }}</p>
+                    @enderror
                 </div>
                 <div class="mb-4">
                     <label for="password" class="form-label">Password</label
-                    ><input class="form-control" id="password" type="password" name="password" autocomplete="current-password" required />
+                    ><input class="form-control @error('password') is-invalid @enderror" id="password" type="password" name="password" autocomplete="current-password" required
+                    @error('password') aria-invalid="true" aria-describedby="password-error" @enderror />
+                    @error('password')
+                    <p id="password-error" class="form-text text-danger" role="alert">{{ $message }}</p>
+                    @enderror
                 </div>
                 <button class="btn btn-primary w-100" type="submit">Sign in</button>
             </form>
