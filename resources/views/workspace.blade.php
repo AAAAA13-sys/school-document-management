@@ -125,7 +125,7 @@
                     ><span>/</span>
                 @endif
                 <strong>{{ $folder->name }}</strong>
-                @if ($canManageFolder)
+                @if ($canManageFolders)
                     <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" data-bs-toggle="modal" data-bs-target="#folder-edit-modal">
                         Edit folder
                     </button>
@@ -194,7 +194,7 @@
                 <h2>{{ $section==='history'?'Received events':'Latest source snapshots' }}</h2>
             </div>
             <div class="table-responsive">
-                <table class="table table-striped table-zebra records-table" data-filter-table>
+                <table class="table table-zebra records-table" data-filter-table>
                     <thead>
                         <tr>
                             <th scope="col">Record</th>

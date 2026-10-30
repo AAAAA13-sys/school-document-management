@@ -27,6 +27,7 @@
 :root {
   --green-950: #103c2e;
   --green-800: #176347;
+  --green-700: #1f7a5a;
   --green-100: #e8f3ec;
   --yellow-400: #f4cd42;
   --yellow-100: #fff6cd;
@@ -590,7 +591,7 @@ a .figma-icon {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 46px;
+  min-height: 44px;
   padding: 3px 2px;
   border-radius: 8px;
   cursor: pointer;
@@ -770,7 +771,7 @@ body.sidebar-collapsed .profile {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  min-height: 46px;
+  min-height: 44px;
   gap: 4px;
   padding: 2px 0;
   cursor: pointer;
@@ -3082,10 +3083,8 @@ body.login-page {
     margin: 0;
   }
 
-  .login-message > .eyebrow,
-  .login-message > p,
-  .login-features,
-  .login-school {
+  .login-message > .login-features,
+  .login-message > .login-school {
     display: none;
   }
 
@@ -3255,7 +3254,7 @@ body.login-page {
 
 .btn {
   font-size: 15px;
-  min-height: 46px;
+  min-height: 44px;
 }
 
 .btn-primary {
@@ -3290,7 +3289,7 @@ body.login-page {
 .form-control,
 .form-select {
   font-size: 16px;
-  min-height: 48px;
+  min-height: 44px;
 }
 
 .form-select {
@@ -3379,7 +3378,7 @@ body.login-page {
 }
 
 .dropdown-item:focus-visible {
-  outline: 2px solid #176347;
+  outline: 3px solid #b78d00;
   outline-offset: -2px;
 }
 
@@ -3474,9 +3473,9 @@ body.login-page {
      All four clear WCAG AA against --muted (#53665a): 5.75 / 6.15 / 5.03 /
      4.63. #dbdddb is the darkest green that still clears 4.5:1, which caps
      how dark any row background may go. */
-  --table-stripe: #e4eae2; /* L* 92.1 */
-  --table-hover: #d8e3d1; /* L* 89.0 */
-  --table-active: #d8e3d1; /* L* 89.0 — see accent bar note */
+  --table-stripe: #f8f9fa; /* gray/white per README */
+  --table-hover: #e9ecef; /* L* 89.0 */
+  --table-active: #e9ecef; /* L* 89.0 — see accent bar note */
 
   --bs-table-bg: var(--surface);
   --bs-table-striped-bg: var(--table-stripe);
@@ -3743,7 +3742,7 @@ body[data-device='mobile'] .modal-dialog {
 
   .sidebar .main-nav > a {
     height: auto;
-    min-height: 46px;
+    min-height: 44px;
   }
 
   .main-nav {
@@ -3883,7 +3882,7 @@ body[data-device='mobile'] .modal-dialog {
   }
 
   .modal-footer > .btn {
-    min-height: 46px;
+    min-height: 44px;
   }
 
   .login-form h2 {
@@ -4529,7 +4528,6 @@ body.login-page .preview-login-link {
 
 /* Figma 25:2306, 25:2337, 25:2360, 25:2385: shared document detail surface. */
 .document-detail-card {
-  --green-800: #086347;
   --ink: #203e34;
   --line: #e5ece7;
   --canvas: #f6f8f5;
@@ -4851,7 +4849,7 @@ body.login-page .preview-login-link {
 
 @media (max-width: 767px) {
   .file-detail-tabs .file-detail-tab-list li a {
-    min-height: 48px;
+    min-height: 44px;
     height: 100%;
     padding: 10px 6px;
     font-size: 15px;

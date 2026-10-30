@@ -7,10 +7,7 @@
     <title>Sign in · PLP Documents</title>
     <link rel="stylesheet" href="/vendor/bootstrap.min.css" />
     <link rel="stylesheet" href="/css/dms.css" />
-    <script defer src="/vendor/jquery.min.js"></script>
-    <script defer src="/vendor/jquery-ui.min.js"></script>
     <script defer src="/vendor/bootstrap.bundle.min.js"></script>
-    <script defer src="/js/dms.js"></script>
 </head>
 <body class="login-page">
     <div class="login-story">
@@ -59,7 +56,7 @@
                         type="email"
                         name="email"
                         value="{{ old('email') }}"
-                        autocomplete="username"
+                        autocomplete="email"
                         required
                         placeholder="you@plp.edu.ph" />
                 </div>

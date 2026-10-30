@@ -94,7 +94,6 @@
         <div class="workspace-label">{{ $isAdmin ? 'ADMINISTRATION':'YOUR WORKSPACE' }}</div>
         <div
             class="workspace-identity"
-            tabindex="0"
             data-bs-toggle="tooltip"
             data-bs-placement="right"
             title="{{ $workspaceName }} · {{ $viewer->campus }} campus"
@@ -163,7 +162,6 @@
             >
             <div
                 class="profile"
-                tabindex="0"
                 data-bs-toggle="tooltip"
                 data-bs-placement="right"
                 title="{{ $viewer->name }} · {{ $roleName }}"

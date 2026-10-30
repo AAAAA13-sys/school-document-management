@@ -564,6 +564,15 @@
         },
       });
     }
+    // jQuery UI Resizable: enlarge/shrink the preview pane.
+    const previewPanel = $('.preview-panel');
+    if (previewPanel.length) {
+      previewPanel.resizable({
+        handles: 's',
+        minHeight: 200,
+        maxHeight: 720,
+      });
+    }
     $('[data-preview-version]').on('click', function () {
       if (documentTabs.length) documentTabs.tabs('option', 'active', 2);
       $('#detail-download')

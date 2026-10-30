@@ -37,7 +37,7 @@
                 ><small>Required except for Super Admin.</small></label
             ><button class="btn btn-primary mt-2">{{ auth()->user()->isSuperAdmin() ? 'Send invitation' : 'Propose Staff invitation' }}</button>
         </form>
-        <table class="table table-striped mt-4">
+        <table class="table mt-4">
             <caption>
                 Invitation requests and transport state. Sent means accepted by the configured mail transport; delivery and activation are separate.
             </caption>

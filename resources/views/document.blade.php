@@ -31,12 +31,12 @@
         @include ('partials.memo-publication')
         <div id="document-tabs" class="file-detail-tabs">
             <ul class="file-detail-tab-list" aria-label="Document sections">
-                <li><a href="#file-details">Details</a></li>
-                <li><a href="#file-versions">Version history</a></li>
-                <li><a href="#file-preview">Preview</a></li>
-                <li><a href="#file-shares">Shares</a></li>
+                <li><a href="#file-details" id="tab-details">Details</a></li>
+                <li><a href="#file-versions" id="tab-versions">Version history</a></li>
+                <li><a href="#file-preview" id="tab-preview">Preview</a></li>
+                <li><a href="#file-shares" id="tab-shares">Shares</a></li>
             </ul>
-            <section id="file-details" aria-label="Document details">
+            <section id="file-details" aria-labelledby="tab-details" aria-label="Document details">
                 <dl class="file-detail-metadata">
                     <div>
                         <dt>Title</dt>
@@ -111,7 +111,7 @@
                                     required
                                     placeholder="Write a note for your colleagues…"></textarea>
                                 <div class="comment-submit">
-                                    <button type="submit" class="btn btn-primary">Post comment</button><small><span id="comment-count">0</span> / 2,000</small>
+                                    <button type="submit" class="btn btn-primary">Post comment</button><small><span id="comment-count">{{ strlen(old('body','')) }}</span> / 2,000</small>
                                 </div>
                             </form>
                         @endif
@@ -155,7 +155,7 @@
                     @endif
                 </div>
                 <div class="table-responsive file-version-table">
-                    <table class="table table-striped align-middle">
+                    <table class="table align-middle">
                         <caption class="visually-hidden">
                             Stored document versions and available actions
                         </caption>
