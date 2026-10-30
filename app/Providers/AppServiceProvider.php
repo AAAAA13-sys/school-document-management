@@ -24,6 +24,11 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('connector', fn (Request $r) => Limit::perMinute(120)->by('connector:'.$r->attributes->get('connector')->id));
         RateLimiter::for('signin', fn (Request $r) => [Limit::perMinute(5)->by(strtolower((string) $r->input('email')).'|'.$r->ip()), Limit::perMinute(30)->by('signin-ip:'.$r->ip())]);
         RateLimiter::for('invitations', fn (Request $r) => [Limit::perMinute(5)->by('invitations-user:'.$r->user()->id), Limit::perMinute(20)->by('invitations-ip:'.$r->ip())]);
+        RateLimiter::for('invitation-page', fn (Request $r) => Limit::perMinute(60)->by('invitation-page:'.$r->ip()));
+        RateLimiter::for('invitation-registration', fn (Request $r) => [
+            Limit::perMinute(5)->by('invitation-register:'.hash('sha256', (string) $r->route('token'))),
+            Limit::perMinute(20)->by('invitation-register-ip:'.$r->ip()),
+        ]);
 
         Gate::policy(User::class, UserPolicy::class);
         Gate::policy(EmployeeInvitation::class, EmployeeInvitationPolicy::class);

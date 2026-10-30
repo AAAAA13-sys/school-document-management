@@ -76,6 +76,16 @@ class EmployeeInvitationTest extends TestCase
         $this->assertStringNotContainsString('pending_email', $serialized);
     }
 
+    public function test_delivery_and_other_updates_never_change_invitation_expiration(): void
+    {
+        $issued = $this->issue();
+        $expiresAt = $issued->invitation->expires_at->getTimestamp();
+        $issued->invitation->forceFill(['delivery_status' => 'sending', 'delivery_attempted_at' => now()])->save();
+        $issued->invitation->forceFill(['delivery_status' => 'sent', 'sent_at' => now()])->save();
+        $this->assertSame($expiresAt, $issued->invitation->fresh()->expires_at->getTimestamp());
+        $this->assertTrue($issued->invitation->fresh()->isPending());
+    }
+
     public function test_model_rejects_mass_assignment_of_invitation_state(): void
     {
         $this->expectException(MassAssignmentException::class);

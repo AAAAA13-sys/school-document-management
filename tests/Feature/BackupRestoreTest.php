@@ -45,7 +45,7 @@ class BackupRestoreTest extends TestCase
         $args = ['--host='.$cfg['host'], '--port='.$cfg['port'], '--user='.$cfg['username'], 'dms_test'];
         $env = ['MYSQL_PWD' => (string) $cfg['password']];
         try {
-            $process = new Process([$dump, '--single-transaction', '--hex-blob', '--result-file='.$backup, ...$args], base_path(), $env);
+            $process = new Process([$dump, '--single-transaction', '--hex-blob', '--result-file='.$backup, ...$args], base_path('tests/support'), $env);
             $process->setTimeout(30);
             $process->mustRun();
             $this->assertGreaterThan(0, filesize($backup));
@@ -53,7 +53,7 @@ class BackupRestoreTest extends TestCase
             Storage::disk('local')->put($version->storage_key, 'corrupted after backup');
             $this->get('/files/'.$version->id)->assertConflict();
             DB::disconnect();
-            $restore = new Process([$mysql, ...$args], base_path(), $env, file_get_contents($backup), 30);
+            $restore = new Process([$mysql, ...$args], base_path('tests/support'), $env, file_get_contents($backup), 30);
             $restore->mustRun();
             Storage::disk('local')->put($version->storage_key, $bytes);
             DB::reconnect();

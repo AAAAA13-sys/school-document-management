@@ -43,6 +43,9 @@
             <span class="eyebrow">Staff access</span>
             <h2>Sign in to your account</h2>
             <p class="section-description mb-4">Sign in with your PLP staff email and password.</p>
+            @if (session('registration_complete'))
+                <div class="alert alert-success" role="status"><strong>Your account has been created.</strong><br>Sign in with your invited email and the password you chose. <a class="alert-link" href="#email">Go to Login</a></div>
+            @endif
             @if ($errors->any())
                 <div class="alert alert-danger" role="alert">{{ $errors->first() }}</div>
             @endif

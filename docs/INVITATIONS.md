@@ -1,13 +1,13 @@
-# Staff invitations — Batches 1 and 2
+# Staff invitations — Batches 1–3
 
-This feature extends FR-05 account management and NFR-01 access control. Batch 1 supplies the invitation foundation. Batch 2 adds scoped administration and synchronous SMTP delivery. Employee registration routes/screens are not implemented. Existing direct account creation and password recovery remain unchanged; no authentication stack or dependencies were added.
+This feature extends FR-05 account management and NFR-01 access control. Batch 1 supplies the invitation foundation. Batch 2 adds scoped administration and synchronous SMTP delivery. Batch 3 connects public token-bound registration to the existing acceptance transaction. Existing direct account creation and password recovery remain unchanged; no authentication stack or dependencies were added. Live invitation dispatch remains disabled by default.
 
 ## Service contract
 
 Resolve `App\Services\InvitationService` from the container:
 
 - `create(User $actor, array $attributes): IssuedInvitation` accepts email and source only. Email is trimmed/lowercased and source normalized. Privileged fields are prohibited. Staff role and the actor's school/campus are assigned by the server.
-- `validateToken(string $token): EmployeeInvitation` is read-only. It rejects malformed, expired, accepted, revoked or unauthorized-issuer invitations with a generic validation error.
+- `validateToken(string $token): EmployeeInvitation` is read-only. It rejects malformed, expired, accepted, revoked or unauthorized-issuer invitations, and existing-account conflicts. Lifecycle errors extend ValidationException with a safe reason (invalid, expired, revoked or used); they contain no token/account/issuer details.
 - `revoke(User $actor, string $id): EmployeeInvitation` is idempotent for revoked invitations and rejects accepted invitations.
 - `rotateToken(User $actor, string $id): IssuedInvitation` invalidates the old token and starts a new expiration period. Expired invitations may rotate if no replacement invitation/account exists; revoked/accepted invitations cannot rotate. This operation prepares resend but sends nothing.
 - `accept(string $token, array $attributes): User` requires name, password and password_confirmation. Optional email must match the normalized invited email. Role/source/school/campus/active and invitation state are prohibited input. No login/session is created.
@@ -26,7 +26,7 @@ A nullable unique pending_email reserves the normalized email globally, matching
 
 ## Setup and verification
 
-Apply only pending migrations with `php artisan migrate`; do not seed or recreate live schemas. Both the invitation creation migration and the delivery-tracking migration must be applied before deploying the updated Accounts page. Optional `DMS_INVITATION_EXPIRY_HOURS` defaults to 24. No additional queue worker is needed.
+Apply only approved pending migrations with `php artisan migrate`; do not seed or recreate live schemas. Invitation creation, delivery tracking and 2026_10_30_000003_fix_employee_invitation_expiration_updates are required before deployment. The additive expiry fix uses DATETIME to prevent legacy MariaDB/MySQL automatic TIMESTAMP updates from expiring invitations during delivery writes; existing stored expiration values are preserved. Historical migrations remain unchanged. Optional `DMS_INVITATION_EXPIRY_HOURS` defaults to 24. No additional queue worker is needed.
 
 Run `php vendor/bin/phpunit --filter EmployeeInvitation --do-not-cache-result` for the SQLite foundation suite (real concurrency checks skip). Run `php vendor/bin/phpunit -c phpunit.mysql.xml --filter EmployeeInvitation --do-not-cache-result` against the disposable dms_test schema for genuine concurrent acceptance and duplicate-creation processes. Tests must never point at a live schema; Tests\TestCase enforces isolation and rejects connection URLs before database-test traits can run.
 
@@ -72,15 +72,48 @@ Successful synchronous sending means SMTP submission, not inbox delivery. Bounce
 
 ## Batch 3 acceptance URL contract and activation gate
 
-The future contract is:
+The implemented contract is:
 
 - `GET /invitations/{token}`, named `invitations.accept`: validate/display only; never consume the token.
 - `POST /invitations/{token}`, named `invitations.register`: CSRF-protected, throttled transactional acceptance through InvitationService.
 
-No corresponding route is defined in this application yet. Links are built exclusively from the configured APP_URL plus `/invitations/{token}`, never the incoming request host. APP_URL must use HTTPS in deployment; HTTP is allowed only for loopback hosts in local/testing environments. Credentials, query strings and fragments in APP_URL are rejected. Subdirectory APP_URL deployments are supported.
+Both routes are public browser routes and do not require an authenticated session. `/register` remains unavailable. Links are built exclusively from the configured APP_URL plus `/invitations/{token}`, never the incoming request host. APP_URL must use HTTPS in deployment; HTTP is allowed only for loopback hosts in local/testing environments. Credentials, query strings and fragments in APP_URL are rejected. Subdirectory APP_URL deployments are supported.
 
-`DMS_INVITATION_DISPATCH_ENABLED` defaults to false. Dispatch also requires both named routes with the exact URI/method contract, a valid APP_URL and SMTP transport. Setting the flag alone during Batch 2 cannot send invitation emails. Mail::fake in testing may bypass only route readiness; it cannot bypass the explicit flag, transport selection or URL checks. The tests include route metadata stubs locally; these are never application routes.
+`DMS_INVITATION_DISPATCH_ENABLED` defaults to false and has not been enabled by Batch 3. Dispatch also requires both named routes with the exact URI/method contract, a valid APP_URL and SMTP transport. Now that routes exist, enabling the flag with valid SMTP/URL configuration can send invitations; do not enable it until the deployment checks below are complete. Mail::fake in testing may bypass only route readiness; it cannot bypass the explicit flag, transport selection or URL checks.
 
 After Batch 3: verify GET display, password validation, expired/revoked/used links, tampering, single-use acceptance, login, organization scope and real MySQL concurrency in isolated environments. Then configure the correct HTTPS APP_URL, provider credentials and sender, enable DMS_INVITATION_DISPATCH_ENABLED=true, rebuild cached configuration if used, and verify delivery using a controlled test recipient. Only then start operational invitations. Never enable unrestricted public registration.
 
 Run Batch 2 tests with `php vendor/bin/phpunit --filter AdminInvitationTest --do-not-cache-result`. They use Mail::fake and a network-free test transport for Laravel's real multipart rendering pipeline; they do not prove an external SMTP account or inbox works.
+
+## Batch 3 registration behavior
+
+The registration page displays the database email read-only, the informational source, full name, password and confirmation. It exposes no role/school/campus/source/active inputs. An optional submitted email must equal the normalized invitation email; the stored email always comes from the locked invitation. Privileged field injection is rejected. Password fields are never repopulated, flashed or returned in JSON. The page renders field errors and preserves only an escaped, length-limited name in its HTML response.
+
+Passwords require 12 characters, mixed case, numbers, symbols and confirmation. The existing User hashing cast is retained; the acceptance service explicitly hashes plaintext before assigning it so a submitted precomputed hash cannot bypass strength checks. Invitation acceptance additionally rejects null bytes and passwords over bcrypt's 72-byte limit to prevent silent truncation (other existing account/password workflows are unchanged).
+
+GET never consumes an invitation, including email-scanner visits. GET is limited to 60 requests/minute per IP. POST is limited to 5/minute per token (hashed limiter key) and 20/minute per IP, and requires CSRF. Acceptance reuses the Batch 1 row-locking transaction, global unique email constraint, trusted organization fields and sanitized audit pipeline. No migration or new identity table was added for Batch 3.
+
+Successful acceptance redirects to the existing `/login` page with a generic success message; it never automatically authenticates. The account is active and email_verified_at remains null, preserving Batch 1's behavior. Existing login initializes auth_version and sends Staff to User::homePath(). An already signed-in browser can inspect the page but must use a signed-out session to submit registration; its existing account/session is not changed.
+
+Invalid/malformed/unauthorized-issuer tokens return 404; expired/revoked/used tokens return 410. Existing account conflicts return a generic 409 without account details. Password/input errors return 422 HTML on the same POST without redirecting or flashing sensitive input. CSRF failures return a safe 419 page, rate limits return 429, and storage/unexpected failures return a generic 503. No token details or administrator information appear on unavailable pages. Repeated or competing submissions cannot overwrite/reactivate an existing account.
+
+## Token page privacy and deployment checks
+
+Token pages use only local styles/scripts, ignoring external asset URL overrides. They include no analytics or third-party resources. Responses, including redirects/errors, use no-store cache headers, no-referrer policy, noindex directives, restrictive same-origin CSP and frame denial. Password visibility and duplicate-submit protection use a separate local JavaScript file without telemetry/network calls.
+
+InvitationSession delegates ordinary requests to Laravel's existing session behavior but skips storing token-bearing GET URLs as previous-page history. Sessions and CSRF still work. Registration controller errors are sanitized; the exception handler suppresses reports for token paths and returns safe HTML even with APP_DEBUG=true or JSON request headers. Do not add token request dumps, request-body logging, debug toolbars or profiler collectors.
+
+These application controls do not configure the web server, reverse proxy, WAF, APM, browser history or mail provider. Before live dispatch, redact/disable `/invitations/*` URLs and password bodies in every infrastructure access log and tracing system; query-string-only redaction is insufficient because the token is in the path. Never copy a real invitation URL into tickets or logs. Keep production APP_DEBUG=false and serve only public/ over HTTPS.
+
+Both application database access and isolated dms_test access must be checked independently. Error 1044 indicates schema access denied; do not broaden grants or change live credentials automatically. Verify the configured target with the database owner, obtain the required schema-specific access, and inspect/apply only pending migrations. Do not run migrate:fresh or seeders against application data. A blocked connection does not establish whether historical migrations are applied.
+
+Verification commands:
+
+```powershell
+php vendor/bin/phpunit --filter InvitationRegistrationTest --do-not-cache-result
+php vendor/bin/phpunit --do-not-cache-result
+php vendor/bin/phpunit -c phpunit.mysql.xml --filter EmployeeInvitationConcurrencyTest --do-not-cache-result
+node --test tests/frontend/*.test.mjs
+```
+
+SQLite tests cannot prove MySQL row-lock behavior. The MySQL suite includes simultaneous service acceptance, duplicate invitation creation, HTTP registration, rotation/acceptance, revocation/acceptance and expired-reservation replacement processes. TestCase and workers verify the actual selected PDO schema, not only configuration, before writes. Genuine concurrency was exercised during Batch 4 on the disposable dms_test schema; real SMTP/inbox delivery remains a separate controlled acceptance check. Do not enable dispatch merely because automated tests passed. See [the final QA report](INVITATION-FINAL-QA.md) and [the application QA incident/recovery plan](INVITATION-QA-RECOVERY.md) for outstanding blockers.

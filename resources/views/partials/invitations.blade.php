@@ -6,7 +6,7 @@
     @if ($invitationUnavailableReason)
         <div class="alert alert-warning mx-3" role="status">{{ $invitationUnavailableReason }} You can preview the email and manage existing invitations.</div>
     @endif
-    <form method="post" action="{{ route('invitations.store') }}" class="invitation-form">
+    <form method="post" action="{{ route('invitations.store') }}" class="invitation-form" data-invitation-submit>
         @csrf
         <div>
             <label for="invitation-email" class="form-label">Employee email</label>
@@ -22,6 +22,7 @@
         </div>
         <button type="submit" class="btn btn-primary" @disabled($invitationUnavailableReason)>Send invitation</button>
         <p class="input-help mb-0">Staff access only. Your school and campus are assigned automatically.</p>
+        <span class="visually-hidden" role="status" aria-live="polite" data-invitation-progress></span>
     </form>
     <div class="table-responsive">
         <table class="table table-zebra invitation-table">
@@ -42,14 +43,16 @@
                             @can ('manage', $invitation)
                                 @if ($invitation->accepted_at === null && $invitation->revoked_at === null)
                                     <div class="invitation-actions">
-                                        <form method="post" action="{{ route('invitations.resend', $invitation->id) }}" data-confirm="Send a new invitation? The previous link will stop working, even if email delivery fails.">
+                                        <form method="post" action="{{ route('invitations.resend', $invitation->id) }}" data-invitation-submit data-confirm="Send a new invitation? The previous link will stop working, even if email delivery fails.">
                                             @csrf
                                             <button class="btn btn-sm btn-outline-secondary" type="submit" @disabled($invitationUnavailableReason)>Resend</button>
+                                            <span class="visually-hidden" role="status" aria-live="polite" data-invitation-progress></span>
                                         </form>
-                                        <form method="post" action="{{ route('invitations.revoke', $invitation->id) }}" data-confirm="Revoke this invitation? Its registration link will stop working.">
+                                        <form method="post" action="{{ route('invitations.revoke', $invitation->id) }}" data-invitation-submit data-confirm="Revoke this invitation? Its registration link will stop working.">
                                             @csrf
                                             <input type="hidden" name="confirm_revoke" value="1">
                                             <button class="btn btn-sm btn-outline-danger" type="submit">Revoke</button>
+                                            <span class="visually-hidden" role="status" aria-live="polite" data-invitation-progress></span>
                                         </form>
                                     </div>
                                 @else

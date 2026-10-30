@@ -59,6 +59,20 @@ class EmployeeInvitationConcurrencyTest extends TestCase
         $this->assertSame(1, DB::table('audit_entries')->where('action', 'invitation.created')->count());
     }
 
+    public function test_simultaneous_http_registration_accepts_only_once(): void
+    {
+        $issued = app(InvitationService::class)->create($this->admin(), ['email' => 'concurrent-http@example.test', 'source' => 'EMS']);
+        $request = ['operation' => 'register', 'token' => $issued->revealToken(), 'attributes' => [
+            'name' => 'Concurrent Staff', 'password' => 'SyntheticInvite!123', 'password_confirmation' => 'SyntheticInvite!123',
+        ]];
+        $responses = $this->runConcurrent([$request, $request, $request]);
+        $statuses = array_column($responses, 'status');
+        sort($statuses);
+        $this->assertSame([302, 410, 410], $statuses);
+        $this->assertSame(1, User::where('email', 'concurrent-http@example.test')->count());
+        $this->assertSame(1, DB::table('audit_entries')->where('action', 'invitation.accepted')->count());
+    }
+
     private function runConcurrent(#[\SensitiveParameter] array $requests): array
     {
         $connection = config('database.connections.mysql');
@@ -73,7 +87,7 @@ class EmployeeInvitationConcurrencyTest extends TestCase
         try {
             foreach ($requests as $request) {
                 // Credentials travel through stdin, never command-line arguments or files.
-                $process = new Process([PHP_BINARY, base_path('tests/support/invitation-worker.php')], base_path(), $env,
+                $process = new Process([PHP_BINARY, base_path('tests/support/invitation-worker.php')], base_path('tests/support'), $env,
                     json_encode($request + ['release_at' => $releaseAt], JSON_THROW_ON_ERROR), 30);
                 $process->start();
                 $workers[] = $process;
@@ -92,5 +106,59 @@ class EmployeeInvitationConcurrencyTest extends TestCase
                 }
             }
         }
+    }
+
+    public function test_rotation_and_acceptance_are_serialized(): void
+    {
+        $admin = $this->admin();
+        $issued = app(InvitationService::class)->create($admin, ['email' => 'rotate-race@example.test', 'source' => 'EMS']);
+        $responses = $this->runConcurrent([
+            ['operation' => 'rotate', 'actor' => $admin->id, 'invitation' => $issued->invitation->id],
+            ['operation' => 'accept', 'token' => $issued->revealToken(), 'attributes' => ['name' => 'Race Staff', 'password' => 'SyntheticInvite!123', 'password_confirmation' => 'SyntheticInvite!123']],
+        ]);
+        $statuses = array_column($responses, 'status');
+        sort($statuses);
+        $this->assertSame([201, 422], $statuses);
+        $current = $issued->invitation->fresh();
+        if ($current->accepted_at !== null) {
+            $this->assertSame(1, User::where('email', $current->email)->count());
+        } else {
+            $this->assertTrue($current->isPending());
+            $this->assertTrue($current->token_hash !== $issued->invitation->token_hash);
+            $this->assertSame(0, User::where('email', $current->email)->count());
+        }
+    }
+
+    public function test_revocation_and_acceptance_are_serialized(): void
+    {
+        $admin = $this->admin();
+        $issued = app(InvitationService::class)->create($admin, ['email' => 'revoke-race@example.test', 'source' => 'EMS']);
+        $responses = $this->runConcurrent([
+            ['operation' => 'revoke', 'actor' => $admin->id, 'invitation' => $issued->invitation->id],
+            ['operation' => 'accept', 'token' => $issued->revealToken(), 'attributes' => ['name' => 'Race Staff', 'password' => 'SyntheticInvite!123', 'password_confirmation' => 'SyntheticInvite!123']],
+        ]);
+        $statuses = array_column($responses, 'status');
+        sort($statuses);
+        $this->assertSame([201, 422], $statuses);
+        $current = $issued->invitation->fresh();
+        $this->assertFalse($current->revoked_at !== null && $current->accepted_at !== null);
+        $this->assertSame($current->accepted_at !== null ? 1 : 0, User::where('email', $current->email)->count());
+        $this->assertNull($current->pending_email);
+    }
+
+    public function test_concurrent_replacement_of_expired_reservation_keeps_one_pending_email(): void
+    {
+        $issued = app(InvitationService::class)->create($this->admin(), ['email' => 'expired-race@example.test', 'source' => 'EMS']);
+        $issued->invitation->forceFill(['expires_at' => now()->subMinute()])->save();
+        $requests = [];
+        for ($i = 0; $i < 3; $i++) {
+            $requests[] = ['operation' => 'create', 'actor' => $this->admin()->id, 'attributes' => ['email' => 'expired-race@example.test', 'source' => 'EMS']];
+        }
+        $statuses = array_column($this->runConcurrent($requests), 'status');
+        sort($statuses);
+        $this->assertSame([201, 422, 422], $statuses);
+        $this->assertDatabaseCount('employee_invitations', 2);
+        $this->assertSame(1, DB::table('employee_invitations')->where('pending_email', 'expired-race@example.test')->count());
+        $this->assertNull($issued->invitation->fresh()->pending_email);
     }
 }

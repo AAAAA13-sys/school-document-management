@@ -8,9 +8,15 @@ use App\Http\Controllers\BatchUploadController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\FolderController;
 use App\Http\Controllers\FolderShareController;
+use App\Http\Controllers\InvitationRegistrationController;
 use App\Http\Controllers\ShareController;
 use App\Http\Controllers\WorkspaceController;
 use Illuminate\Support\Facades\Route;
+
+Route::get('/invitations/{token}', [InvitationRegistrationController::class, 'show'])
+    ->middleware('throttle:invitation-page')->name('invitations.accept');
+Route::post('/invitations/{token}', [InvitationRegistrationController::class, 'register'])
+    ->middleware('throttle:invitation-registration')->name('invitations.register');
 
 Route::get('/login', fn () => view('login'))->middleware('guest')->name('login');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:signin');

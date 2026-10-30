@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\Role;
 use App\Enums\Source;
+use App\Exceptions\InvitationUnavailableException;
 use App\Models\EmployeeInvitation;
 use App\Models\User;
 use App\Policies\UserPolicy;
@@ -65,6 +66,7 @@ class InvitationService
             $invitation = $this->findToken($token);
             $this->ensureUsable($invitation);
             $this->ensureIssuerAuthority($invitation, $invitation->inviter);
+            $this->ensureAvailableEmail($invitation->email);
 
             return $invitation;
         } catch (QueryException) {
@@ -143,7 +145,13 @@ class InvitationService
                 $data = Validator::make($this->normalize($attributes), [
                     'name' => 'required|string|max:255',
                     'email' => ['sometimes', 'required', 'email', Rule::in([$invitation->email])],
-                    'password' => ['required', 'string', 'max:255', 'confirmed', Password::min(12)->mixedCase()->numbers()->symbols()],
+                    'password' => ['bail', 'required', 'string', 'max:255', 'confirmed', function ($attribute, $value, $fail) {
+                        if (str_contains($value, "\0")) {
+                            $fail('The password contains an unsupported character.');
+                        } elseif (Hash::getDefaultDriver() === 'bcrypt' && strlen($value) > 72) {
+                            $fail('The password must not exceed 72 bytes with the current password hashing configuration.');
+                        }
+                    }, Password::min(12)->mixedCase()->numbers()->symbols()],
                 ] + $this->protectedFields(true))->validate();
                 $user = new User;
                 $user->name = $data['name'];
@@ -199,8 +207,14 @@ class InvitationService
 
     private function ensureUsable(EmployeeInvitation $invitation): void
     {
-        if (! $invitation->isPending()) {
-            $this->invalidInvitation();
+        if ($invitation->accepted_at !== null) {
+            $this->invalidInvitation('used');
+        }
+        if ($invitation->revoked_at !== null) {
+            $this->invalidInvitation('revoked');
+        }
+        if ($invitation->hasExpired()) {
+            $this->invalidInvitation('expired');
         }
     }
 
@@ -272,8 +286,8 @@ class InvitationService
         Access::audit($actor, $action, details: ['invitation_id' => $invitation->id, 'account_id' => $invitation->accepted_user_id], source: $invitation->source);
     }
 
-    private function invalidInvitation(): never
+    private function invalidInvitation(string $reason = 'invalid'): never
     {
-        throw ValidationException::withMessages(['invitation' => 'This invitation is invalid or no longer available.']);
+        throw new InvitationUnavailableException($reason);
     }
 }

@@ -95,7 +95,7 @@ class AdminInvitationTest extends TestCase
     public function test_duplicate_pending_invitations_and_existing_accounts_do_not_send(): void
     {
         $actor = $this->actor();
-        $this->actingAs($actor)->post('/admin/invitations', $this->payload())->assertSessionHasNoErrors();
+        $this->actingAs($actor)->post('/admin/invitations', $this->payload())->assertRedirect('/admin/accounts')->assertSessionHasNoErrors();
         $this->post('/admin/invitations', $this->payload(['email' => ' INVITED@EXAMPLE.TEST ']))->assertSessionHasErrors('email');
         $this->post('/admin/invitations', $this->payload(['email' => $actor->email]))->assertSessionHasErrors('email');
         $this->assertDatabaseCount('employee_invitations', 1);
@@ -119,6 +119,8 @@ class AdminInvitationTest extends TestCase
         $oldToken = $this->sentToken();
         $this->post('/admin/invitations/'.$invitation->id.'/resend')->assertSessionHasNoErrors();
         $newToken = $this->sentToken();
+        $this->assertDatabaseCount('employee_invitations', 1);
+        $this->assertTrue(hash_equals($invitation->fresh()->token_hash, hash('sha256', $newToken)), 'The latest email must match the persisted invitation credential.');
         $this->assertTrue($oldToken !== $newToken, 'Resending must replace the credential.');
         try {
             app(InvitationService::class)->validateToken($oldToken);
@@ -309,9 +311,9 @@ class AdminInvitationTest extends TestCase
     {
         Mail::swap(Mail::getFacadeRoot()->manager);
         $delivery = app(InvitationDeliveryService::class);
-        $this->assertStringContainsString('destination', $delivery->unavailableReason());
-        // Test-only route metadata; no acceptance route is added to the application.
-        Route::get('/invitations/{token}', fn () => abort(404))->name('invitations.accept');
+        $this->assertNull($delivery->unavailableReason());
+        // Temporarily remove one name from this test's router to verify the guard.
+        Route::getRoutes()->getByName('invitations.register')->name('test.registration.unavailable');
         Route::getRoutes()->refreshNameLookups();
         $this->assertStringContainsString('destination', $delivery->unavailableReason());
         Route::post('/invitations/{token}', fn () => abort(404))->name('invitations.register');
@@ -394,8 +396,8 @@ class AdminInvitationTest extends TestCase
         $this->get('/admin/accounts')->assertOk()->assertSee('Create account')->assertSee('Staff invitations');
         $this->get('/register')->assertNotFound();
         $this->get('/invitations/unusable')->assertNotFound();
-        $this->assertFalse(Route::has('invitations.accept'));
-        $this->assertFalse(Route::has('invitations.register'));
+        $this->assertTrue(Route::has('invitations.accept'));
+        $this->assertTrue(Route::has('invitations.register'));
         Mail::assertNothingSent();
     }
 
