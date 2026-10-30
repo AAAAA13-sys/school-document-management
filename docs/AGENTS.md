@@ -16,11 +16,11 @@ Read the historical guide below for architecture, file integrity, API idempotenc
 AGENT.md — Document Management System (DMS)
 Project: DMS for Pamantasan ng Lungsod ng Pasig (PLP) School ERP
 Source of truth: DMS-SDD.pdf (Software Design Document v0.1, 2026-10-13)
-Stack: Laravel 12, PHP 8.2, MySQL (InnoDB), Blade + Bootstrap 5.3 + jQuery 3.7.1 / jQuery UI 1.14, ClamAV
+Stack: Laravel 13, PHP 8.3+, Pest PHP / PHPUnit, MySQL (InnoDB), Blade + Bootstrap 5.3 + jQuery 3.7.1 / jQuery UI 1.14, ClamAV
 Audience: AI coding agents and human engineers working on this repository
 
 1. Mission
-   Build and maintain the Document Management System (DMS) — a single Laravel 12 application that serves as the centralized repository for documents, versions, sharing, audit trail, and received transaction history for four independent ERP systems (EMS, PMS, ES, OAS).
+   Build and maintain the Document Management System (DMS) — a single Laravel 13 application that serves as the centralized repository for documents, versions, sharing, audit trail, and received transaction history for four independent ERP systems (EMS, PMS, ES, OAS).
 
 The DMS is one application, one MySQL database, one private file store. No microservices. No managed cloud DB/queue/search/object storage.
 
@@ -28,7 +28,7 @@ The DMS is one application, one MySQL database, one private file store. No micro
 
 # Constraint Source
 
-C1 Single Laravel 12 app on PHP 8.2, four logical tiers (Presentation, Application, Integration, Persistence) Section 7.1, Section 7.2
+C1 Single Laravel 13 app on PHP 8.3+, four logical tiers (Presentation, Application, Integration, Persistence) Section 7.1, Section 7.2
 C2 One MySQL (InnoDB) database + private folder storage. No managed cloud DB, queue, search, or object storage. Section 7.1, Section 11.2, AD-03
 C3 Only public/ is web-served. All version files live in storage/app/private/documents/<version UUID>. Section 7.1, Section 10.3
 C4 All files validated (actual content), max 10 MB, SHA-256 checksummed, ClamAV-scanned before being served. FR-01, NFR-02, Section 10.3
@@ -42,7 +42,7 @@ C11 Access is scoped by school, campus, and (for office roles) source system. FR
 C12 Low running cost is a design objective (OBJ-04). Do not introduce paid infrastructure without an explicit architecture decision. OBJ-04, AD-01, AD-03 3. Architecture at a Glance
 text
 Browser users --> [1 Presentation] ---+
-+--> [2 Application: Laravel 12 / PHP 8.2]
++--> [2 Application: Laravel 13 / PHP 8.3+]
 ERP connectors --> [3 Integration /api/v1] --+ |
 +--> [4 DMS MySQL (InnoDB)]
 +--> [4 Private version files]
@@ -158,7 +158,7 @@ Not yet decided: encryption at rest, central monitoring, penetration testing, SS
 Compliance: Philippine Data Privacy Act of 2012 (RA 10173) [to confirm]; DPIA before go-live; children's personal data in ES/OAS payloads restricted to office/admin roles. (Section 8.3, Section 10.4)
 
 8. Coding Standards & Conventions
-   Framework: Laravel 12 conventions; PHP 8.2 typed properties, constructor promotion, enums where useful.
+   Framework: Laravel 13 conventions; Pest PHP / PHPUnit testing; PHP 8.3+ typed properties, constructor promotion, enums where useful.
 
 Frontend: Blade + Bootstrap 5.3 + jQuery 3.7.1 + jQuery UI 1.14. No SPA framework.
 

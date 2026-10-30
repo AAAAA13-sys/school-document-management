@@ -24,7 +24,7 @@ jobs:
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.2"
+          php-version: "8.3"
           extensions: ctype, curl, dom, fileinfo, mbstring, openssl, pdo_sqlite, sqlite3, tokenizer, xml, zip
           coverage: none
           tools: composer:v2
@@ -100,7 +100,7 @@ jobs:
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.2"
+          php-version: "8.3"
           extensions: ctype, curl, dom, fileinfo, mbstring, openssl, pdo_mysql, tokenizer, xml, zip
           coverage: none
           tools: composer:v2
@@ -139,7 +139,7 @@ jobs:
           done
 
       - name: Run MySQL test suite
-        run: php vendor/bin/phpunit -c phpunit.mysql.xml
+        run: php vendor/bin/pest -c phpunit.mysql.xml
 
   frontend:
     name: Frontend tests and assets
@@ -178,7 +178,7 @@ jobs:
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.2"
+          php-version: "8.3"
           extensions: ctype, curl, dom, fileinfo, mbstring, openssl, pdo_sqlite, sqlite3, tokenizer, xml, zip
           coverage: none
           tools: composer:v2

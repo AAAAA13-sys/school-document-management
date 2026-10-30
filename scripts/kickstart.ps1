@@ -89,6 +89,8 @@ if ($phpCommand) {
     $phpPath = $phpCommand.Source
 } else {
     $candidatePhpPaths = @(
+        "$env:USERPROFILE\.config\herd-lite\bin\php.exe",
+        "C:\Users\Ivan\.config\herd-lite\bin\php.exe",
         "C:\xampp\php\php.exe",
         "D:\xampp\php\php.exe",
         "E:\xampp\php\php.exe",

@@ -164,7 +164,8 @@ Job titles must not automatically grant Super Admin access. Map responsibilities
 
 | Technology            | Installed version              | Existing implementation evidence                                                            |
 | --------------------- | ------------------------------ | ------------------------------------------------------------------------------------------- |
-| Laravel / PHP / MySQL | Laravel 12 / PHP 8.2+ / InnoDB | Authentication, validation, scoped authorization, transactions and private files.           |
+| Laravel / PHP / MySQL | Laravel 13 / PHP 8.3+ / InnoDB | Authentication, validation, scoped authorization, transactions and private files.           |
+| Pest PHP              | 4.x / 5.x                      | Elegant PHP testing framework for Pest & PHPUnit test suites and architecture verification. |
 | Blade                 | Laravel views                  | Shared layouts, role-aware workspaces and dialogs.                                          |
 | Bootstrap             | 5.3.3                          | Layout/grid, modals, dropdowns, forms and `.table` styling.                                 |
 | jQuery                | 3.7.1                          | Event handling, filtering, AJAX uploads and document moves.                                 |
