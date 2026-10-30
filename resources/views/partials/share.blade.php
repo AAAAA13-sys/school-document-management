@@ -48,7 +48,7 @@
                         aria-describedby="share-search-help" />
                     <small id="share-search-help" class="text-muted d-block mb-2">Choose a named school account below.</small>
                     <label for="share-recipient" class="visually-hidden">Recipient account</label>
-                    <select id="share-recipient" name="recipient_id" class="form-select mb-4" required>
+                    <select id="share-recipient" name="recipient_id" class="form-select mb-4" required aria-live="polite">
                         <option value="">Choose a person</option>
                         @if (isset($recipients))
                             @foreach ($recipients as $person)
@@ -114,9 +114,8 @@
                     </div>
 
                     <label for="share-expiry" class="form-label mt-3">Expires <span>(within 30 days)</span></label>
-                    <input id="share-expiry" name="expires_at" type="text" class="form-control datepicker" placeholder="Select a date" autocomplete="off" />
-
-                    <p class="security-note mt-4">Named staff only. No public or anonymous links.</p>
+                    <input id="share-expiry" name="expires_at" type="date" class="form-control datepicker" aria-describedby="share-expiry-help" min="{{ now()->addDay()->format('Y-m-d') }}" max="{{ now()->addDays(30)->format('Y-m-d') }}" />
+                    <p id="share-expiry-help" class="form-text security-note mt-4">Named staff only. No public or anonymous links. Share link expires within 30 days.</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>

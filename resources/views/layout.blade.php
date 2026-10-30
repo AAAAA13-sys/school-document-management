@@ -91,17 +91,6 @@
                 <span class="sidebar-toggle-icon" aria-hidden="true">«</span>
             </button>
         </div>
-        <div class="workspace-label">{{ $isAdmin ? 'ADMINISTRATION':'YOUR WORKSPACE' }}</div>
-        <div
-            class="workspace-identity"
-            tabindex="0"
-            data-bs-toggle="tooltip"
-            data-bs-placement="right"
-            title="{{ $workspaceName }} · {{ $viewer->campus }} campus"
-            aria-label="{{ $workspaceName }} · {{ $viewer->campus }} campus">
-            <span class="source-icon">{{ $workspaceCode }}</span>
-            <div class="workspace-info"><strong>{{ $workspaceName }}</strong><small>{{ $viewer->campus }} campus</small></div>
-        </div>
         <nav class="main-nav">
             @foreach ($sections as $key=>[$glyph,$label])
                 @continue ($key === 'connectors' && ! $viewer->can('connectors.manage'))
@@ -163,7 +152,6 @@
             >
             <div
                 class="profile"
-                tabindex="0"
                 data-bs-toggle="tooltip"
                 data-bs-placement="right"
                 title="{{ $viewer->name }} · {{ $roleName }}"

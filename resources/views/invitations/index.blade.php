@@ -28,7 +28,7 @@
             <span class="panel-note">Single-use links expire within 48 hours of transmission.</span>
         </div>
         <div class="table-responsive">
-            <table class="table table-striped table-zebra">
+            <table class="table table-zebra">
                 <thead>
                     <tr>
                         <th>Recipient</th>

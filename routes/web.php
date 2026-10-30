@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccountChangeController;
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\RequestsApprovalController;
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BatchUploadController;

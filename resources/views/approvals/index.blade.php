@@ -18,7 +18,7 @@
             <p role="alert">{{ $errors->first() }}</p>
         @endif
         <div class="table-responsive">
-            <table class="table table-striped">
+            <table class="table">
                 <caption>
                     Your requests and requests awaiting your review
                 </caption>

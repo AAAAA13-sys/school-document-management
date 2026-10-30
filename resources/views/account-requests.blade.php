@@ -16,7 +16,7 @@
         @if ($errors->any())
             <p role="alert">{{ $errors->first() }}</p>
         @endif
-        <table class="table table-striped">
+        <table class="table">
             <caption>
                 Proposed account changes remain inactive until approved.
             </caption>

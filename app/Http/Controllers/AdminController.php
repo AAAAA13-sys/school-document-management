@@ -6,11 +6,12 @@ use App\Enums\Role;
 use App\Enums\Source;
 use App\Http\Requests\ActionRequest;
 use App\Http\Requests\ReadRequest;
-use App\Models\AuditLegalHold;
+use App\Models\Request as RequestModel;
 use App\Services\Access;
 use App\Services\AccountChangeService;
 use App\Services\InvitationService;
 use App\Services\WorkspaceRegistry;
+use App\Models\AuditLegalHold;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -22,8 +23,12 @@ class AdminController extends Controller
     public function index(ReadRequest $request, string $section = 'overview')
     {
         $user = $request->user();
-        abort_unless(in_array($section, ['overview', 'repository', 'accounts', 'connectors', 'audit', 'scans']), 404);
+        abort_unless(in_array($section, ['overview', 'repository', 'accounts', 'connectors', 'audit', 'scans', 'requests']), 404);
         Gate::forUser($user)->authorize('admin.section', $section);
+        if ($section === 'requests') {
+            $requests = RequestModel::with('user')->latest()->paginate(20);
+            return view('admin.requests', compact('requests'));
+        }
         // Application area marker for the shared layout; it is not a document source.
         $source = 'ALL';
         $stats = ['documents' => Access::visibleTo(DB::table('documents'), $user)->whereNull('trashed_at')->count(),
