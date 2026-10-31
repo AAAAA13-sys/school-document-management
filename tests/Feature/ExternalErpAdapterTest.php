@@ -81,12 +81,13 @@ class ExternalErpAdapterTest extends TestCase
 
         // 3. POST /api/applicants/{ref}/events
         $eventUuid = (string) Str::uuid();
+        $occurredAt = now()->toIso8601String();
         $eventResponse = $this->withHeaders([
             'X-API-Key' => $this->oasApiKey,
             'Idempotency-Key' => $eventUuid,
         ])->postJson('/api/applicants/'.$ref.'/events', [
             'type' => 'admission.completed',
-            'occurred_at' => now()->toIso8601String(),
+            'occurred_at' => $occurredAt,
             'data' => ['program' => 'BSIT'],
         ]);
 
@@ -100,7 +101,7 @@ class ExternalErpAdapterTest extends TestCase
             'Idempotency-Key' => $eventUuid,
         ])->postJson('/api/applicants/'.$ref.'/events', [
             'type' => 'admission.completed',
-            'occurred_at' => now()->toIso8601String(),
+            'occurred_at' => $occurredAt,
             'data' => ['program' => 'BSIT'],
         ]);
         $eventReplay->assertOk();
