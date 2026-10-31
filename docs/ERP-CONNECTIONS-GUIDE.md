@@ -7,6 +7,7 @@ This guide explains how to connect external school systems (**OAS**, **ES**, **E
 ## 1. How the Connection Works (The 1-Minute Summary)
 
 Think of DMS like a **secure digital bank vault**:
+
 - Each external school system gets its own **Key Card (API Token)**.
 - When an ERP wants to store or read files, it presents its Key Card to DMS.
 - No direct database wiring or complicated network setup is required—just simple web requests using that Key Card.
@@ -30,7 +31,7 @@ You can create a connection key in two ways: through the **Website Admin Panel**
 1. Open your browser and go to: `http://127.0.0.1:8000/login`
 2. Log in with the **Super Admin** account:
    - **Email:** `dms.admin@plpasig.edu.ph`
-   - **Password:** *(Your configured DMS admin password)*
+   - **Password:** _(Your configured DMS admin password)_
 3. Click **Admin** in the top navigation bar, then click **ERP connectors** (or go straight to `http://127.0.0.1:8000/admin/connectors`).
 4. In the **"Connect a system"** box on the right:
    - **Source:** Pick the system you want to connect (`OAS`, `ES`, `EMS`, or `PMS`).
@@ -51,6 +52,7 @@ php artisan dms:connector ES
 ```
 
 Or generate a token with a custom name/secret:
+
 ```powershell
 php artisan dms:connector ES --token="my-shared-secret-token-2026"
 ```
@@ -64,6 +66,7 @@ The terminal will print the token and sample headers.
 There are two sides to every connection:
 
 ### A. The Other ERP System Connecting to DMS (Ingress)
+
 Give the token you copied in Step 1 to the other ERP team. In their project's `.env` configuration file, they paste:
 
 ```dotenv
@@ -73,6 +76,7 @@ DMS_API_TOKEN="<paste_the_token_here>"
 ```
 
 Whenever that ERP sends an API request to DMS, it adds this header:
+
 ```http
 Authorization: Bearer <paste_the_token_here>
 ```
@@ -80,6 +84,7 @@ Authorization: Bearer <paste_the_token_here>
 ---
 
 ### B. DMS Connecting Out to the Other ERP (Egress)
+
 If DMS needs to proactively push data to an external ERP (such as pushing admitted students into ES), open **DMS's own `.env` file** and configure their endpoints:
 
 ```dotenv
@@ -127,12 +132,12 @@ sequenceDiagram
 
 For local development and testing, DMS comes with pre-seeded tokens right out of the box (created by `php artisan db:seed`):
 
-| ERP System | System Name | Pre-Seeded Development Token |
-| :--- | :--- | :--- |
-| **OAS** | Online Admission System | `dms_dev_oas_token_2026` |
-| **ES** | Enrollment Management System | `dms_dev_es_token_2026` |
-| **EMS** | Employee Management System | `dms_dev_ems_token_2026` |
-| **PMS** | Payroll Management System | `dms_dev_pms_token_2026` |
+| ERP System | System Name                  | Pre-Seeded Development Token |
+| :--------- | :--------------------------- | :--------------------------- |
+| **OAS**    | Online Admission System      | `dms_dev_oas_token_2026`     |
+| **ES**     | Enrollment Management System | `dms_dev_es_token_2026`      |
+| **EMS**    | Employee Management System   | `dms_dev_ems_token_2026`     |
+| **PMS**    | Payroll Management System    | `dms_dev_pms_token_2026`     |
 
 You can use these tokens immediately with Postman or curl!
 
