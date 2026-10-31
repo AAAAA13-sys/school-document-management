@@ -316,7 +316,7 @@ The PHP test configuration uses an isolated in-memory SQLite database by default
 
 ## 8. Project references
 
-- [Software Design Document](docs/DMS-SDD.pdf): original scope; record professor-requested changes explicitly.
+- [Solution Design Document v2.0](docs/DMS-SDD%20V2.0.pdf): approved system design and scope (v2.0, 30 October 2026).
 - [Application guide](docs/AGENTS.md): architecture and current development constraints.
 - [Setup](docs/SETUP.md): standalone installation, workers and scanning.
 - [User guide](docs/USER-GUIDE.md): reference for document workflows; reconcile with the final screens before submission.

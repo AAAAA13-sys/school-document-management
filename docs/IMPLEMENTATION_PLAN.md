@@ -1,7 +1,7 @@
 > Historical SDD roadmap. For system integration endpoints and ERP schemas, refer to the [ESMS API Catalog](ESMS-API-CATALOG.md) and [API Standard](API-STANDARD.md).
 
 IMPLEMENTATION PLAN — DMS
-Basis: DMS-SDD v0.1. Dates/phases pending Enterprise Architect (Section 12.1).
+Basis: DMS-SDD v2.0. Dates/phases pending Enterprise Architect (Section 12.1).
 Delivery principle: Hosting-neutral; configuration-driven; one Laravel app; low cost.
 
 Phase 0 — Foundations & Contract Freeze (Weeks 1–2)

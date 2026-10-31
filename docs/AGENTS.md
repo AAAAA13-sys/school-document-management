@@ -15,7 +15,7 @@ Read the historical guide below for architecture, file integrity, API idempotenc
 
 AGENT.md — Document Management System (DMS)
 Project: DMS for Pamantasan ng Lungsod ng Pasig (PLP) School ERP
-Source of truth: DMS-SDD.pdf (Software Design Document v0.1, 2026-10-13)
+Source of truth: DMS-SDD V2.0.pdf (Solution Design Document v2.0, 2026-10-30)
 Stack: Laravel 13, PHP 8.3+, Pest PHP / PHPUnit, MySQL (InnoDB), Blade + Bootstrap 5.3 + jQuery 3.7.1 / jQuery UI 1.14, ClamAV
 Audience: AI coding agents and human engineers working on this repository
 

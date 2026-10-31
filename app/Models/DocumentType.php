@@ -21,20 +21,26 @@ class DocumentType extends Model
     ];
 
     /**
-     * OAS Applicant Documents (admitted applicant packet custody).
+     * OAS Applicant Documents (admitted applicant packet custody - SDD v2.0 Section 3.6).
      */
     public const OAS_TYPES = [
         'PSA' => 'PSA Birth Certificate',
-        'FORM_137' => 'Form 137 / Academic Record',
-        'VALID_ID' => 'Valid ID / Identification',
+        'FORM_137' => 'Form 137 / Form 138',
+        'VALID_ID' => 'Applicant Identification Document',
+        'PARENT_ID' => 'Parent/Guardian Identification Document',
+        'AFFIDAVIT' => 'Guardianship Affidavit',
+        'PHOTO' => 'Applicant Photograph',
+        'EXAM_TICKET' => 'Signed Examination Ticket',
     ];
 
     /**
-     * Internal Office Documents (internal school office workspaces).
+     * Internal Office Documents (internal school office workspaces - SDD v2.0 Section 3.6.2).
      */
     public const INTERNAL_TYPES = [
-        'MINUTES' => 'Meeting Minutes',
-        'POLICY_DRAFT' => 'Policy Draft',
+        'MEMO' => 'Institutional Memorandum',
+        'MINUTES' => 'Meeting Minutes / Agenda',
+        'POLICY_DRAFT' => 'Policy Draft / Approval',
+        'CORRESPONDENCE' => 'General Office Correspondence',
     ];
 
     /**

@@ -7,7 +7,7 @@ use InvalidArgumentException;
 /**
  * QA Contract Stub for DocumentTypeRegistry (SDD v1.1 Scope Enforcement).
  *
- * Ground Truth (docs/DMS-SDD-V1.1.pdf Section 1.1):
+ * Ground Truth (docs/DMS-SDD V2.0.pdf Section 1.1 / Section 3.6):
  * Scope reduction: Removed PMS, EMS, and ES document custody.
  * DMS is strictly the OAS-to-ES bridge and Internal workspace.
  *

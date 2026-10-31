@@ -462,6 +462,13 @@ EMS_TIMEOUT=20
 
 ## 5. How Connected Systems Push & Integrate with DMS
 
+> [!NOTE]
+> **SDD V2.0 Architecture & Scope Clarification:**
+> Per **DMS-SDD v2.0 (Section 3.5 & 3.6)**, PMS, EMS, and ES maintain their own private document custody and transactional databases.
+>
+> - **OAS ↔ DMS ↔ ES:** OAS releases verified applicant requirement documents (`PSA`, `FORM_137`, `VALID_ID`, `PARENT_ID`, `AFFIDAVIT`, `PHOTO`, `EXAM_TICKET`) into DMS custody for authorized retrieval by ES upon enrollment.
+> - **EMS / PMS / ES → DMS:** Push idempotent history receipts and audit snapshots (`POST /api/v1/history`) for centralized immutable auditing without duplicating transactional file storage.
+
 ### 5.1. Authenticating as a Connector to DMS
 
 Each connected system (EMS, PMS, ES, OAS) is registered as a Connector in DMS (`connectors` table).

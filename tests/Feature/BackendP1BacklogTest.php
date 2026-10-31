@@ -67,10 +67,16 @@ class BackendP1BacklogTest extends TestCase
         $this->assertDatabaseHas('document_types', ['code' => 'PSA', 'workspace' => 'OAS']);
         $this->assertDatabaseHas('document_types', ['code' => 'FORM_137', 'workspace' => 'OAS']);
         $this->assertDatabaseHas('document_types', ['code' => 'VALID_ID', 'workspace' => 'OAS']);
+        $this->assertDatabaseHas('document_types', ['code' => 'PARENT_ID', 'workspace' => 'OAS']);
+        $this->assertDatabaseHas('document_types', ['code' => 'AFFIDAVIT', 'workspace' => 'OAS']);
+        $this->assertDatabaseHas('document_types', ['code' => 'PHOTO', 'workspace' => 'OAS']);
+        $this->assertDatabaseHas('document_types', ['code' => 'EXAM_TICKET', 'workspace' => 'OAS']);
 
         // 3. Internal Office document types exist
+        $this->assertDatabaseHas('document_types', ['code' => 'MEMO', 'workspace' => 'INTERNAL']);
         $this->assertDatabaseHas('document_types', ['code' => 'MINUTES', 'workspace' => 'INTERNAL']);
         $this->assertDatabaseHas('document_types', ['code' => 'POLICY_DRAFT', 'workspace' => 'INTERNAL']);
+        $this->assertDatabaseHas('document_types', ['code' => 'CORRESPONDENCE', 'workspace' => 'INTERNAL']);
 
         // 4. Ensure no PMS, EMS, or ES transactional types exist
         $this->assertSame(0, DB::table('document_types')->whereIn('workspace', ['PMS', 'EMS', 'ES'])->count());
@@ -80,12 +86,18 @@ class BackendP1BacklogTest extends TestCase
         $this->assertTrue(DocumentType::isOasType('PSA'));
         $this->assertTrue(DocumentType::isOasType('FORM_137'));
         $this->assertTrue(DocumentType::isOasType('VALID_ID'));
+        $this->assertTrue(DocumentType::isOasType('PARENT_ID'));
+        $this->assertTrue(DocumentType::isOasType('AFFIDAVIT'));
+        $this->assertTrue(DocumentType::isOasType('PHOTO'));
+        $this->assertTrue(DocumentType::isOasType('EXAM_TICKET'));
         $this->assertFalse(DocumentType::isOasType('PAYSLIP'));
         $this->assertFalse(DocumentType::isOasType('201_FILE'));
         $this->assertFalse(DocumentType::isOasType('ENROLLMENT_FORM'));
 
+        $this->assertTrue(DocumentType::isAllowed('MEMO'));
         $this->assertTrue(DocumentType::isAllowed('MINUTES'));
         $this->assertTrue(DocumentType::isAllowed('POLICY_DRAFT'));
+        $this->assertTrue(DocumentType::isAllowed('CORRESPONDENCE'));
         $this->assertFalse(DocumentType::isAllowed('PAYSLIP'));
     }
 

@@ -14,7 +14,7 @@ require_once __DIR__.'/../support/DocumentTypeRegistry.php';
  * Task 1: Scope Verification Tests (QA P1 Backlog)
  *
  * Ground Truth Rules:
- * - Read docs/Solution_Design_Document.md (or latest SDD docs/DMS-SDD-V1.1.pdf).
+ * - Read docs/Solution_Design_Document.md (or latest SDD docs/DMS-SDD V2.0.pdf).
  * - Confirm that the system only holds OAS→ES packets and Internal Workspaces.
  * - Assert that PMS/EMS/ES custody and Memos are not present.
  * - Do not modify the existing core auth/permission tests.

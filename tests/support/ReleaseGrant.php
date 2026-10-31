@@ -8,7 +8,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 /**
  * QA Contract Stub for ReleaseGrant Service (Task 4: Release Grant Allowlist).
  *
- * Ground Truth (docs/DMS-SDD-V1.1.pdf Section 1.1 / Section 3.4):
+ * Ground Truth (docs/DMS-SDD V2.0.pdf Section 1.1 / Section 3.6):
  * Only OAS applicant document types may be granted release for ES retrieval.
  * All PMS, EMS, and transactional types must be rejected with 403 Forbidden.
  *
