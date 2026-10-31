@@ -25,8 +25,10 @@ Route::prefix('v1')->middleware(['connector', 'throttle:connector'])->group(func
     Route::get('/{resource}', [ApiController::class, 'read'])->whereIn('resource', ['history', 'events', 'documents', 'files']);
 });
 
-// Root API connector routes (seamless compatibility with direct clients like Admission HttpDmsClient & DmsDocumentStore)
+// Root API connector routes (seamless compatibility with direct clients like Admission & ES)
 Route::middleware(['connector', 'throttle:connector'])->group(function () {
+    Route::get('/applicant-packets/{packet}', [ApplicantPacketController::class, 'show']);
+    Route::get('/applicant-packets/{packet}/files/{version}', [ApplicantPacketController::class, 'download']);
     Route::post('/documents', [ApiController::class, 'upload']);
     Route::post('/documents/{document}/versions', [ApiController::class, 'upload']);
     Route::get('/documents/{document}/download-url', [ApiController::class, 'downloadUrl']);

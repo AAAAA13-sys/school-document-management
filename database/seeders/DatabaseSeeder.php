@@ -56,6 +56,26 @@ class DatabaseSeeder extends Seeder
         }
 
         $this->call(DocumentTypeSeeder::class);
-        $this->command?->info('Seeded one Super Admin plus one Admin and one Staff per ERP source.');
+
+        foreach (Source::cases() as $source) {
+            $code = $source->value;
+            $devToken = 'dms_dev_'.strtolower($code).'_token_2026';
+            \Illuminate\Support\Facades\DB::table('connectors')->updateOrInsert(
+                [
+                    'source' => $code,
+                    'school_id' => $school,
+                    'campus' => $campus,
+                ],
+                [
+                    'name' => "{$school} {$code} ERP Connector",
+                    'token_hash' => hash('sha256', $devToken),
+                    'active' => true,
+                    'updated_at' => now(),
+                    'created_at' => now(),
+                ]
+            );
+        }
+
+        $this->command?->info('Seeded one Super Admin, one Admin and one Staff per ERP source, plus preconfigured ERP API connectors.');
     }
 }
