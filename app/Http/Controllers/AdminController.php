@@ -124,21 +124,23 @@ class AdminController extends Controller
         }
         $service = app(InvitationService::class);
         $id = $service->request($actor, $data);
-        $status = 'delivered';
-        $message = 'Invitation email sent.';
+        $status = $actor->isSuperAdmin() ? 'delivered' : 'pending';
+        $message = $actor->isSuperAdmin() ? 'Invitation email sent.' : 'Staff invitation submitted for Super Admin approval.';
 
-        try {
-            $service->deliver($actor, $id);
-        } catch (HttpExceptionInterface $e) {
-            if ($e->getStatusCode() === 503) {
+        if ($actor->isSuperAdmin()) {
+            try {
+                $service->deliver($actor, $id);
+            } catch (HttpExceptionInterface $e) {
+                if ($e->getStatusCode() === 503) {
+                    $status = 'approved';
+                    $message = 'Invitation created. Outbound email is not configured or failed to deliver; invitation can be sent once mail transport is active.';
+                } else {
+                    throw $e;
+                }
+            } catch (\Throwable $e) {
                 $status = 'approved';
                 $message = 'Invitation created. Outbound email is not configured or failed to deliver; invitation can be sent once mail transport is active.';
-            } else {
-                throw $e;
             }
-        } catch (\Throwable $e) {
-            $status = 'approved';
-            $message = 'Invitation created. Outbound email is not configured or failed to deliver; invitation can be sent once mail transport is active.';
         }
 
         if ($request->expectsJson()) {

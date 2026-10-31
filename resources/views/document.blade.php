@@ -28,6 +28,7 @@
         @if ($doc->trashed_at)
             <div class="alert alert-warning">This document is in trash. Restore it before editing or downloading.</div>
         @endif
+        @include('partials.memo-publication')
         <div id="document-tabs" class="file-detail-tabs">
             <ul class="file-detail-tab-list" aria-label="Document sections">
                 <li><a href="#file-details" id="tab-details" aria-controls="file-details">Details</a></li>
