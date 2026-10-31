@@ -140,7 +140,7 @@ class DocumentService
                 Access::audit($actor, 'document.uploaded', $doc, ['version_id' => $version, 'scan_status' => $status]
                     + ($duplicates ? ['duplicate_of' => array_values(array_unique(array_column($duplicates, 'document_id')))] : []));
                 Access::event($doc, 'document.version.created');
-                $response = ['document_id' => $id, 'version_id' => $version, 'revision' => $doc->revision, 'scan_status' => $status, 'title' => $doc->title, 'filename' => $filename];
+                $response = ['id' => $id, 'document_id' => $id, 'version_id' => $version, 'revision' => $doc->revision, 'scan_status' => $status, 'title' => $doc->title, 'filename' => $filename];
                 if ($requestKey) {
                     DB::table('request_receipts')->insert(['scope_key' => $scope, 'request_key' => $requestKey, 'request_hash' => $hash, 'response' => json_encode($response), 'created_at' => now()]);
                 }

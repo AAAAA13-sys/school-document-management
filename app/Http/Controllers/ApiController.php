@@ -11,6 +11,9 @@ use App\Services\HistoryService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 
 class ApiController extends Controller
 {
@@ -144,5 +147,78 @@ class ApiController extends Controller
     public function download(Request $request, string $version, DocumentService $service)
     {
         return $service->download($request->attributes->get('connector'), $version);
+    }
+
+    public function downloadUrl(Request $request, string $document)
+    {
+        $actor = $request->attributes->get('connector');
+        $doc = Access::visibleTo(DB::table('documents'), $actor)->where('id', $document)->first() ?? abort(404);
+        $latest = DB::table('document_versions')->where('document_id', $document)->orderByDesc('number')->first() ?? abort(404);
+
+        $url = URL::temporarySignedRoute('api.files.stream', now()->addMinutes(10), ['version' => $latest->id]);
+
+        return response()->json(['url' => $url]);
+    }
+
+    public function streamSigned(Request $request, string $version)
+    {
+        abort_unless($request->hasValidSignature(), 401, 'Invalid or expired download link.');
+        $row = DB::table('document_versions')->where('id', $version)->first() ?? abort(404);
+
+        abort_unless($row->scan_status === 'Clean', 423, 'File is blocked until malware scanning succeeds.');
+        $path = Storage::disk('local')->path($row->storage_key);
+        abort_unless(file_exists($path), 404, 'File not found on disk.');
+        abort_unless(hash_equals($row->checksum, hash_file('sha256', $path)), 409, 'Checksum mismatch.');
+
+        return response()->file($path, [
+            'Content-Type' => $row->mime,
+            'Content-Disposition' => 'inline; filename="'.rawurlencode($row->filename).'"',
+        ]);
+    }
+
+    public function syncApplicant(Request $request, string $ref, HistoryService $historyService)
+    {
+        $actor = $request->attributes->get('connector');
+        abort_unless($actor->source === 'OAS', 403, 'Applicant sync is restricted to OAS.');
+
+        $idempotencyKey = $request->header('Idempotency-Key', (string) Str::uuid());
+        $payload = $request->all();
+
+        $input = [
+            'event_id' => $idempotencyKey,
+            'record_key' => 'oas:applicant:'.$ref,
+            'record_type' => 'applicant',
+            'record_id' => $ref,
+            'revision' => (int) ($payload['revision'] ?? 1),
+            'operation' => 'upsert',
+            'payload' => $payload,
+        ];
+
+        [$body, $status] = $historyService->receive($actor, $input);
+
+        return response()->json(['applied' => true, 'id' => $ref, 'applicant_ref' => $ref] + $body, $status);
+    }
+
+    public function syncApplicantEvent(Request $request, string $ref, HistoryService $historyService)
+    {
+        $actor = $request->attributes->get('connector');
+        abort_unless($actor->source === 'OAS', 403, 'Applicant events are restricted to OAS.');
+
+        $idempotencyKey = $request->header('Idempotency-Key', (string) Str::uuid());
+        $payload = $request->all();
+
+        $input = [
+            'event_id' => $idempotencyKey,
+            'record_key' => 'oas:event:'.$idempotencyKey,
+            'record_type' => 'applicant_event',
+            'record_id' => $idempotencyKey,
+            'revision' => (int) ($payload['revision'] ?? 1),
+            'operation' => 'upsert',
+            'payload' => ['applicant_ref' => $ref] + $payload,
+        ];
+
+        [$body, $status] = $historyService->receive($actor, $input);
+
+        return response()->json(['applied' => true, 'event_id' => $idempotencyKey, 'applicant_ref' => $ref] + $body, $status);
     }
 }
