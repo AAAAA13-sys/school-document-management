@@ -243,19 +243,19 @@
                 <table class="table table-zebra table-sticky" data-filter-table>
                     <thead>
                         <tr>
-                            <th scope="col" class="sort-header" data-sort-table="0" role="columnheader" tabindex="0" aria-sort="none">
+                            <th scope="col" class="sort-header" data-sort-table="0" role="columnheader" tabindex="0" aria-sort="none" style="width: 38%">
                                 Document <span class="sort-indicator" aria-hidden="true"></span>
                             </th>
-                            <th scope="col" class="sort-header" data-sort-table="1" role="columnheader" tabindex="0" aria-sort="none">
+                            <th scope="col" class="sort-header" data-sort-table="1" role="columnheader" tabindex="0" aria-sort="none" style="width: 14%">
                                 Source <span class="sort-indicator" aria-hidden="true"></span>
                             </th>
-                            <th scope="col" class="sort-header" data-sort-table="2" role="columnheader" tabindex="0" aria-sort="none">
+                            <th scope="col" class="sort-header" data-sort-table="2" role="columnheader" tabindex="0" aria-sort="none" style="width: 18%">
                                 Classification <span class="sort-indicator" aria-hidden="true"></span>
                             </th>
-                            <th scope="col" class="sort-header" data-sort-table="3" role="columnheader" tabindex="0" aria-sort="none">
+                            <th scope="col" class="sort-header" data-sort-table="3" role="columnheader" tabindex="0" aria-sort="none" style="width: 15%">
                                 Status <span class="sort-indicator" aria-hidden="true"></span>
                             </th>
-                            <th scope="col" class="sort-header" data-sort-table="4" role="columnheader" tabindex="0" aria-sort="none">
+                            <th scope="col" class="sort-header" data-sort-table="4" role="columnheader" tabindex="0" aria-sort="none" style="width: 15%">
                                 Updated <span class="sort-indicator" aria-hidden="true"></span>
                             </th>
                         </tr>

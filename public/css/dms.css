@@ -1700,6 +1700,7 @@ main#main {
 
 .table-responsive table {
   min-width: 720px;
+  width: 100%;
 }
 
 .panel-pagination {
@@ -2208,7 +2209,9 @@ main#main {
   gap: 10px;
   cursor: pointer;
   position: relative;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .upload-zone:hover {
@@ -2269,7 +2272,7 @@ main#main {
   border-color: #176347;
 }
 
-.upload-zone input[type="file"],
+.upload-zone input[type='file'],
 .upload-file-input {
   position: absolute !important;
   width: 1px !important;
@@ -4450,7 +4453,9 @@ p,
   padding: 28px 24px 24px;
   max-width: 380px;
   width: 100%;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25), 0 8px 10px -6px rgba(0, 0, 0, 0.15);
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.25),
+    0 8px 10px -6px rgba(0, 0, 0, 0.15);
   text-align: center;
   border: 1px solid rgba(226, 232, 240, 0.8);
 }
@@ -5370,6 +5375,11 @@ body.login-page .preview-login-link {
   transition: color 0.15s ease;
 }
 
+th.sort-header {
+  display: table-cell;
+  vertical-align: middle;
+}
+
 .sort-header:hover,
 .sort-header:focus-visible {
   color: var(--ink);
@@ -5385,7 +5395,7 @@ body.login-page .preview-login-link {
   content: '↕';
   font-size: 11px;
   opacity: 0.35;
-  margin-left: 2px;
+  margin-left: 4px;
 }
 
 .sort-header[aria-sort='ascending'] .sort-indicator::after {
@@ -5446,7 +5456,6 @@ body.login-page .preview-login-link {
   background-color: #f0fdf4 !important;
   box-shadow: 0 0 0 4px rgba(22, 101, 52, 0.1);
 }
-
 
 /* Staff Directory Filter Pills */
 .filter-pills-bar {
