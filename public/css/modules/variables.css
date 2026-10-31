@@ -1,0 +1,48 @@
+/* DMS Theme Variables & Font Definitions */
+@font-face {
+  font-family: Inter;
+  src: url('/vendor/fonts/inter-400.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: Inter;
+  src: url('/vendor/fonts/inter-500.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: Inter;
+  src: url('/vendor/fonts/inter-600.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --canvas: #f8fafc;
+  --surface: #ffffff;
+  --line: #e2e8f0;
+  --line-subtle: #f1f5f9;
+  --ink: #0f172a;
+  --muted: #64748b;
+  --primary: #176347;
+  --primary-hover: #124e38;
+  --primary-light: #e8f5e9;
+  --green-800: #176347;
+  --green-700: #1b7a57;
+  --green-600: #22996d;
+  --green-100: #e8f5e9;
+  --yellow-400: #facc15;
+  --yellow-100: #fef9c3;
+  --danger: #dc2626;
+  --danger-light: #fee2e2;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --radius-sm: 4px;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}

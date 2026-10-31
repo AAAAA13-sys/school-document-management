@@ -5404,9 +5404,14 @@ body.login-page .preview-login-link {
   transition: color 0.15s ease;
 }
 
+.table thead tr {
+  background: var(--canvas);
+}
+
 th.sort-header {
-  display: table-cell;
+  display: table-cell !important;
   vertical-align: middle;
+  background: var(--canvas);
 }
 
 .sort-header:hover,

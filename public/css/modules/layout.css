@@ -1,0 +1,41 @@
+/* DMS Shell & Layout: Sidebar, Navigation, Shell */
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  background: var(--surface, #ffffff);
+  border-right: 1px solid var(--line, #e2e8f0);
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content {
+  flex: 1;
+  min-width: 0;
+  background: var(--canvas, #f8fafc);
+  padding: 32px 40px;
+}
+
+.page-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.page-heading h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--ink, #0f172a);
+  margin: 4px 0 0;
+}
+
+.page-heading p {
+  color: var(--muted, #64748b);
+  margin: 4px 0 0;
+  font-size: 14px;
+}

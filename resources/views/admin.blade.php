@@ -251,22 +251,39 @@
             <div class="panel-header"><h2>School documents</h2></div>
             <div class="table-responsive">
                 <table class="table table-zebra table-sticky table-fixed w-100" data-filter-table>
+                    <colgroup>
+                        <col style="width: 38%">
+                        <col style="width: 14%">
+                        <col style="width: 18%">
+                        <col style="width: 15%">
+                        <col style="width: 15%">
+                    </colgroup>
                     <thead>
                         <tr>
-                            <th scope="col" class="sort-header" data-sort-table="0" role="columnheader" tabindex="0" aria-sort="none" style="width: 38%">
-                                Document <span class="sort-indicator" aria-hidden="true"></span>
+                            <th scope="col" class="sort-header" data-sort-table="0" role="columnheader" tabindex="0" aria-sort="none">
+                                <span class="d-inline-flex align-items-center gap-1">
+                                    Document <span class="sort-indicator" aria-hidden="true"></span>
+                                </span>
                             </th>
-                            <th scope="col" class="sort-header" data-sort-table="1" role="columnheader" tabindex="0" aria-sort="none" style="width: 14%">
-                                Source <span class="sort-indicator" aria-hidden="true"></span>
+                            <th scope="col" class="sort-header" data-sort-table="1" role="columnheader" tabindex="0" aria-sort="none">
+                                <span class="d-inline-flex align-items-center gap-1">
+                                    Source <span class="sort-indicator" aria-hidden="true"></span>
+                                </span>
                             </th>
-                            <th scope="col" class="sort-header" data-sort-table="2" role="columnheader" tabindex="0" aria-sort="none" style="width: 18%">
-                                Classification <span class="sort-indicator" aria-hidden="true"></span>
+                            <th scope="col" class="sort-header" data-sort-table="2" role="columnheader" tabindex="0" aria-sort="none">
+                                <span class="d-inline-flex align-items-center gap-1">
+                                    Classification <span class="sort-indicator" aria-hidden="true"></span>
+                                </span>
                             </th>
-                            <th scope="col" class="sort-header" data-sort-table="3" role="columnheader" tabindex="0" aria-sort="none" style="width: 15%">
-                                Status <span class="sort-indicator" aria-hidden="true"></span>
+                            <th scope="col" class="sort-header" data-sort-table="3" role="columnheader" tabindex="0" aria-sort="none">
+                                <span class="d-inline-flex align-items-center gap-1">
+                                    Status <span class="sort-indicator" aria-hidden="true"></span>
+                                </span>
                             </th>
-                            <th scope="col" class="sort-header" data-sort-table="4" role="columnheader" tabindex="0" aria-sort="none" style="width: 15%">
-                                Updated <span class="sort-indicator" aria-hidden="true"></span>
+                            <th scope="col" class="sort-header" data-sort-table="4" role="columnheader" tabindex="0" aria-sort="none">
+                                <span class="d-inline-flex align-items-center gap-1">
+                                    Updated <span class="sort-indicator" aria-hidden="true"></span>
+                                </span>
                             </th>
                         </tr>
                     </thead>

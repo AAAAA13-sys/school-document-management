@@ -1,0 +1,74 @@
+/* DMS UI Components: Buttons, Badges, Cards, Alerts */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 500;
+  border-radius: var(--radius, 8px);
+  padding: 8px 16px;
+  font-size: 14px;
+  transition: all 0.15s ease;
+}
+
+.btn-primary {
+  background-color: var(--primary, #176347);
+  border-color: var(--primary, #176347);
+  color: #ffffff;
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+  background-color: var(--primary-hover, #124e38);
+  border-color: var(--primary-hover, #124e38);
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.status-badge.clean {
+  background-color: var(--green-100, #e8f5e9);
+  color: var(--green-800, #176347);
+}
+
+.status-badge.pending {
+  background-color: var(--yellow-100, #fef9c3);
+  color: #854d0e;
+}
+
+.status-badge.failed,
+.status-badge.quarantined {
+  background-color: var(--danger-light, #fee2e2);
+  color: var(--danger, #dc2626);
+}
+
+.status-badge.neutral {
+  background-color: #f1f5f9;
+  color: #64748b;
+}
+
+.stat-card {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: var(--radius-lg, 12px);
+  padding: 20px;
+}
+
+.info-strip {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px 20px;
+  border-radius: var(--radius-lg, 12px);
+  background: #f8fafc;
+  border: 1px solid var(--line, #e2e8f0);
+}

@@ -1,0 +1,23 @@
+/* DMS Responsive Layout & Mobile Enhancements */
+@media (max-width: 767px) {
+  body[data-device='mobile'] .sidebar {
+    position: fixed;
+    left: -100%;
+    transition: left 0.25s ease-in-out;
+  }
+  body[data-device='mobile'] .sidebar.is-open {
+    left: 0;
+  }
+  .document-items.is-grid {
+    grid-template-columns: 1fr;
+  }
+  .invitation-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+body[data-device='mobile'] .modal-dialog {
+  margin: 12px;
+  max-width: none;
+  width: calc(100% - 24px);
+}

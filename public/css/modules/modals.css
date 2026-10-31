@@ -1,0 +1,37 @@
+/* DMS Modal Dialogs & Duplicate Warning Modal */
+.modal-content {
+  border-radius: var(--radius-lg, 12px);
+  border: 1px solid var(--line, #e2e8f0);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+  border-bottom: 1px solid var(--line, #e2e8f0);
+  padding: 20px 24px;
+}
+
+.modal-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--ink, #0f172a);
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.modal-footer {
+  border-top: 1px solid var(--line, #e2e8f0);
+  padding: 16px 24px;
+}
+
+.duplicate-info-card {
+  background: var(--canvas, #f8fafc);
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: var(--radius, 8px);
+  padding: 16px;
+}
+
+.duplicate-info-card strong {
+  color: var(--ink, #0f172a);
+}
