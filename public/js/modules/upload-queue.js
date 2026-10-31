@@ -25,3 +25,4 @@ export async function DmsUploadQueue(items, send, update) {
 if (typeof window !== 'undefined') {
   window.DmsUploadQueue = DmsUploadQueue;
 }
+
