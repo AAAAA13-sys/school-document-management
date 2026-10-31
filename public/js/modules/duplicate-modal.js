@@ -77,4 +77,3 @@ export function showDuplicateWarningModal(existingDoc, onUploadNewVersion, onCan
 if (typeof window !== 'undefined') {
   window.DmsDuplicateModal = { show: showDuplicateWarningModal };
 }
-

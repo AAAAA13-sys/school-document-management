@@ -36,4 +36,3 @@ if (typeof window !== 'undefined') {
     },
   };
 }
-
