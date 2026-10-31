@@ -40,4 +40,9 @@ return [
         'token' => env('ES_API_TOKEN', ''),
     ],
 
+    'oas' => [
+        'url' => env('OAS_API_URL', 'http://127.0.0.1:8002/api/v1'),
+        'token' => env('OAS_API_TOKEN', ''),
+    ],
+
 ];
