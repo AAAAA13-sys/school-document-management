@@ -1,6 +1,6 @@
 # PLP Document Management System
 
-> **Ongoing planning — 18 October 2026:** [Integration and implementation plan](docs/DMS-INTEGRATION-IMPLEMENTATION-PLAN.md), especially sections 14–15, records the latest role authority, sensitive-change approvals, invitation-only staff accounts, login/settings lifecycle, Figma handoff and team ownership. These requirements supersede earlier planning assumptions; they are **not implemented by this documentation update**. Tomas requested planning only. The current-behavior checklist below remains a separate record of the existing application.
+> **Architecture & Integration Documentation:** See the [ESMS API Catalog](docs/ESMS-API-CATALOG.md) for integrated ERP endpoints, [Invitations Guide](docs/INVITATIONS.md) for staff onboarding lifecycle, and [Verification Guide](docs/VERIFICATION.md) for validation records.
 
 Centralized document storage, version history and controlled sharing for Pamantasan ng Lungsod ng Pasig. The application can operate on its own and receive documents and transaction history from four ERP systems.
 

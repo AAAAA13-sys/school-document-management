@@ -51,3 +51,6 @@ yarn-error.log*
 # Graphify output
 /graphify-out
 
+# Local test-generated screenshots
+/docs/ui-evidence
+

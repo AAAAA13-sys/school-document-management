@@ -3,7 +3,7 @@
 /**
  * Live Manual QA Execution Script for PLP DMS
  * Executes live HTTP requests against http://127.0.0.1:8011 with real session cookies,
- * CSRF extraction, authentication, uploads, access boundaries, and updates docs/LIVE-QA-REPORT.md.
+ * CSRF extraction, authentication, uploads, access boundaries, and writes report to storage/logs/.
  */
 
 namespace App\QA;
@@ -631,6 +631,6 @@ class LiveTestRunner
     }
 }
 
-$reportPath = realpath(__DIR__.'/../docs').DIRECTORY_SEPARATOR.'LIVE-QA-REPORT.md';
+$reportPath = dirname(__DIR__).DIRECTORY_SEPARATOR.'storage'.DIRECTORY_SEPARATOR.'logs'.DIRECTORY_SEPARATOR.'LIVE-QA-REPORT.md';
 $runner = new LiveTestRunner($reportPath);
 $runner->runAll();

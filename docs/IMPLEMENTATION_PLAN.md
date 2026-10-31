@@ -1,4 +1,4 @@
-> Historical SDD roadmap. For the latest client decisions, priorities and team handoff, use [the ongoing integration implementation plan](DMS-INTEGRATION-IMPLEMENTATION-PLAN.md), especially sections 14–15 (18 October 2026). Planning only: Super Admin authority, sensitive-change approvals and invitation-only account lifecycle are not implemented by this update.
+> Historical SDD roadmap. For system integration endpoints and ERP schemas, refer to the [ESMS API Catalog](ESMS-API-CATALOG.md) and [API Standard](API-STANDARD.md).
 
 IMPLEMENTATION PLAN — DMS
 Basis: DMS-SDD v0.1. Dates/phases pending Enterprise Architect (Section 12.1).
