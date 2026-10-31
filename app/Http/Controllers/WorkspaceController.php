@@ -139,7 +139,7 @@ class WorkspaceController extends Controller
             ->values();
         $recipients = $sharer
             ? Access::scope(DB::table('users'), $user)->where('active', true)->where('id', '!=', $user->id)
-                ->when($doc->classification === 'Restricted', fn ($q) => $q->where('role', $user->role))
+                ->when($doc->classification === 'Restricted' && ! $user->isSuperAdmin(), fn ($q) => $q->where('role', $user->role))
                 ->orderBy('name')->get(['id', 'name', 'email', 'role'])
             : collect();
         $folders = Access::scope(DB::table('folders'), $user)->where('source', $source)

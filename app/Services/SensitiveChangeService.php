@@ -115,7 +115,7 @@ class SensitiveChangeService
             abort_if((int) $p['recipient_id'] === $actor->id, 422);
 
             // Restricted documents are shareable to the same authority level only.
-            if ($doc->classification === 'Restricted') {
+            if ($doc->classification === 'Restricted' && ! $actor->isSuperAdmin()) {
                 abort_unless($recipient->role === $actor->role, 422, 'Restricted documents can only be shared with colleagues of the same authority level (' . ucfirst(str_replace('_', ' ', $actor->role)) . ').');
             }
 

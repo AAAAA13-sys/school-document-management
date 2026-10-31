@@ -11,7 +11,6 @@ enum Source: string
     case PMS = 'PMS';
     case ES = 'ES';
     case OAS = 'OAS';
-    case DMS = 'DMS';
 
     /**
      * @return array<int, string>
@@ -23,7 +22,7 @@ enum Source: string
 
     public static function labels(?User $actor = null, bool $erpOnly = false): array
     {
-        return $actor ? WorkspaceRegistry::labels($actor, $erpOnly) : ['EMS' => 'Employee Management', 'PMS' => 'Payroll Management', 'ES' => 'Enrollment', 'OAS' => 'Online Admission', 'DMS' => 'Document Management System'];
+        return $actor ? WorkspaceRegistry::labels($actor, $erpOnly) : ['EMS' => 'Employee Management', 'PMS' => 'Payroll Management', 'ES' => 'Enrollment', 'OAS' => 'Online Admission'];
     }
 
     public static function normalize(?string $value): ?string
