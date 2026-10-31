@@ -240,7 +240,7 @@
         <section class="panel">
             <div class="panel-header"><h2>School documents</h2></div>
             <div class="table-responsive">
-                <table class="table table-zebra table-sticky" data-filter-table>
+                <table class="table table-zebra table-sticky table-fixed w-100" data-filter-table>
                     <thead>
                         <tr>
                             <th scope="col" class="sort-header" data-sort-table="0" role="columnheader" tabindex="0" aria-sort="none" style="width: 38%">
@@ -356,7 +356,7 @@
         <section class="panel">
             <div class="panel-header"><h2>Repository activity</h2></div>
             <div class="table-responsive table-scroll-y">
-                <table class="table table-zebra table-sticky" data-filter-table>
+                <table class="table table-zebra table-sticky table-fixed w-100" data-filter-table>
                     <thead>
                         <tr>
                             <th>Action</th>

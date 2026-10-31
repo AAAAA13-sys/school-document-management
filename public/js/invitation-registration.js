@@ -10,12 +10,17 @@ function validateSingle(input) {
 
   if (val.length === 0) {
     if (input.dataset.touched && input.required) {
-      error = isName ? 'Full name is required.' : (isEmail ? 'Email address is required.' : 'This field is required.');
+      error = isName
+        ? 'Full name is required.'
+        : isEmail
+          ? 'Email address is required.'
+          : 'This field is required.';
     }
   } else {
     if (isName) {
       if (!/^[A-Za-zÀ-ÖØ-öø-ÿ\s.\-']+$/.test(val)) {
-        error = title || 'Full name may only contain letters, spaces, hyphens, periods, and apostrophes.';
+        error =
+          title || 'Full name may only contain letters, spaces, hyphens, periods, and apostrophes.';
       } else if (val.trim().length < 2) {
         error = 'Full name must be at least 2 characters.';
       }
@@ -60,7 +65,17 @@ function validateSingle(input) {
 }
 
 function attachRealtimeValidation(container) {
-  const inputs = (container || document).querySelectorAll('input[pattern], input[type="email"], input[name="name"], input#full-name');
+  const root =
+    container && typeof container.querySelectorAll === 'function'
+      ? container
+      : typeof document !== 'undefined' && typeof document.querySelectorAll === 'function'
+        ? document
+        : null;
+  if (!root) return;
+  const inputs = root.querySelectorAll(
+    'input[pattern], input[type="email"], input[name="name"], input#full-name'
+  );
+  if (!inputs || !inputs.forEach) return;
   inputs.forEach((input) => {
     input.addEventListener('input', () => {
       input.dataset.touched = 'true';
@@ -100,12 +115,16 @@ attachRealtimeValidation(registrationForm);
 
 registrationForm?.addEventListener('submit', (event) => {
   let firstInvalid = null;
-  registrationForm.querySelectorAll('input[pattern], input[type="email"], input[name="name"], input#full-name').forEach((inp) => {
-    inp.dataset.touched = 'true';
-    if (!validateSingle(inp) && !firstInvalid) {
-      firstInvalid = inp;
-    }
-  });
+  if (typeof registrationForm.querySelectorAll === 'function') {
+    registrationForm
+      .querySelectorAll('input[pattern], input[type="email"], input[name="name"], input#full-name')
+      .forEach((inp) => {
+        inp.dataset.touched = 'true';
+        if (!validateSingle(inp) && !firstInvalid) {
+          firstInvalid = inp;
+        }
+      });
+  }
 
   if (firstInvalid) {
     event.preventDefault();

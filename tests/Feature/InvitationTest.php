@@ -358,4 +358,42 @@ class InvitationTest extends TestCase
             'password_confirmation' => 'ValidPass123!@#',
         ])->assertStatus(404);
     }
+
+    public function test_invitation_web_invalid_password_redirects_back_with_errors_not_login(): void
+    {
+        $superAdmin = $this->user('super_admin');
+        $service = app(InvitationService::class);
+        $id = $service->request($superAdmin, [
+            'name' => 'Validation Error Test',
+            'email' => 'error-test@plp.edu.ph',
+            'role' => 'staff',
+            'source' => 'EMS',
+        ]);
+
+        $token = 'test-token-validation-error-1234567890abcdef';
+        DB::table('account_invitations')->where('id', $id)->update([
+            'status' => 'sent',
+            'token_hash' => hash('sha256', $token),
+            'expires_at' => now()->addHours(24),
+        ]);
+
+        // Submit with mismatched confirmation without Referer header
+        $response = $this->post("/invitations/accept/{$token}", [
+            'password' => 'Short1',
+            'password_confirmation' => 'Mismatch2',
+        ]);
+
+        // Must redirect back to the invitation page, NEVER to /login or /
+        $response->assertRedirect("/invitations/accept/{$token}");
+        $response->assertSessionHasErrors(['password']);
+
+        // Invitation must still be pending/sent, not accepted
+        $this->assertDatabaseHas('account_invitations', [
+            'id' => $id,
+            'status' => 'sent',
+        ]);
+        $this->assertDatabaseMissing('users', [
+            'email' => 'error-test@plp.edu.ph',
+        ]);
+    }
 }

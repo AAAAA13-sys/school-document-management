@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
@@ -150,12 +151,29 @@ class InvitationController extends Controller
             ]);
         }
 
-        return response()->view('invitations.password', ['token' => $token, 'email' => $row->email, 'mode' => 'invite'])->header('Referrer-Policy', 'no-referrer')->header('Cache-Control', 'no-store');
+        return response()->view('invitations.password', ['token' => $token, 'email' => $row->email, 'mode' => 'invite'])->header('Referrer-Policy', 'same-origin')->header('Cache-Control', 'no-store');
     }
 
     public function accept(Request $request, string $token, InvitationService $service)
     {
-        $data = $request->validate(['password' => ['required', 'confirmed', PasswordRule::min(8)]]);
+        $validator = Validator::make($request->all(), [
+            'password' => ['required', 'confirmed', PasswordRule::min(8)],
+        ]);
+
+        if ($validator->fails()) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'The given data was invalid.',
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            return redirect('/invitations/accept/'.$token)
+                ->withErrors($validator)
+                ->withInput();
+        }
+
+        $data = $validator->validated();
         $user = $service->accept($token, $data['password']);
 
         if ($request->expectsJson()) {
@@ -208,12 +226,35 @@ class InvitationController extends Controller
 
     public function resetForm(Request $request, string $token)
     {
-        return response()->view('invitations.password', ['token' => $token, 'email' => $request->query('email'), 'mode' => 'reset'])->header('Referrer-Policy', 'no-referrer')->header('Cache-Control', 'no-store');
+        return response()->view('invitations.password', ['token' => $token, 'email' => $request->query('email'), 'mode' => 'reset'])->header('Referrer-Policy', 'same-origin')->header('Cache-Control', 'no-store');
     }
 
     public function reset(Request $request)
     {
-        $data = $request->validate(['token' => 'required|string', 'email' => 'required|email', 'password' => ['required', 'confirmed', PasswordRule::min(8)]]);
+        $validator = Validator::make($request->all(), [
+            'token' => 'required|string',
+            'email' => 'required|email',
+            'password' => ['required', 'confirmed', PasswordRule::min(8)],
+        ]);
+
+        if ($validator->fails()) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'The given data was invalid.',
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            $token = $request->input('token');
+            $email = $request->input('email');
+            $target = $token ? '/reset-password/'.$token.($email ? '?email='.rawurlencode($email) : '') : '/forgot-password';
+
+            return redirect($target)
+                ->withErrors($validator)
+                ->withInput($request->except('password', 'password_confirmation'));
+        }
+
+        $data = $validator->validated();
         $status = Password::reset($data, function (User $user, string $password) {
             abort_unless($user->active, 422, 'This password reset request is invalid.');
             DB::transaction(function () use ($user, $password) {

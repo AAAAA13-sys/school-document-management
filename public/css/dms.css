@@ -1703,6 +1703,11 @@ main#main {
   width: 100%;
 }
 
+.table-fixed {
+  table-layout: fixed;
+  width: 100%;
+}
+
 .panel-pagination {
   padding: 16px 20px;
 }
@@ -2602,29 +2607,48 @@ body.login-page {
 }
 
 .password-field input {
-  padding-right: 64px;
+  padding-right: 48px;
+}
+
+.password-field input.is-invalid {
+  padding-right: 76px;
+  background-position: right 44px center;
 }
 
 .password-toggle {
   border: 0;
   background: transparent;
-  color: var(--green-800);
+  color: var(--muted);
   font-size: 13px;
   font-weight: 600;
   position: absolute;
-  right: 14px;
+  right: 10px;
   top: 50%;
   transform: translateY(-50%);
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 6px;
   line-height: 1;
   z-index: 5;
   outline: none;
-  transition: color 0.15s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition:
+    color 0.15s ease-in-out,
+    opacity 0.15s ease-in-out;
 }
 
-.password-toggle:hover {
-  color: var(--green-700);
+.password-toggle:hover,
+.password-toggle:focus-visible {
+  color: var(--green-800);
+}
+
+.password-toggle .eye-icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+  pointer-events: none;
 }
 
 @media (min-width: 1600px) {

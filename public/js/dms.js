@@ -8,7 +8,14 @@
         ? 'Choose a file no larger than 10 MB.'
         : '';
   const strongPassword = (value) =>
-    value.length >= 8;
+    Boolean(
+      value &&
+      value.length >= 12 &&
+      /[a-z]/.test(value) &&
+      /[A-Z]/.test(value) &&
+      /[0-9]/.test(value) &&
+      /[^a-zA-Z0-9]/.test(value)
+    );
   // Exposed only as pure validators for the dependency-free frontend checks.
   window.DmsValidation = { fileError, strongPassword };
   window.DmsStatusBadge = {
@@ -511,7 +518,10 @@
       const val = $(this).val().trim();
       let matchedId = '';
       $('#share-staff-datalist option').each(function () {
-        if ($(this).val().toLowerCase() === val.toLowerCase() || $(this).text().toLowerCase().includes(val.toLowerCase())) {
+        if (
+          $(this).val().toLowerCase() === val.toLowerCase() ||
+          $(this).text().toLowerCase().includes(val.toLowerCase())
+        ) {
           matchedId = $(this).attr('data-id') || '';
         }
       });
@@ -549,9 +559,7 @@
       .trigger('change');
     $('[data-password-policy]').on('input', function () {
       this.setCustomValidity(
-        this.value && this.value.length < 8
-          ? 'Must contain at least 8 characters.'
-          : ''
+        this.value && this.value.length < 8 ? 'Must contain at least 8 characters.' : ''
       );
     });
 
@@ -559,8 +567,16 @@
       const $input = $(input);
       const val = input.value || '';
       const isRequired = input.required || $input.prop('required');
-      const isNameField = input.name === 'name' || input.id === 'invite-name' || input.id === 'full-name' || (input.id && input.id.indexOf('name-') === 0);
-      const isEmailField = input.type === 'email' || input.name === 'email' || input.id === 'invite-email' || (input.id && input.id.indexOf('email-') === 0);
+      const isNameField =
+        input.name === 'name' ||
+        input.id === 'invite-name' ||
+        input.id === 'full-name' ||
+        (input.id && input.id.indexOf('name-') === 0);
+      const isEmailField =
+        input.type === 'email' ||
+        input.name === 'email' ||
+        input.id === 'invite-email' ||
+        (input.id && input.id.indexOf('email-') === 0);
       const pattern = input.getAttribute('pattern');
       const title = input.getAttribute('title');
 
@@ -568,12 +584,18 @@
 
       if (val.length === 0) {
         if ($input.data('touched') && isRequired) {
-          error = isNameField ? 'Full name is required.' : (isEmailField ? 'Email address is required.' : 'This field is required.');
+          error = isNameField
+            ? 'Full name is required.'
+            : isEmailField
+              ? 'Email address is required.'
+              : 'This field is required.';
         }
       } else {
         if (isNameField) {
           if (!/^[A-Za-zÀ-ÖØ-öø-ÿ\s.\-']+$/.test(val)) {
-            error = title || 'Full name may only contain letters, spaces, hyphens, periods, and apostrophes.';
+            error =
+              title ||
+              'Full name may only contain letters, spaces, hyphens, periods, and apostrophes.';
           } else if (val.trim().length < 2) {
             error = 'Full name must be at least 2 characters.';
           }
@@ -614,7 +636,8 @@
       return !error;
     }
 
-    const validateSelector = 'input[pattern], input[type="email"], input[name="name"], input#invite-name, input#full-name, input[id^="name-"], input[id^="email-"]';
+    const validateSelector =
+      'input[pattern], input[type="email"], input[name="name"], input#invite-name, input#full-name, input[id^="name-"], input[id^="email-"]';
 
     $(document).on('input keyup paste', validateSelector, function () {
       $(this).data('touched', true);
@@ -634,12 +657,14 @@
 
     $(document).on('submit', 'form', function (e) {
       let firstInvalid = null;
-      $(this).find(validateSelector).each(function () {
-        $(this).data('touched', true);
-        if (!validateField(this) && !firstInvalid) {
-          firstInvalid = this;
-        }
-      });
+      $(this)
+        .find(validateSelector)
+        .each(function () {
+          $(this).data('touched', true);
+          if (!validateField(this) && !firstInvalid) {
+            firstInvalid = this;
+          }
+        });
       if (firstInvalid) {
         e.preventDefault();
         firstInvalid.focus();
@@ -649,12 +674,20 @@
       const input = $(this).siblings('input');
       const show = input.attr('type') === 'password';
       input.attr('type', show ? 'text' : 'password');
-      $(this)
-        .text(show ? 'Hide' : 'Show')
-        .attr({
-          'aria-label': show ? 'Hide password' : 'Show password',
-          'aria-pressed': String(show),
-        });
+      const eyeShow = $(this).find('.eye-show');
+      const eyeHide = $(this).find('.eye-hide');
+      if (eyeShow.length && eyeHide.length) {
+        eyeShow.css('display', show ? 'none' : 'block');
+        eyeHide.css('display', show ? 'block' : 'none');
+      } else {
+        $(this).text(show ? 'Hide' : 'Show');
+      }
+      $(this).attr({
+        'aria-label': show ? 'Hide password' : 'Show password',
+        'aria-pressed': String(show),
+        title: show ? 'Hide password' : 'Show password',
+      });
+      input.trigger('focus');
     });
     const documentTabs = $('#document-tabs');
     if (documentTabs.length) {
@@ -891,7 +924,9 @@
 
         const header = $('<div class="upload-item-header">').appendTo(row);
         const displayName = item.display_title || item.file.name;
-        const fileSizeText = item.file?.size ? ' · ' + (item.file.size / 1024).toFixed(1) + ' KB' : '';
+        const fileSizeText = item.file?.size
+          ? ' · ' + (item.file.size / 1024).toFixed(1) + ' KB'
+          : '';
         $('<span class="upload-item-name">')
           .attr('title', displayName)
           .text(displayName + fileSizeText)
@@ -926,7 +961,9 @@
           .appendTo(statusContainer);
 
         if ((isPending || isFailed) && !uploading) {
-          $('<button type="button" class="btn btn-sm btn-link text-muted p-0 text-decoration-none" title="Remove file" aria-label="Remove file">')
+          $(
+            '<button type="button" class="btn btn-sm btn-link text-muted p-0 text-decoration-none" title="Remove file" aria-label="Remove file">'
+          )
             .html('&times;')
             .css({ fontSize: '20px', lineHeight: '1', paddingLeft: '4px', cursor: 'pointer' })
             .on('click', (e) => {
@@ -952,9 +989,7 @@
           const noteText = existingTitle
             ? 'An identical file already exists in this workspace: ' + existingTitle
             : 'An identical file already exists in this workspace.';
-          $('<div class="upload-item-duplicate-note">')
-            .text(noteText)
-            .appendTo(dupBox);
+          $('<div class="upload-item-duplicate-note">').text(noteText).appendTo(dupBox);
 
           const actions = $('<div class="upload-item-actions">').appendTo(dupBox);
           if (existingDocId) {
@@ -1003,7 +1038,11 @@
 
       const saved = uploads.filter((item) => item.status === 'saved').length;
       const unresolvedDuplicates = uploads.filter(
-        (item) => item.status !== 'saved' && Boolean(item.duplicates?.length) && !item.confirm && !item.force_new_version
+        (item) =>
+          item.status !== 'saved' &&
+          Boolean(item.duplicates?.length) &&
+          !item.confirm &&
+          !item.force_new_version
       );
       const pending = uploads.filter(
         (item) => item.status === 'pending' && !unresolvedDuplicates.includes(item)
@@ -1025,20 +1064,34 @@
       } else if (saved === 0) {
         if (unresolvedDuplicates.length > 0) {
           $('#upload-summary').text(
-            unresolvedDuplicates.length + (unresolvedDuplicates.length === 1 ? ' duplicate file detected.' : ' duplicate files detected.') + ' Choose an action above or remove.'
+            unresolvedDuplicates.length +
+              (unresolvedDuplicates.length === 1
+                ? ' duplicate file detected.'
+                : ' duplicate files detected.') +
+              ' Choose an action above or remove.'
           );
         } else {
           $('#upload-summary').text(
-            pending + (pending === 1 ? ' file' : ' files') + ' selected. Click "Upload files" to begin.'
+            pending +
+              (pending === 1 ? ' file' : ' files') +
+              ' selected. Click "Upload files" to begin.'
           );
         }
-        $('#start-upload-btn').prop('disabled', pending === 0).text('Upload files').show();
+        $('#start-upload-btn')
+          .prop('disabled', pending === 0)
+          .text('Upload files')
+          .show();
         $('#done-upload-btn').hide();
         $('#cancel-upload-btn').text('Cancel').show();
       } else {
         if (unresolvedDuplicates.length > 0) {
           $('#upload-summary').text(
-            saved + ' of ' + uploads.length + ' uploaded · ' + unresolvedDuplicates.length + ' duplicate needs review.'
+            saved +
+              ' of ' +
+              uploads.length +
+              ' uploaded · ' +
+              unresolvedDuplicates.length +
+              ' duplicate needs review.'
           );
         } else {
           $('#upload-summary').text(
@@ -1055,7 +1108,10 @@
           $('#done-upload-btn').show();
           $('#cancel-upload-btn').hide();
         } else {
-          $('#start-upload-btn').prop('disabled', pending === 0).text('Upload remaining').show();
+          $('#start-upload-btn')
+            .prop('disabled', pending === 0)
+            .text('Upload remaining')
+            .show();
           $('#done-upload-btn').hide();
           $('#cancel-upload-btn').text('Cancel').show();
         }
@@ -1120,10 +1176,12 @@
                 if (xhr.responseJSON?.code === 'duplicate_file') {
                   item.duplicates = xhr.responseJSON.duplicates || [];
                   if (!item.duplicates.length && xhr.responseJSON.document_id) {
-                    item.duplicates = [{
-                      document_id: xhr.responseJSON.document_id,
-                      title: xhr.responseJSON.existing_document?.title || ''
-                    }];
+                    item.duplicates = [
+                      {
+                        document_id: xhr.responseJSON.document_id,
+                        title: xhr.responseJSON.existing_document?.title || '',
+                      },
+                    ];
                   }
                 }
               }
@@ -1164,7 +1222,8 @@
       }
       const form = $('#upload-form');
       const source = form.find('input[name="source"]').val() || '';
-      const csrf = $('meta[name="csrf-token"]').attr('content') || form.find('input[name="_token"]').val();
+      const csrf =
+        $('meta[name="csrf-token"]').attr('content') || form.find('input[name="_token"]').val();
 
       Array.from(files).forEach(async (file) => {
         const error = fileError(file);
@@ -1250,7 +1309,9 @@
           return;
         }
 
-        const hasUnfinished = uploads.some((item) => ['pending', 'uploading'].includes(item.status));
+        const hasUnfinished = uploads.some((item) =>
+          ['pending', 'uploading'].includes(item.status)
+        );
         if (!hasUnfinished) {
           return;
         }
@@ -1298,14 +1359,20 @@
       uploading = false;
 
       // 2. Roll back any newly saved documents created in this cancelled session
-      const savedNewDocs = uploads.filter((item) => item.status === 'saved' && item.document_id && item.is_new_document);
-      const csrf = $('meta[name="csrf-token"]').attr('content') || $('#upload-form').find('input[name="_token"]').val();
+      const savedNewDocs = uploads.filter(
+        (item) => item.status === 'saved' && item.document_id && item.is_new_document
+      );
+      const csrf =
+        $('meta[name="csrf-token"]').attr('content') ||
+        $('#upload-form').find('input[name="_token"]').val();
 
       if (savedNewDocs.length > 0) {
         toast('Discarding uploaded files…');
         await Promise.all(
           savedNewDocs.map((item) =>
-            $.post('/documents/' + encodeURIComponent(item.document_id) + '/permanent', { _token: csrf }).catch(() => {})
+            $.post('/documents/' + encodeURIComponent(item.document_id) + '/permanent', {
+              _token: csrf,
+            }).catch(() => {})
           )
         );
       }
@@ -1351,7 +1418,10 @@
     $('#upload-file').on('change', selectedFile);
     $('#upload-zone')
       .on('click', function (event) {
-        if ($(event.target).is('#upload-file') || $(event.target).closest('label[for="upload-file"]').length) {
+        if (
+          $(event.target).is('#upload-file') ||
+          $(event.target).closest('label[for="upload-file"]').length
+        ) {
           return;
         }
         $('#upload-file').trigger('click');

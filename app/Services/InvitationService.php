@@ -151,7 +151,7 @@ class InvitationService
                         } elseif (Hash::getDefaultDriver() === 'bcrypt' && strlen($value) > 72) {
                             $fail('The password must not exceed 72 bytes with the current password hashing configuration.');
                         }
-                    }, Password::min(8)],
+                    }, Password::min(12)->letters()->mixedCase()->numbers()->symbols()],
                 ] + $this->protectedFields(true))->validate();
                 $user = new User;
                 $user->name = $data['name'];
