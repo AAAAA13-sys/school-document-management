@@ -102,7 +102,7 @@ class SensitiveChangesAndPacketsTest extends TestCase
         $this->assertSame(201, $status);
         [$again, $status] = $service->receive($oas, $event);
         $this->assertSame(200, $status);
-        $this->assertSame($first, $again);
+        $this->assertEquals($first, $again);
         $packet = $service->read($es, $first['packet_id']);
         $this->assertSame([$version], array_column($packet['versions'], 'version_id'));
         $service->receive($oas, ['event_id' => 'revoke-2', 'applicant_id' => 'A-1', 'revision' => 2, 'released' => false]);

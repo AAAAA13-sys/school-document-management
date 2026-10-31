@@ -23,7 +23,10 @@ class ApplicantPacketService
             if ($prior) {
                 abort_unless(hash_equals($prior->request_hash, $hash), 409);
 
-                return [json_decode($prior->response, true), 200];
+                $cached = json_decode($prior->response, true);
+                ksort($cached);
+
+                return [$cached, 200];
             }
             abort_if(DB::table('packet_receipts')->where('scope_key', $scope)->where('applicant_id', $p['applicant_id'])->where('revision', $p['revision'])->exists(), 409, 'Packet revision already received.');
             $query = Access::scope(DB::table('applicant_packets'), $connector)->where('applicant_id', $p['applicant_id']);
