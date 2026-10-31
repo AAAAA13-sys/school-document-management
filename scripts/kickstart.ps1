@@ -84,27 +84,46 @@ Write-Host "==================================================================="
 Write-Section "Checking PHP environment..."
 
 $phpPath = $null
-$phpCommand = Get-Command php -ErrorAction SilentlyContinue
-if ($phpCommand) {
-    $phpPath = $phpCommand.Source
-} else {
-    $candidatePhpPaths = @(
-        "$env:USERPROFILE\.config\herd-lite\bin\php.exe",
-        "C:\Users\Ivan\.config\herd-lite\bin\php.exe",
-        "C:\xampp\php\php.exe",
-        "D:\xampp\php\php.exe",
-        "E:\xampp\php\php.exe",
-        "C:\laragon\bin\php\php-*\php.exe",
-        "C:\php\php.exe",
-        "C:\Program Files\PHP\*\php.exe"
-    )
-    foreach ($cand in $candidatePhpPaths) {
-        $resolved = Resolve-Path $cand -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($resolved) {
-            $phpPath = $resolved.Path
-            $phpDir = Split-Path $phpPath -Parent
-            $env:PATH = "$phpDir;" + $env:PATH
-            break
+$candidatePhpPaths = @(
+    "$env:USERPROFILE\.config\herd-lite\bin\php.exe",
+    "C:\Users\Ivan\.config\herd-lite\bin\php.exe",
+    "C:\xampp\php\php.exe",
+    "D:\xampp\php\php.exe",
+    "E:\xampp\php\php.exe",
+    "C:\laragon\bin\php\php-*\php.exe",
+    "C:\php\php.exe",
+    "C:\Program Files\PHP\*\php.exe"
+)
+
+# Prioritize modern PHP (>= 8.3)
+foreach ($cand in $candidatePhpPaths) {
+    $resolved = Resolve-Path $cand -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($resolved -and (Test-Path $resolved.Path)) {
+        $rawVer = (& $resolved.Path -r "echo PHP_VERSION;" 2>$null)
+        try {
+            if ($rawVer -and ([version]($rawVer.Split('-')[0]) -ge [version]'8.3.0')) {
+                $phpPath = $resolved.Path
+                $phpDir = Split-Path $phpPath -Parent
+                $env:PATH = "$phpDir;" + $env:PATH
+                break
+            }
+        } catch {}
+    }
+}
+
+if (-not $phpPath) {
+    $phpCommand = Get-Command php -ErrorAction SilentlyContinue
+    if ($phpCommand) {
+        $phpPath = $phpCommand.Source
+    } else {
+        foreach ($cand in $candidatePhpPaths) {
+            $resolved = Resolve-Path $cand -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($resolved -and (Test-Path $resolved.Path)) {
+                $phpPath = $resolved.Path
+                $phpDir = Split-Path $phpPath -Parent
+                $env:PATH = "$phpDir;" + $env:PATH
+                break
+            }
         }
     }
 }
@@ -326,10 +345,11 @@ if ($isClamdRunning) {
     $clamdConf = Join-Path $appRoot "storage\tools\clamav\clamav-1.4.6.win.x64\clamd.conf"
     if (Test-Path $clamdExe) {
         Write-Info "Starting ClamAV daemon ($clamdExe)..."
-        $clamdProcess = Start-Process -FilePath $clamdExe `
-            -ArgumentList "--config-file=`"$clamdConf`"" `
-            -WorkingDirectory (Split-Path $clamdExe -Parent) `
-            -WindowStyle Hidden `
+        $clamdDir = Split-Path $clamdExe -Parent
+        $clamdCmd = "title PLP DMS - ClamAV Daemon && cd /d `"$clamdDir`" && `"$clamdExe`" --config-file=`"$clamdConf`""
+        $clamdProcess = Start-Process -FilePath "cmd.exe" `
+            -ArgumentList "/k", "`"$clamdCmd`"" `
+            -WorkingDirectory $clamdDir `
             -PassThru
 
         $cSw = [System.Diagnostics.Stopwatch]::StartNew()
@@ -349,37 +369,28 @@ if ($isClamdRunning) {
 }
 
 # -------------------------------------------------------------------------
-# Step 9: Start Background Services (Worker & Scheduler)
+# Step 9: Start Background Services (Worker & Scheduler in visible CMD)
 # -------------------------------------------------------------------------
-Write-Section "Starting background services..."
+Write-Section "Starting background services in visible CMD windows..."
 
-$workerLog = Join-Path $appRoot 'storage/logs/worker.log'
-$workerErr = Join-Path $appRoot 'storage/logs/worker-error.log'
-$schedulerLog = Join-Path $appRoot 'storage/logs/scheduler.log'
-$schedulerErr = Join-Path $appRoot 'storage/logs/scheduler-error.log'
-
-$worker = Start-Process -FilePath $phpPath `
-    -ArgumentList 'artisan','queue:work','database','--queue=scans,default','--sleep=1','--tries=5','--timeout=75' `
+$workerCmd = "title PLP DMS - Queue Worker && cd /d `"$appRoot`" && `"$phpPath`" artisan queue:work database --queue=scans,default --sleep=1 --tries=5 --timeout=75"
+$worker = Start-Process -FilePath "cmd.exe" `
+    -ArgumentList "/k", "`"$workerCmd`"" `
     -WorkingDirectory $appRoot `
-    -WindowStyle Hidden `
-    -PassThru `
-    -RedirectStandardOutput $workerLog `
-    -RedirectStandardError $workerErr
+    -PassThru
 
-Write-Success "ClamAV Scan Worker started (PID $($worker.Id)) -> logs in storage/logs/worker.log"
+Write-Success "Queue Worker launched in visible CMD window (PID $($worker.Id))."
 
-$scheduler = Start-Process -FilePath $phpPath `
-    -ArgumentList 'artisan','schedule:work' `
+$schedulerCmd = "title PLP DMS - Task Scheduler && cd /d `"$appRoot`" && `"$phpPath`" artisan schedule:work"
+$scheduler = Start-Process -FilePath "cmd.exe" `
+    -ArgumentList "/k", "`"$schedulerCmd`"" `
     -WorkingDirectory $appRoot `
-    -WindowStyle Hidden `
-    -PassThru `
-    -RedirectStandardOutput $schedulerLog `
-    -RedirectStandardError $schedulerErr
+    -PassThru
 
-Write-Success "Task Scheduler started (PID $($scheduler.Id)) -> logs in storage/logs/scheduler.log"
+Write-Success "Task Scheduler launched in visible CMD window (PID $($scheduler.Id))."
 
 # -------------------------------------------------------------------------
-# Step 10: Ngrok Tunnel (for Phone & Remote Testing)
+# Step 10: Ngrok Tunnel (for Phone & Remote Testing in visible CMD)
 # -------------------------------------------------------------------------
 Write-Section "Checking Ngrok tunnel..."
 
@@ -397,18 +408,30 @@ if ($isNgrokRunning) {
     } catch {}
 } else {
     $ngrokExe = $null
-    $ngrokCmd = Get-Command ngrok -ErrorAction SilentlyContinue
-    if ($ngrokCmd) {
-        $ngrokExe = $ngrokCmd.Source
-    } elseif (Test-Path "C:\Users\PLP\Downloads\ngrok_bin\ngrok.exe") {
-        $ngrokExe = "C:\Users\PLP\Downloads\ngrok_bin\ngrok.exe"
+    $ngrokCandidates = @(
+        "C:\Users\Ivan\Documents\ngrok-v3-stable-windows-amd64\ngrok.exe",
+        "C:\Users\PLP\Downloads\ngrok_bin\ngrok.exe"
+    )
+    foreach ($cand in $ngrokCandidates) {
+        if (Test-Path $cand) {
+            $ngrokExe = $cand
+            break
+        }
+    }
+    if (-not $ngrokExe) {
+        $ngrokCmd = Get-Command ngrok -ErrorAction SilentlyContinue
+        if ($ngrokCmd) {
+            $ngrokExe = $ngrokCmd.Source
+        }
     }
 
     if ($ngrokExe) {
-        Write-Info "Starting Ngrok tunnel for port $Port..."
-        $ngrokProcess = Start-Process -FilePath $ngrokExe `
-            -ArgumentList "http $Port --log=stdout" `
-            -WindowStyle Hidden `
+        Write-Info "Starting Ngrok tunnel for port $Port ($ngrokExe)..."
+
+        $ngrokCmd = "title PLP DMS - Ngrok Tunnel && `"$ngrokExe`" http $Port"
+        $ngrokProcess = Start-Process -FilePath "cmd.exe" `
+            -ArgumentList "/k", "`"$ngrokCmd`"" `
+            -WorkingDirectory (Split-Path $ngrokExe -Parent) `
             -PassThru
 
         Start-Sleep -Seconds 2
@@ -419,8 +442,12 @@ if ($isNgrokRunning) {
                 Write-Success "Ngrok tunnel established: $ngrokPublicUrl"
             }
         } catch {}
+
+        if (-not $ngrokPublicUrl) {
+            Write-Success "Ngrok launched in visible CMD window (PID $($ngrokProcess.Id))."
+        }
     } else {
-        Write-Info "Ngrok not found in PATH or Downloads. Skipping remote tunnel (local access only)."
+        Write-Info "Ngrok not found in PATH or Documents. Skipping remote tunnel (local access only)."
     }
 }
 
