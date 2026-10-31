@@ -2610,6 +2610,11 @@ body.login-page {
   padding-right: 48px;
 }
 
+.password-field input::-ms-reveal,
+.invitation-password-control input::-ms-reveal {
+  display: none;
+}
+
 .password-field input.is-invalid {
   padding-right: 76px;
   background-position: right 44px center;

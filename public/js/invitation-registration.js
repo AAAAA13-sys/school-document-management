@@ -99,7 +99,8 @@ document.querySelectorAll('[data-toggle-password]').forEach((button) => {
     if (!input) return;
     const visible = input.type === 'password';
     input.type = visible ? 'text' : 'password';
-    button.textContent = visible ? 'Hide' : 'Show';
+    const slash = button.querySelector('[data-password-slash]');
+    if (slash) slash.style.display = visible ? '' : 'none';
     button.setAttribute('aria-pressed', String(visible));
     const label = input.id.endsWith('confirmation') ? 'password confirmation' : 'new password';
     button.setAttribute('aria-label', (visible ? 'Hide ' : 'Show ') + label);

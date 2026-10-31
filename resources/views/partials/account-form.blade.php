@@ -40,6 +40,9 @@
     <div class="col-sm-6">
         <label for="source-{{ $suffix }}" class="form-label">Primary workspace</label
         ><select id="source-{{ $suffix }}" name="source" class="form-select" data-account-source>
+            @if ($viewer->isSuperAdmin())
+                <option value="" @selected(empty($account->source))>None (Super Admin only)</option>
+            @endif
             @foreach (($workspaceLabels ?? App\Services\WorkspaceRegistry::labels($viewer)) as $code=>$label)
                 <option value="{{ $code }}" @selected (($account->source??'EMS')===$code)>{{ $code }} - {{ $label }}</option>
             @endforeach

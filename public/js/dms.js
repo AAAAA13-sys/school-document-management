@@ -545,16 +545,24 @@
     });
     $('[data-account-role]')
       .on('change', function () {
-        const source = $(this).closest('form').find('[data-account-source]');
+        const form = $(this).closest('form');
+        const source = form.find('[data-account-source]');
         const isSuperAdmin = this.value === 'super_admin';
-        const allowed = isSuperAdmin ? [] : ['EMS', 'PMS', 'ES', 'OAS'];
         source.find('option').each(function () {
-          this.disabled = !allowed.includes(this.value);
+          if (this.value === '') {
+            this.disabled = !isSuperAdmin;
+          } else {
+            this.disabled = isSuperAdmin;
+          }
         });
         source.prop('disabled', isSuperAdmin);
-        if (isSuperAdmin) source.val('');
-        else if (!allowed.includes(source.val())) source.val(allowed[0]);
-        $(this).closest('form').find('.super-admin-source-help').toggle(isSuperAdmin);
+        if (isSuperAdmin) {
+          source.val('');
+        } else if (!source.val() || source.val() === '') {
+          const firstValid = source.find('option:not([disabled]):not([value=""])').first().val();
+          if (firstValid) source.val(firstValid);
+        }
+        form.find('.super-admin-source-help').toggle(isSuperAdmin);
       })
       .trigger('change');
     $('[data-password-policy]').on('input', function () {
@@ -676,7 +684,10 @@
       input.attr('type', show ? 'text' : 'password');
       const eyeShow = $(this).find('.eye-show');
       const eyeHide = $(this).find('.eye-hide');
-      if (eyeShow.length && eyeHide.length) {
+      const slash = $(this).find('[data-password-slash]');
+      if (slash.length) {
+        slash.css('display', show ? 'block' : 'none');
+      } else if (eyeShow.length && eyeHide.length) {
         eyeShow.css('display', show ? 'none' : 'block');
         eyeHide.css('display', show ? 'block' : 'none');
       } else {
