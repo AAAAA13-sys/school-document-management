@@ -47,3 +47,7 @@ Homestead.yaml
 # Logs.
 npm-debug.log*
 yarn-error.log*
+
+# Graphify output
+/graphify-out
+
