@@ -28,7 +28,6 @@
         @if ($doc->trashed_at)
             <div class="alert alert-warning">This document is in trash. Restore it before editing or downloading.</div>
         @endif
-        @include ('partials.memo-publication')
         <div id="document-tabs" class="file-detail-tabs">
             <ul class="file-detail-tab-list" aria-label="Document sections">
                 <li><a href="#file-details" id="tab-details" aria-controls="file-details">Details</a></li>
@@ -52,7 +51,7 @@
                     </div>
                     <div>
                         <dt>Source</dt>
-                        <dd>{{ $sourceName }}<span class="metadata-secondary">Category: {{ $doc->category ?: 'Not provided' }}</span></dd>
+                        <dd>{{ $sourceName }}</dd>
                     </div>
                     <div>
                         <dt>Classification</dt>
@@ -271,7 +270,7 @@
             @else
                 <button type="button" class="btn btn-primary" disabled>Download unavailable</button>
             @endif
-            <div class="file-detail-trash">
+            <div class="file-detail-trash d-flex align-items-center gap-2">
                 @if ($owner)
                     <form
                         method="post"
@@ -285,6 +284,20 @@
                             {{ $doc->trashed_at?'Restore document':'Move to trash' }}
                         </button>
                     </form>
+                    @if ($doc->trashed_at)
+                        <form
+                            method="post"
+                            action="/documents/{{ $doc->id }}/permanent"
+                            data-document-id="{{ $doc->id }}"
+                            data-confirm="Permanently delete this document and all its versions? This cannot be undone.">
+                            @csrf
+                            <input type="hidden" name="revision" value="{{ $doc->revision }}" /><button
+                                type="submit"
+                                class="btn btn-outline-danger">
+                                Delete permanently
+                            </button>
+                        </form>
+                    @endif
                 @endif
             </div>
         </footer>
@@ -346,23 +359,48 @@
                         </div>
                         <div class="modal-body">
                             <p class="modal-subtitle">{{ $doc->title }} · {{ $doc->classification }}</p>
-                            <label for="share-search" class="form-label">Staff recipient</label
-                            ><input
-                                id="share-search"
+
+                            @if ($doc->classification === 'Restricted')
+                                <div class="alert alert-info py-2 px-3 mb-3 small d-flex align-items-center gap-2">
+                                    <x-figma-icon name="shield" :size="16" />
+                                    <span><strong>Restricted access:</strong> Can only be shared with colleagues of the same authority level ({{ ucfirst(str_replace('_', ' ', $viewer->role)) }}).</span>
+                                </div>
+                            @endif
+
+                            <div class="p-3 mb-4 rounded border" style="background: #f8fafc;">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <label for="shareable-doc-link" class="form-label fw-bold mb-0">Shareable link</label>
+                                    <button type="button" class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1" id="copy-doc-link-btn">
+                                        <x-figma-icon name="link" :size="16" />
+                                        <span id="copy-btn-text">Copy link</span>
+                                    </button>
+                                </div>
+                                <input type="text" id="shareable-doc-link" class="form-control form-control-sm bg-white" readonly value="{{ url('/documents/'.$doc->id) }}" />
+                                <small class="text-muted mt-1 d-block">Anyone with access to this workspace or document can use this link directly.</small>
+                            </div>
+
+                            <label for="share-recipient-input" class="form-label">Staff recipient</label>
+                            <input
+                                id="share-recipient-input"
+                                name="recipient_email"
                                 type="text"
                                 class="form-control mb-2"
-                                placeholder="Search staff name or email…"
-                                autocomplete="off"
-                                aria-describedby="share-search-help" /><small id="share-search-help" class="text-muted d-block mb-2"
-                                >Choose a named school account below.</small
-                            ><label for="share-recipient" class="visually-hidden">Recipient account</label
-                            ><select id="share-recipient" name="recipient_id" class="form-select mb-4" required>
-                                <option value="">Choose a person</option>
+                                placeholder="Enter staff email (e.g. staff@plp.edu.ph) or choose from list…"
+                                list="share-staff-datalist"
+                                required
+                                autocomplete="off" />
+                            <datalist id="share-staff-datalist">
                                 @foreach ($recipients as $person)
-                                    <option value="{{ $person->id }}">{{ $person->name }} ({{ $person->email }})</option>
-                                @endforeach</select
-                            ><label for="share-permission" class="form-label">Permission</label
-                            ><select id="share-permission" name="permission" class="form-select mb-4">
+                                    @if ($doc->classification !== 'Restricted' || $person->role === $viewer->role)
+                                        <option value="{{ $person->email }}">{{ $person->name }} ({{ $person->email }})</option>
+                                    @endif
+                                @endforeach
+                            </datalist>
+                            <input type="hidden" name="recipient_id" id="share-recipient-id" value="" />
+                            <small class="text-muted d-block mb-4">Enter the staff member’s email address or select them from the suggestions.</small>
+
+                            <label for="share-permission" class="form-label">Permission</label>
+                            <select id="share-permission" name="permission" class="form-select mb-4">
                                 <option>Viewer</option>
                                 <option>Commenter</option>
                                 <option>Editor</option>
@@ -377,7 +415,7 @@
                                 @foreach ($versions as $v)
                                     <option value="{{ $v->id }}">Version {{ $v->number }} only</option>
                                 @endforeach</select
-                            ><label for="share-expiry" class="form-label">Expires <span>(within 30 days)</span></label
+                            ><label for="share-expiry" class="form-label">Expires @if ($doc->classification === 'Confidential') <span class="text-danger">*</span> @endif<span>(within 30 days limit)</span></label
                             ><input
                                 id="share-expiry"
                                 name="expires_at"
@@ -385,12 +423,13 @@
                                 class="form-control datepicker"
                                 aria-describedby="share-expiry-help"
                                 min="{{ now()->addDay()->format('Y-m-d') }}"
-                                max="{{ now()->addDays(30)->format('Y-m-d') }}" />
+                                max="{{ now()->addDays(30)->format('Y-m-d') }}"
+                                value="{{ $doc->classification === 'Confidential' ? now()->addDays(30)->format('Y-m-d') : '' }}" />
                             <p id="share-expiry-help" class="form-text security-note mt-4">Named staff only. No public or anonymous links. Share link expires within 30 days.</p>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button
-                            ><button type="submit" class="btn btn-primary">{{ $viewer->isSuperAdmin()?'Grant access':'Request access grant' }}</button>
+                            ><button type="submit" class="btn btn-primary">{{ ($viewer->isSuperAdmin() || $viewer->isAdmin()) ? 'Grant access' : 'Request access grant' }}</button>
                         </div>
                     </form>
                 </div>

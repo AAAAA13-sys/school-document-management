@@ -34,32 +34,44 @@
                 <div class="modal-body">
                     @if (isset($doc))
                         <p class="modal-subtitle">{{ $doc->title }} · {{ $doc->classification }}</p>
+                        <div class="p-3 mb-4 rounded border" style="background: #f8fafc;">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <label for="shareable-doc-link-partial" class="form-label fw-bold mb-0">Shareable link</label>
+                                <button type="button" class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1" id="copy-doc-link-btn-partial">
+                                    <x-figma-icon name="link" :size="16" />
+                                    <span>Copy link</span>
+                                </button>
+                            </div>
+                            <input type="text" id="shareable-doc-link-partial" class="form-control form-control-sm bg-white" readonly value="{{ url('/documents/'.$doc->id) }}" />
+                            <small class="text-muted mt-1 d-block">Anyone with access to this workspace or document can use this link directly.</small>
+                        </div>
                     @elseif (!empty($folder))
                         <p class="modal-subtitle">Folder: {{ $folder->name }}</p>
                     @endif
 
-                    <label for="share-search" class="form-label">Staff recipient</label>
+                    <label for="share-recipient-input" class="form-label">Staff recipient</label>
                     <input
-                        id="share-search"
+                        id="share-recipient-input"
+                        name="recipient_email"
                         type="text"
                         class="form-control mb-2"
-                        placeholder="Search staff name or email…"
-                        autocomplete="off"
-                        aria-describedby="share-search-help" />
-                    <small id="share-search-help" class="text-muted d-block mb-2">Choose a named school account below.</small>
-                    <label for="share-recipient" class="visually-hidden">Recipient account</label>
-                    <select id="share-recipient" name="recipient_id" class="form-select mb-4" required aria-live="polite">
-                        <option value="">Choose a person</option>
+                        placeholder="Enter staff email (e.g. staff@plp.edu.ph) or choose from list…"
+                        list="share-staff-datalist"
+                        required
+                        autocomplete="off" />
+                    <datalist id="share-staff-datalist">
                         @if (isset($recipients))
                             @foreach ($recipients as $person)
-                                <option value="{{ $person->id }}">{{ $person->name }} ({{ $person->email }})</option>
+                                <option value="{{ $person->email }}">{{ $person->name }} ({{ $person->email }})</option>
                             @endforeach
                         @elseif (isset($folderRecipients))
                             @foreach ($folderRecipients as $person)
-                                <option value="{{ $person->id }}">{{ $person->name }} ({{ $person->email }})</option>
+                                <option value="{{ $person->email }}">{{ $person->name }} ({{ $person->email }})</option>
                             @endforeach
                         @endif
-                    </select>
+                    </datalist>
+                    <input type="hidden" name="recipient_id" id="share-recipient-id" value="" />
+                    <small class="text-muted d-block mb-4">Type the recipient's email address or select them from the suggestions.</small>
 
                     <label for="share-permission" class="form-label">Permission</label>
                     <select id="share-permission" name="permission" class="form-select mb-4">

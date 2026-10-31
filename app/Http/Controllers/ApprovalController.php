@@ -13,6 +13,7 @@ class ApprovalController extends Controller
     public function index(Request $request, SensitiveChangeService $service)
     {
         $user = $request->user();
+        abort_unless($user->isSuperAdmin() || $user->isAdmin(), 403);
         $changes = DB::table('sensitive_changes')->orderByDesc('created_at')->get()->filter(function ($change) use ($user, $service) {
             if ((int) $change->requester_id === $user->id) {
                 return true;
@@ -51,11 +52,14 @@ class ApprovalController extends Controller
             ]);
         }
 
-        return view('approvals.index', compact('changes'));
+        $isAdmin = $request->is('admin/*') || $user->isSuperAdmin();
+
+        return view('approvals.index', compact('changes') + ['isAdmin' => $isAdmin, 'section' => 'approvals']);
     }
 
     public function decide(Request $request, string $approval, SensitiveChangeService $service)
     {
+        abort_unless($request->user()->isSuperAdmin() || $request->user()->isAdmin(), 403);
         $p = $request->validate(['decision' => 'required|in:approve,reject', 'reason' => 'required|string|max:2000']);
         $result = $service->decide($request->user(), $approval, $p['decision'] === 'approve', $p['reason']);
 

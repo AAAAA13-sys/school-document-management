@@ -120,9 +120,10 @@ class DocumentService
                     }
                     $duplicates = $this->duplicateMatches($actor, $checksum, null, $confirmDuplicate);
                     $id = (string) Str::uuid();
+                    $title = $this->resolveUniqueTitle($source, $input['folder_id'] ?? null, $input['title']);
                     DB::table('documents')->insert(['id' => $id, 'owner_id' => $actor instanceof User ? $actor->id : null,
                         'folder_id' => $input['folder_id'] ?? null, 'source' => $source, 'school_id' => $actor->school_id, 'campus' => $actor->campus,
-                        'title' => $input['title'], 'subject' => $input['subject'] ?? null, 'reference' => $input['reference'] ?? null,
+                        'title' => $title, 'subject' => $input['subject'] ?? null, 'reference' => $input['reference'] ?? null,
                         'category' => $input['category'] ?? null, 'classification' => $input['classification'], 'revision' => 1, 'created_at' => now(), 'updated_at' => now()]);
                 }
                 $version = (string) Str::uuid();
@@ -130,14 +131,16 @@ class DocumentService
                 abort_unless(Storage::disk('local')->putFileAs('documents', $file, $version), 500, 'Could not store the file.');
                 $status = 'Pending';
                 $number = (int) DB::table('document_versions')->where('document_id', $id)->max('number') + 1;
+                $originalFilename = basename(str_replace('\\', '/', $file->getClientOriginalName()));
+                $filename = (isset($title) && str_contains($title, '.')) ? $title : $originalFilename;
                 DB::table('document_versions')->insert(['id' => $version, 'document_id' => $id, 'number' => $number,
-                    'filename' => basename(str_replace('\\', '/', $file->getClientOriginalName())), 'mime' => $file->getMimeType(),
+                    'filename' => $filename, 'mime' => $file->getMimeType(),
                     'size' => $file->getSize(), 'checksum' => $checksum, 'storage_key' => $stored, 'scan_status' => $status, 'created_at' => now()]);
                 $doc = DB::table('documents')->where('id', $id)->first();
                 Access::audit($actor, 'document.uploaded', $doc, ['version_id' => $version, 'scan_status' => $status]
                     + ($duplicates ? ['duplicate_of' => array_values(array_unique(array_column($duplicates, 'document_id')))] : []));
                 Access::event($doc, 'document.version.created');
-                $response = ['document_id' => $id, 'version_id' => $version, 'revision' => $doc->revision, 'scan_status' => $status];
+                $response = ['document_id' => $id, 'version_id' => $version, 'revision' => $doc->revision, 'scan_status' => $status, 'title' => $doc->title, 'filename' => $filename];
                 if ($requestKey) {
                     DB::table('request_receipts')->insert(['scope_key' => $scope, 'request_key' => $requestKey, 'request_hash' => $hash, 'response' => json_encode($response), 'created_at' => now()]);
                 }
@@ -259,5 +262,47 @@ class DocumentService
         }
 
         return $matches;
+    }
+
+    private function resolveUniqueTitle(string $source, ?string $folderId, string $title, ?string $excludeDocId = null): string
+    {
+        $info = pathinfo($title);
+        $baseName = $info['filename'] ?? $title;
+        $extension = isset($info['extension']) && $info['extension'] !== '' ? '.' . $info['extension'] : '';
+
+        if (preg_match('/^(.*?)\s*\((\d+)\)$/', $baseName, $m)) {
+            $baseName = trim($m[1]);
+        }
+
+        $existingTitles = DB::table('documents')
+            ->where('source', $source)
+            ->where(function ($q) use ($folderId) {
+                if ($folderId) {
+                    $q->where('folder_id', $folderId);
+                } else {
+                    $q->whereNull('folder_id');
+                }
+            })
+            ->whereNull('trashed_at')
+            ->when($excludeDocId, fn ($q) => $q->where('id', '!=', $excludeDocId))
+            ->where(function ($q) use ($baseName, $extension) {
+                $q->where('title', $baseName . $extension)
+                  ->orWhere('title', 'like', $baseName . '(%)' . $extension)
+                  ->orWhere('title', 'like', $baseName . ' (%)' . $extension);
+            })
+            ->pluck('title')
+            ->all();
+
+        if (! in_array($title, $existingTitles, true)) {
+            return $title;
+        }
+
+        $counter = 1;
+        while (in_array($baseName . '(' . $counter . ')' . $extension, $existingTitles, true) ||
+               in_array($baseName . ' (' . $counter . ')' . $extension, $existingTitles, true)) {
+            $counter++;
+        }
+
+        return $baseName . '(' . $counter . ')' . $extension;
     }
 }

@@ -9,8 +9,8 @@
         · PLP Documents
     </title>
     <link rel="stylesheet" href="{{ request()->getBaseUrl() }}/vendor/bootstrap.min.css" />
-    <link rel="stylesheet" href="{{ request()->getBaseUrl() }}/css/dms.css" />
-    <script defer src="{{ request()->getBaseUrl() }}/js/invitation-registration.js"></script>
+    <link rel="stylesheet" href="{{ request()->getBaseUrl() }}/css/dms.css?v={{ @filemtime(public_path('css/dms.css')) ?: '1' }}" />
+    <script defer src="{{ request()->getBaseUrl() }}/js/invitation-registration.js?v={{ @filemtime(public_path('js/invitation-registration.js')) ?: '1' }}"></script>
 </head>
 <body class="invitation-registration-page">
     <main class="invitation-shell">

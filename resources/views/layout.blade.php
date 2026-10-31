@@ -1,7 +1,13 @@
 @php
     $viewer = $viewer ?? auth()->user();
+    $source = $source ?? 'ALL';
     $isSidebarCollapsed = request()->cookie('dms_sidebar_collapsed') === 'true';
-    $isAdmin = $isAdmin ?? (request()->is('admin') || request()->is('admin/*') || ($section === 'account' && ($viewer->isSuperAdmin() || $viewer->isAdmin())));
+    $isAdmin = $isAdmin ?? (
+        request()->is('admin') || 
+        request()->is('admin/*') || 
+        request()->is('approvals*') ||
+        ($section === 'account' && ($viewer->isSuperAdmin() || $viewer->isAdmin()))
+    );
     $sources = $viewer->sources();
     $navSource = in_array($source ?? null, $sources, true) ? $source : ($sources[0] ?? $viewer->source ?? 'EMS');
     $root = $isAdmin ? '/admin' : '/workspaces/'.strtolower($navSource);
@@ -11,11 +17,25 @@
     $roleName = config('dms.role_labels.'.$viewer->role);
     $initials = collect(explode(' ', $viewer->name))->take(2)->map(fn($s)=>mb_strtoupper(mb_substr($s,0,1)))->join('');
     $sections = $isAdmin
-        ? ['overview'=>['home','Overview'],'repository'=>['file','School repository'],'accounts'=>['users','Staff accounts'],'connectors'=>['link','ERP connectors'],'scans'=>['shield','File security'],'audit'=>['history','Audit trail']]
-        : ['overview'=>['home','Overview'],'documents'=>['file','Documents'],'history'=>['history','Received history'],'snapshots'=>['link','Current records']];
+        ? [
+            'overview' => ['home', 'Overview', '/admin/overview'],
+            'workspaces' => ['grid', 'Workspaces', '/admin/workspaces'],
+            'repository' => ['file', 'School repository', '/admin/repository'],
+            'accounts' => ['users', 'Staff accounts', '/admin/accounts'],
+            'approvals' => ['check', 'Approvals', '/admin/approvals'],
+            'connectors' => ['link', 'ERP connectors', '/admin/connectors'],
+            'scans' => ['shield', 'File security', '/admin/scans'],
+            'audit' => ['history', 'Audit trail', '/admin/audit'],
+        ]
+        : [
+            'overview' => ['home', 'Overview', $root.'/overview'],
+            'documents' => ['file', 'Documents', $root.'/documents'],
+            'history' => ['history', 'Received history', $root.'/history'],
+            'snapshots' => ['link', 'Current records', $root.'/snapshots'],
+        ];
     $libraryLinks = $viewer->isSuperAdmin()
         ? ['all'=>['file','All documents'],'trash'=>['trash','Trash']]
-        : ['mine'=>['folder','My documents'],'shared'=>['users','Shared with me'],'starred'=>['star','Starred'],'trash'=>['trash','Trash']];
+        : ['all'=>['file','All documents'],'mine'=>['folder','My documents'],'shared'=>['users','Shared with me'],'starred'=>['star','Starred'],'trash'=>['trash','Trash']];
 @endphp
 <!doctype html>
 <html lang="en" class="{{ $isSidebarCollapsed ? 'sidebar-collapsed' : '' }}">
@@ -59,11 +79,11 @@
     </script>
     <link rel="stylesheet" href="/vendor/bootstrap.min.css" />
     <link rel="stylesheet" href="/vendor/jquery-ui.min.css" />
-    <link rel="stylesheet" href="/css/dms.css" />
+    <link rel="stylesheet" href="/css/dms.css?v={{ @filemtime(public_path('css/dms.css')) ?: '1' }}" />
     <script defer src="/vendor/jquery.min.js"></script>
     <script defer src="/vendor/jquery-ui.min.js"></script>
     <script defer src="/vendor/bootstrap.bundle.min.js"></script>
-    <script defer src="/js/dms.js"></script>
+    <script defer src="/js/dms.js?v={{ @filemtime(public_path('js/dms.js')) ?: '1' }}"></script>
 </head>
 <body class="{{ $isSidebarCollapsed ? 'sidebar-collapsed' : '' }}" data-section="{{ $section ?? 'workspaces' }}" data-source="{{ $source ?? 'ALL' }}">
     <a class="skip-link" href="#main">Skip to content</a>
@@ -92,7 +112,9 @@
             </button>
         </div>
         <nav class="main-nav">
-            @foreach ($sections as $key=>[$glyph,$label])
+            @foreach ($sections as $key=>[$glyph,$label,$navUrl])
+                @continue ($key === 'workspaces' && ! $viewer->isSuperAdmin())
+                @continue ($key === 'approvals' && ! ($viewer->isSuperAdmin() || $viewer->isAdmin()))
                 @continue ($key === 'connectors' && ! $viewer->can('connectors.manage'))
                 @continue ($key === 'accounts' && ! $viewer->can('accounts.manage'))
                 @continue ($key === 'history' && ! $viewer->can('workspace.history'))
@@ -100,23 +122,99 @@
                 @if ($isAdmin && $key==='scans')
                     <span class="nav-caption governance-caption">GOVERNANCE</span>
                 @endif
-                @php $active=$section===$key && ($key!=='documents' || $libraryView==='all'); @endphp
-                <a
-                    href="{{ $root }}/{{ $key }}"
-                    class="{{ $active?'active':'' }}"
-                    @if ($active) aria-current="page" @endif
-                    data-bs-toggle="tooltip"
-                    data-bs-placement="right"
-                    title="{{ $label }}"
-                    ><x-figma-icon :name="$glyph.($active?'-active':'')" /><span class="nav-label">{{ $label }}</span></a
-                >
+                @php
+                    $active = false;
+                    if ($key === 'workspaces') {
+                        $active = request()->is('admin/workspaces*') || ($section ?? '') === 'workspaces';
+                    } elseif ($key === 'approvals') {
+                        $active = request()->is('approvals*') || request()->is('admin/approvals*') || ($section ?? '') === 'approvals';
+                    } elseif ($key === 'accounts') {
+                        $active = (request()->is('admin/accounts*') 
+                            || request()->is('admin/invitations*') 
+                            || ($section ?? '') === 'accounts')
+                            && !request()->is('approvals*')
+                            && !request()->is('admin/approvals*')
+                            && ($section ?? '') !== 'approvals';
+                    } else {
+                        $active = ($section === $key && ($key !== 'documents' || $libraryView === 'all'));
+                    }
+                @endphp
+                @if ($isAdmin && $viewer->isSuperAdmin() && $key === 'workspaces')
+                    @php
+                        $allWorkspaces = App\Services\WorkspaceRegistry::labels($viewer);
+                        $isAnyWsActive = $active || request()->is('workspaces*');
+                    @endphp
+                    <div class="nav-dropdown {{ $isAnyWsActive ? 'is-open' : '' }}" id="nav-workspaces-group">
+                        <button
+                            type="button"
+                            class="nav-dropdown-toggle {{ $isAnyWsActive ? 'active' : '' }}"
+                            data-toggle-workspaces
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="right"
+                            title="Workspaces">
+                            <x-figma-icon :name="$glyph.($isAnyWsActive?'-active':'')" />
+                            <span class="nav-label">Workspaces</span>
+                            <span class="nav-dropdown-chevron" aria-hidden="true">▾</span>
+                        </button>
+                        <div class="nav-sub-menu" id="nav-workspaces-sub" @if (!$isAnyWsActive) style="display: none;" @endif>
+                            <a
+                                href="/admin/workspaces"
+                                class="nav-sub-item {{ request()->is('admin/workspaces*') ? 'active' : '' }}"
+                                title="Manage workspaces">
+                                <span class="nav-workspace-badge">ALL</span>
+                                <span class="nav-label">All workspaces</span>
+                            </a>
+                            @foreach ($allWorkspaces as $wsCode => $wsName)
+                                @php $wsActive = request()->is('workspaces/'.strtolower($wsCode).'*') || (($source ?? '') === $wsCode && !$isAdmin); @endphp
+                                <a
+                                    href="/workspaces/{{ strtolower($wsCode) }}"
+                                    class="nav-sub-item {{ $wsActive ? 'active' : '' }}"
+                                    data-bs-toggle="tooltip"
+                                    data-bs-placement="right"
+                                    title="{{ $wsName }} ({{ $wsCode }})">
+                                    <span class="nav-workspace-badge">{{ substr($wsCode, 0, 3) }}</span>
+                                    <span class="nav-label">{{ $wsName }}</span>
+                                </a>
+                            @endforeach
+                        </div>
+                    </div>
+                @else
+                    <a
+                        href="{{ $navUrl ?? "$root/$key" }}"
+                        class="{{ $active?'active':'' }}"
+                        @if ($active) aria-current="page" @endif
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="right"
+                        title="{{ $label }}"
+                        ><x-figma-icon :name="$glyph.($active?'-active':'')" /><span class="nav-label">{{ $label }}</span></a
+                    >
+                @endif
             @endforeach
-            @unless ($isAdmin)
+            @if ($isAdmin)
+                @if ($viewer->isSuperAdmin())
+                    {{-- Workspaces moved into Workspaces dropdown above --}}
+                @elseif (count($sources) > 0)
+                    <span class="nav-caption">MY WORKSPACES</span>
+                    @foreach ($sources as $wsCode)
+                        @php
+                            $wsLabel = ($workspaceLabels ?? App\Services\WorkspaceRegistry::labels($viewer))[$wsCode] ?? $wsCode;
+                        @endphp
+                        <a
+                            href="/workspaces/{{ strtolower($wsCode) }}"
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="right"
+                            title="{{ $wsLabel }}">
+                            <span class="nav-workspace-badge">{{ substr($wsCode, 0, 3) }}</span>
+                            <span class="nav-label">{{ $wsLabel }}</span>
+                        </a>
+                    @endforeach
+                @endif
+            @else
                 <span class="nav-caption">{{ $viewer->isSuperAdmin() ? 'REPOSITORY':'MY LIBRARY' }}</span>
                 @foreach ($libraryLinks as $key=>[$glyph,$label])
                     @php $active=$section==='documents' && $libraryView===$key; @endphp
                     <a
-                        href="{{ $root }}/documents?view={{ $key }}"
+                        href="/workspaces/{{ strtolower($navSource) }}/documents?view={{ $key }}"
                         class="{{ $active?'active':'' }}"
                         @if ($active) aria-current="page" @endif
                         data-bs-toggle="tooltip"
@@ -128,28 +226,38 @@
                         ></a
                     >
                 @endforeach
-            @endunless
+                @if (count($sources) > 1)
+                    <span class="nav-caption">MY WORKSPACES</span>
+                    @foreach ($sources as $wsCode)
+                        @php
+                            $isCurrentWs = ($source ?? '') === $wsCode;
+                            $wsLabel = ($workspaceLabels ?? App\Services\WorkspaceRegistry::labels($viewer))[$wsCode] ?? $wsCode;
+                        @endphp
+                        <a
+                            href="/workspaces/{{ strtolower($wsCode) }}"
+                            class="{{ $isCurrentWs ? 'active' : '' }}"
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="right"
+                            title="{{ $wsLabel }}">
+                            <span class="nav-workspace-badge">{{ substr($wsCode, 0, 3) }}</span>
+                            <span class="nav-label">{{ $wsLabel }}</span>
+                        </a>
+                    @endforeach
+                @endif
+            @endif
         </nav>
         <div class="sidebar-bottom">
             @if (($viewer->isSuperAdmin() || $viewer->isAdmin()) && !$isAdmin)
-                <a class="return-admin" href="/admin" data-bs-toggle="tooltip" data-bs-placement="right" title="Administration"
-                    ><span class="return-text">← Administration</span></a
-                >
+                <a class="sidebar-action-link" href="/admin" data-bs-toggle="tooltip" data-bs-placement="right" title="Administration">
+                    <x-figma-icon name="arrow-left" :size="16" />
+                    <span class="action-text">Administration</span>
+                </a>
             @endif
 
-            <a href="/approvals" class="return-admin" data-bs-toggle="tooltip" data-bs-placement="right" title="Requests and approvals"
-                ><span class="return-text">Requests and approvals</span></a
-            >
-            @if ($isAdmin)
-                @if ($viewer->isSuperAdmin())
-                    <a href="/admin/workspaces" class="return-admin" data-bs-toggle="tooltip" data-bs-placement="right" title="Workspace registry"
-                        ><span class="return-text">Workspace registry</span></a
-                    >
-                @endif
-            @endif
-            <a href="/account" class="return-admin" data-bs-toggle="tooltip" data-bs-placement="right" title="My account"
-                ><span class="return-text">My account</span></a
-            >
+            <a href="/account" class="sidebar-action-link {{ request()->is('account') ? 'active' : '' }}" data-bs-toggle="tooltip" data-bs-placement="right" title="My account">
+                <x-figma-icon name="users" :size="16" />
+                <span class="action-text">My account</span>
+            </a>
             <div
                 class="profile"
                 data-bs-toggle="tooltip"

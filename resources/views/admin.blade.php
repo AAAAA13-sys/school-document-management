@@ -74,7 +74,6 @@
             <a href="/admin/accounts" class="active" aria-current="page">Staff directory</a>
             @if ($viewer->isSuperAdmin() || $viewer->isAdmin())
                 <a href="/admin/invitations">Invitations</a>
-                <a href="/admin/account-requests">Account requests</a>
             @endif
         </nav>
         <div class="filter-pills-bar mb-3">
@@ -134,16 +133,6 @@
                 </table>
             </div>
         </section>
-        <div class="info-strip mt-4">
-            <x-figma-icon name="link-notice" :size="24" />
-            <div>
-                <strong>Accounts are provisioned via expiring invitations</strong>
-                <p>Recipients choose their own password. Scoped Admin proposals require Super Admin approval before dispatch.</p>
-            </div>
-        </div>
-        @if (isset($invitations))
-            @include ('partials.invitations')
-        @endif
     @elseif ($section==='connectors')
         @if (session('connector_token'))
             <div class="alert alert-warning" role="status">
@@ -418,13 +407,13 @@
         <div class="modal fade" id="account-new" tabindex="-1" aria-labelledby="account-new-title" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
                 <div class="modal-content">
-                    <form method="post" action="/admin/accounts">
+                    <form method="post" action="/admin/accounts" novalidate>
                         <div class="modal-header">
                             <h2 id="account-new-title" class="modal-title">Invite staff member</h2>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
-                            <p class="modal-subtitle">An expiring, single-use invitation will be sent for the recipient to activate their account. Access is scoped to {{ $viewer->school_id }} · {{ $viewer->campus }} campus.</p>
+                            <p class="modal-subtitle">An expiring single-use invitation link will be sent immediately to the recipient to activate their account. Access is scoped to {{ $viewer->school_id }} · {{ $viewer->campus }} campus.</p>
                             @include ('partials.account-form',['account'=>null])
                         </div>
                         <div class="modal-footer">
@@ -439,7 +428,7 @@
             <div class="modal fade" id="account-{{ $account->id }}" tabindex="-1" aria-labelledby="account-title-{{ $account->id }}" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
                     <div class="modal-content">
-                        <form method="post" action="/admin/accounts/{{ $account->id }}">
+                        <form method="post" action="/admin/accounts/{{ $account->id }}" novalidate>
                             <div class="modal-header">
                                 <h2 class="modal-title" id="account-title-{{ $account->id }}">Edit staff account</h2>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>

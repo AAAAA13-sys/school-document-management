@@ -79,6 +79,21 @@ class ActionRequest extends FormRequest
         if (is_string($this->input('email'))) {
             $this->merge(['email' => mb_strtolower(trim($this->input('email')))]);
         }
+        if (in_array($this->route()->getName(), ['accounts.create', 'accounts.update']) && ! $this->has('active')) {
+            $this->merge(['active' => true]);
+        }
+        if (in_array($this->route()->getName(), ['shares.create', 'folder-shares.create'])) {
+            if (! $this->filled('recipient_id') && $this->filled('recipient_email')) {
+                $email = mb_strtolower(trim($this->input('recipient_email')));
+                $foundId = \Illuminate\Support\Facades\DB::table('users')
+                    ->whereRaw('LOWER(email) = ?', [$email])
+                    ->orWhereRaw('LOWER(name) = ?', [$email])
+                    ->value('id');
+                if ($foundId) {
+                    $this->merge(['recipient_id' => $foundId]);
+                }
+            }
+        }
     }
 
     public function rules(): array
@@ -87,13 +102,14 @@ class ActionRequest extends FormRequest
             'folders.create' => ['name' => 'required|string|max:150', 'parent_id' => 'nullable|uuid', 'source' => ['required', Rule::in(Source::values($this->user()))]],
             'folders.update' => ['name' => 'required|string|max:150', 'parent_id' => 'nullable|uuid', 'revision' => 'required|integer|min:1'],
             'documents.update' => ['classification' => 'sometimes|required|in:Internal,Confidential,Restricted', 'title' => 'required|string|max:200', 'folder_id' => 'nullable|uuid', 'revision' => 'required|integer|min:1', 'confirm_move' => 'sometimes|boolean'],
-            'documents.trash', 'documents.restore' => ['revision' => 'required|integer|min:1'],
+            'documents.trash', 'documents.restore', 'documents.permanent' => ['revision' => 'required|integer|min:1'],
             'shares.revoke' => ['revision' => 'required|integer|min:1'],
             'shares.create' => ['revision' => 'required|integer|min:1', 'recipient_id' => 'required|integer', 'permission' => 'required|in:Viewer,Commenter,Editor', 'expires_at' => 'nullable|date|after:now|before_or_equal:'.now()->addDays(30)->toDateTimeString(), 'version_id' => 'nullable|uuid', 'folder_inheritance' => 'sometimes|boolean'],
             'folder-shares.create' => ['recipient_id' => 'required|integer', 'permission' => 'required|in:Viewer,Commenter,Editor', 'expires_at' => 'nullable|date|after:now|before_or_equal:'.now()->addDays(30)->toDateTimeString(), 'apply_to_folder_files' => 'sometimes|boolean'],
             'comments.create' => ['body' => 'required|string|max:2000'],
             'accounts.create', 'accounts.update' => [
-                'name' => 'required|string|max:255', 'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore($this->route('account'))],
+                'name' => ['required', 'string', 'min:2', 'max:255', 'regex:/^[\pL\s\-\'.]+$/u'],
+                'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore($this->route('account'))],
                 'password' => 'prohibited',
                 'role' => ['required', Rule::in(Role::values())],
                 'source' => [
@@ -101,10 +117,18 @@ class ActionRequest extends FormRequest
                     Rule::requiredIf(fn (): bool => $this->input('role') !== Role::SuperAdmin->value),
                     Rule::in(Source::values($this->user())),
                 ],
-                'active' => 'required|boolean',
+                'active' => 'sometimes|boolean',
             ],
             'connectors.create' => ['name' => 'required|string|max:100', 'source' => ['required', Rule::in(WorkspaceRegistry::codes($this->user(), true))]],
             default => [],
         };
+    }
+
+    public function messages(): array
+    {
+        return [
+            'name.regex' => 'The full name may only contain letters, spaces, hyphens, periods, and apostrophes.',
+            'recipient_id.required' => 'Please provide a valid staff email or select a recipient from the list.',
+        ];
     }
 }

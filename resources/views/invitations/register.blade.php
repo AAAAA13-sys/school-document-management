@@ -43,8 +43,11 @@
                     value="{{ $fullName }}"
                     autocomplete="name"
                     maxlength="255"
+                    pattern="^[A-Za-zÀ-ÖØ-öø-ÿ\s\.\-']{2,}$"
+                    title="Full name may only contain letters, spaces, hyphens, periods, and apostrophes."
                     required
                     @if (isset($validationErrors['name'])) aria-invalid="true" @endif />
+                <div class="invalid-feedback realtime-feedback" id="full-name-error" style="display: none;"></div>
             </div>
             <p class="invitation-source"><strong>Assigned workspace</strong><br />{{ $assignedSource }} · {{ config('dms.sources.'.$assignedSource) }}</p>
         </fieldset>

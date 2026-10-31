@@ -8,9 +8,12 @@
         name="name"
         class="form-control"
         maxlength="255"
+        pattern="^[A-Za-zÀ-ÖØ-öø-ÿ\s\.\-']{2,}$"
+        title="Full name may only contain letters, spaces, hyphens, periods, and apostrophes."
         value="{{ $account->name??'' }}"
         required
         placeholder="Enter the staff member’s full name" />
+    <div class="invalid-feedback realtime-feedback" id="name-{{ $suffix }}-error" style="display: none;"></div>
 </div>
 <div class="mb-4">
     <label for="email-{{ $suffix }}" class="form-label">Email address</label
@@ -23,6 +26,7 @@
         value="{{ $account->email??'' }}"
         required
         placeholder="staff@plp.edu.ph" />
+    <div class="invalid-feedback realtime-feedback" id="email-{{ $suffix }}-error" style="display: none;"></div>
 </div>
 <div class="row g-3 mb-4">
     <div class="col-sm-6">
@@ -40,15 +44,11 @@
                 <option value="{{ $code }}" @selected (($account->source??'EMS')===$code)>{{ $code }} - {{ $label }}</option>
             @endforeach
         </select>
-        <small class="input-help">Super Admin has no primary source and oversees registered workspaces.</small>
     </div>
+    @if ($viewer->isSuperAdmin())
+        <div class="col-12 mt-1 super-admin-source-help">
+            <small class="input-help text-nowrap d-block">Super Admin has no primary source and oversees registered workspaces.</small>
+        </div>
+    @endif
 </div>
-<p class="input-help">Recipients set their own password through a single-use invitation or recovery email.</p>
-<div>
-    <label for="active-{{ $suffix }}" class="form-label">Account status</label
-    ><select id="active-{{ $suffix }}" class="form-select" name="active">
-        <option value="1" @selected ($account->active??true)>Active</option>
-        <option value="0" @selected (isset($account) && !$account->active)>Inactive</option>
-    </select>
-</div>
-<p class="security-note mt-4 mb-0">Only authorized staff may have DMS accounts.</p>
+<input type="hidden" name="active" value="{{ ($account->active ?? true) ? '1' : '0' }}" />

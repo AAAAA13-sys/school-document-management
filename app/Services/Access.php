@@ -64,9 +64,9 @@ class Access
             return $query->where(function (Builder $q) use ($actor, $prefix) {
                 // Owners can always see their own document.
                 $q->where($prefix.'owner_id', $actor->id)
-                    // Internal is source-wide for active staff/admin accounts.
-                    ->orWhere(function (Builder $q) use ($actor, $prefix) {
-                        $q->where($prefix.'classification', 'Internal')
+                    // Internal is shared automatically to all active office members of the same workspace/source (regardless of role).
+                    ->orWhere(function (Builder $sub) use ($actor, $prefix) {
+                        $sub->where($prefix.'classification', 'Internal')
                             ->whereIn($prefix.'source', $actor->sources());
                     });
 
@@ -120,7 +120,13 @@ class Access
     {
         return $query->where(fn (Builder $q) => $q
             ->whereIn('id', self::activeShares()->select('document_id')->where('recipient_id', $user->id))
-            ->orWhereIn('folder_id', $folderIds));
+            ->orWhereIn('folder_id', $folderIds)
+            ->orWhere(function (Builder $sub) use ($user) {
+                // Internal documents in the user's office created by others are automatically shared with them
+                $sub->where('classification', 'Internal')
+                    ->whereIn('source', $user->sources())
+                    ->where('owner_id', '!=', $user->id);
+            }));
     }
 
     public static function activeShares(): Builder

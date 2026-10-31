@@ -2,11 +2,11 @@
 setlocal
 
 REM ===================================================================
-REM  PLP Document Management System (DMS) 1-BAT Kickstarter
-REM  Starts MySQL, Database, Migrations, Background Worker & Web Server
+REM  PLP Document Management System (DMS) All-in-One Kickstarter
+REM  Starts MySQL, ClamAV Daemon, Queue Worker, Scheduler, Ngrok & Web Server
 REM ===================================================================
 
-title DMS - Document Management System
+title PLP DMS - All Services Runner
 
 REM Ensure current working directory is the repository root
 cd /d "%~dp0"

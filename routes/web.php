@@ -38,12 +38,25 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/account', [AccountController::class, 'show']);
     Route::put('/account/password', [AccountController::class, 'password'])->middleware('throttle:6,1');
     Route::get('/documents/{document}/scan-status', [WorkspaceController::class, 'scanStatus']);
+    Route::get('/admin/documents', function (\Illuminate\Http\Request $request) {
+        $user = $request->user();
+        $view = $request->query('view');
+        if ($user->isSuperAdmin()) {
+            return redirect('/admin/repository');
+        }
+        $sources = $user->sources();
+        $source = strtolower($sources[0] ?? $user->source ?? 'es');
+        $target = '/workspaces/' . $source . '/documents';
+
+        return redirect($view ? $target . '?view=' . urlencode($view) : $target);
+    });
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/workspaces/{source}/{section?}', [WorkspaceController::class, 'index'])
         ->where('source', '[a-zA-Z0-9_-]+');
     Route::get('/documents', [DocumentController::class, 'index'])->name('documents.index');
     Route::get('/documents/{document}', [WorkspaceController::class, 'show']);
 
+    Route::post('/documents/check-duplicate', [DocumentController::class, 'checkDuplicate']);
     Route::post('/documents/batch', BatchUploadController::class)
         ->middleware(['can:documents.batch', 'throttle:6,1']);
     Route::post('/documents', [DocumentController::class, 'upload'])
@@ -63,6 +76,9 @@ Route::middleware(['auth', 'active'])->group(function () {
         ->middleware('can:documents.write');
     Route::post('/documents/{document}/restore', [DocumentController::class, 'trash'])
         ->name('documents.restore')
+        ->middleware('can:documents.write');
+    Route::post('/documents/{document}/permanent', [DocumentController::class, 'forceDelete'])
+        ->name('documents.permanent')
         ->middleware('can:documents.write');
     Route::post('/documents/{document}/star', [DocumentController::class, 'star'])
         ->name('documents.star')
@@ -87,7 +103,8 @@ Route::middleware(['auth', 'active'])->group(function () {
         ->name('comments.create')
         ->middleware('can:documents.comment');
 
-    Route::get('/approvals', [ApprovalController::class, 'index']);
+    Route::get('/approvals', [ApprovalController::class, 'index'])->name('approvals.index');
+    Route::get('/admin/approvals', [ApprovalController::class, 'index'])->name('admin.approvals');
     Route::post('/approvals/{approval}', [ApprovalController::class, 'decide']);
     Route::post('/documents/{document}/publish', [ApprovalController::class, 'publish']);
     Route::get('/admin/health', OperationsHealthController::class);

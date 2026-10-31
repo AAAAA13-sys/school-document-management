@@ -12,14 +12,13 @@
             <p>Manage single-use invitation links and activation states across authorized personnel.</p>
         </div>
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#invitation-new">
-            {{ $viewer->isSuperAdmin() ? 'Invite staff member' : 'Propose invitation' }}
+            Invite staff member
         </button>
     </div>
 
     <nav class="library-tabs" aria-label="People management">
         <a href="/admin/accounts">Staff directory</a>
         <a href="/admin/invitations" class="active" aria-current="page">Invitations</a>
-        <a href="/admin/account-requests">Account requests</a>
     </nav>
 
     <section class="panel">
@@ -59,7 +58,10 @@
                                 <small class="text-muted d-block">{{ $invitation->source ? $invitation->source . ' workspace' : 'Super Admin (All)' }}</small>
                             </td>
                             <td>
-                                <span class="status-badge {{ $badgeClass }}">{{ ucfirst($invitation->status) }}</span>
+                                <span class="status-badge {{ $badgeClass }}">● {{ ucfirst($invitation->status) }}</span>
+                                @if ($invitation->status === 'pending')
+                                    <small class="text-muted d-block" style="font-size: 11px">Awaiting Super Admin review</small>
+                                @endif
                                 @if ($invitation->reason)
                                     <small
                                         class="text-muted d-block text-truncate"
@@ -71,16 +73,17 @@
                             </td>
                             <td>
                                 @if ($invitation->expires_at)
-                                    <span>{{ \Illuminate\Support\Carbon::parse($invitation->expires_at)->format('M d, Y H:i') }}</span>
-                                    <small class="text-muted d-block">{{ \Illuminate\Support\Carbon::parse($invitation->expires_at)->diffForHumans() }}</small>
+                                    <span class="fw-semibold text-dark">{{ \Illuminate\Support\Carbon::parse($invitation->expires_at)->format('M d, Y H:i') }}</span>
+                                    <small class="text-muted d-block" style="font-size: 11px">{{ \Illuminate\Support\Carbon::parse($invitation->expires_at)->diffForHumans() }}</small>
                                 @else
-                                    <span class="text-muted">—</span>
+                                    <span class="badge bg-light text-secondary border">Starts on transmission</span>
+                                    <small class="text-muted d-block" style="font-size: 11px">24h single-use validity</small>
                                 @endif
                             </td>
                             <td class="text-end">
                                 <div class="d-inline-flex gap-2 justify-content-end align-items-center">
-                                    @if ($viewer->isSuperAdmin())
-                                        @if ($invitation->status === 'pending')
+                                    @if ($viewer->isSuperAdmin() || ($viewer->isAdmin() && $invitation->requested_by === $viewer->id))
+                                        @if ($viewer->isSuperAdmin() && $invitation->status === 'pending')
                                             <button
                                                 type="button"
                                                 class="btn btn-sm btn-primary"
@@ -132,27 +135,27 @@
     <div class="modal fade" id="invitation-new" tabindex="-1" aria-labelledby="invitation-new-title" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
-                <form method="post" action="/admin/invitations">
+                <form method="post" action="/admin/invitations" novalidate>
                     @csrf
                     <div class="modal-header">
                         <h2 id="invitation-new-title" class="modal-title">
-                            {{ $viewer->isSuperAdmin() ? 'Invite staff member' : 'Propose staff invitation' }}
+                            Invite staff member
                         </h2>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <p class="modal-subtitle">
-                            {{ $viewer->isSuperAdmin()
-                                ? 'An expiring single-use invitation link will be generated for the recipient to activate their account.'
-                                : 'Staff invitations proposed by Admins require Super Admin approval before delivery.' }}
+                            An expiring single-use invitation link will be sent immediately to the recipient to activate their account.
                         </p>
                         <div class="mb-4">
                             <label for="invite-name" class="form-label">Full name</label>
-                            <input id="invite-name" name="name" class="form-control" maxlength="255" required placeholder="Enter recipient's full name" />
+                            <input id="invite-name" name="name" class="form-control" maxlength="255" pattern="^[A-Za-zÀ-ÖØ-öø-ÿ\s\.\-']{2,}$" title="Full name may only contain letters, spaces, hyphens, periods, and apostrophes." required placeholder="Enter recipient's full name" />
+                            <div class="invalid-feedback realtime-feedback" id="invite-name-error" style="display: none;"></div>
                         </div>
                         <div class="mb-4">
                             <label for="invite-email" class="form-label">Email address</label>
                             <input id="invite-email" name="email" type="email" class="form-control" maxlength="255" required placeholder="staff@plp.edu.ph" />
+                            <div class="invalid-feedback realtime-feedback" id="invite-email-error" style="display: none;"></div>
                         </div>
                         <div class="row g-3 mb-4">
                             <div class="col-sm-6">
@@ -177,14 +180,18 @@
                                         <option value="{{ $code }}" @selected ($viewer->source === $code)>{{ $code }} — {{ $label }}</option>
                                     @endforeach
                                 </select>
-                                <small class="input-help">Super Admin oversees all workspaces.</small>
                             </div>
+                            @if ($viewer->isSuperAdmin())
+                                <div class="col-12 mt-1 super-admin-source-help">
+                                    <small class="input-help text-nowrap d-block">Super Admin has no primary source and oversees registered workspaces.</small>
+                                </div>
+                            @endif
                         </div>
                         <p class="input-help">Recipients will choose their own password via the activation link.</p>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">{{ $viewer->isSuperAdmin() ? 'Send invitation' : 'Submit proposal' }}</button>
+                        <button type="submit" class="btn btn-primary">Send invitation</button>
                     </div>
                 </form>
             </div>
@@ -242,7 +249,7 @@
             </div>
         @endif
 
-        @if ($viewer->isSuperAdmin() && in_array($invitation->status, ['approved', 'sent']))
+        @if (($viewer->isSuperAdmin() || ($viewer->isAdmin() && $invitation->requested_by === $viewer->id)) && in_array($invitation->status, ['approved', 'sent']))
             <div
                 class="modal fade"
                 id="modal-send-{{ $invitation->id }}"

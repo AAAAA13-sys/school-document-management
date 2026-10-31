@@ -49,6 +49,36 @@ class User extends Authenticatable
         return $this->role === Role::Admin->value;
     }
 
+    public function sendPasswordResetNotification($token): void
+    {
+        $url = url(route('password.reset', [
+            'token' => $token,
+            'email' => $this->getEmailForPasswordReset(),
+        ], false));
+
+        if (! str_starts_with($url, 'http://') && ! str_starts_with($url, 'https://')) {
+            $url = rtrim(config('app.url'), '/') . $url;
+        }
+
+        try {
+            \Illuminate\Support\Facades\Mail::send(
+                ['emails.password-reset', 'emails.password-reset-text'],
+                [
+                    'user' => $this,
+                    'email' => $this->email,
+                    'resetUrl' => $url,
+                    'expiresIn' => config('auth.passwords.'.config('auth.defaults.passwords').'.expire', 60),
+                ],
+                function ($message) {
+                    $message->to($this->email)
+                        ->subject('Reset your DMS password · PLP Documents');
+                }
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Password reset email failed: '.$e->getMessage());
+        }
+    }
+
     /**
      * Includes legacy staff-compatible roles so existing accounts keep working
      * until they are explicitly migrated in a later pass.

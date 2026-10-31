@@ -15,6 +15,8 @@ class HierarchicalInvitationService
     public function request(User $actor, array $data): string
     {
         abort_unless($actor->active && ($actor->isAdmin() || $actor->isSuperAdmin()), 403);
+        abort_if(empty($data['name']) || mb_strlen($data['name']) > 255, 422, 'A name is required.');
+        abort_unless(preg_match('/^[\pL\s\-\'.]{2,}$/u', $data['name']), 422, 'Full name may only contain letters, spaces, hyphens, periods, and apostrophes.');
         Gate::forUser($actor)->authorize('accounts.role', $data['role']);
         Gate::forUser($actor)->authorize('accounts.source', $data['source'] ?? null);
         abort_if($data['role'] !== 'super_admin' && empty($data['source']), 422, 'A workspace is required.');
@@ -33,7 +35,7 @@ class HierarchicalInvitationService
                     'email' => strtolower($data['email']), 'active_email' => $data['email'], 'role' => $data['role'],
                     'source' => $data['role'] === 'super_admin' ? null : $data['source'],
                     'school_id' => $actor->school_id, 'campus' => $actor->campus,
-                    'status' => $actor->isSuperAdmin() ? 'approved' : 'pending',
+                    'status' => ($actor->isSuperAdmin() || $actor->isAdmin()) ? 'approved' : 'pending',
                     'created_at' => now(), 'updated_at' => now(),
                 ]);
                 Access::audit($actor, 'invitation.requested', details: ['invitation_id' => $id]);
@@ -70,13 +72,31 @@ class HierarchicalInvitationService
         DB::transaction(function () use ($actor, $id) {
             $actor = User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
             $row = $this->scoped($actor, $id)->lockForUpdate()->first() ?? abort(404);
-            abort_unless($actor->active && $actor->isSuperAdmin(), 403);
+            abort_unless($actor->active && ($actor->isSuperAdmin() || ($actor->isAdmin() && $row->requested_by === $actor->id)), 403);
             abort_unless(in_array($row->status, ['approved', 'sent']), 409);
             abort_if($row->sent_at && Carbon::parse($row->sent_at)->addSeconds((int) config('invitations.resend_after_seconds', 60))->isFuture(), 429, 'Please wait before resending this invitation.');
             $this->assertAuthority($row);
             $token = Str::random(64);
-            DB::table('account_invitations')->where('id', $id)->update(['token_hash' => hash('sha256', $token), 'expires_at' => now()->addMinutes((int) config('invitations.expire', 1440)), 'status' => 'sent', 'sent_at' => now(), 'updated_at' => now()]);
-            Mail::raw('Set your DMS password: '.url('/invitations/accept/'.$token), fn ($message) => $message->to($row->email)->subject('Your DMS invitation'));
+            $expiresAt = now()->addMinutes((int) config('invitations.expire', 1440));
+            DB::table('account_invitations')->where('id', $id)->update([
+                'token_hash' => hash('sha256', $token),
+                'expires_at' => $expiresAt,
+                'status' => 'sent',
+                'sent_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $acceptUrl = rtrim(config('app.url'), '/').'/invitations/accept/'.$token;
+            Mail::send(
+                ['emails.employee-invitation', 'emails.employee-invitation-text'],
+                [
+                    'invitedEmail' => $row->email,
+                    'expiresAt' => $expiresAt->format('F j, Y, H:i').' ('.$expiresAt->diffForHumans().')',
+                    'registrationUrl' => $acceptUrl,
+                ],
+                function ($message) use ($row) {
+                    $message->to($row->email)->subject('Your invitation to PLP Documents');
+                }
+            );
             Access::audit($actor, 'invitation.sent', details: ['invitation_id' => $id]);
         });
     }
@@ -118,10 +138,11 @@ class HierarchicalInvitationService
         if ($requester->isSuperAdmin()) {
             return;
         }
-        $reviewer = User::whereKey($row->reviewed_by)->lockForUpdate()->first();
-        abort_unless($requester->isAdmin() && $row->role === 'staff' && in_array($row->source, $requester->sources(), true)
-            && $reviewer?->active && $reviewer->isSuperAdmin() && $reviewer->school_id === $row->school_id && $reviewer->campus === $row->campus,
-            409, 'Invitation authority has changed.');
+        abort_unless($requester->isAdmin() && $row->role === 'staff' && in_array($row->source, $requester->sources(), true), 409, 'Requester authority has changed.');
+        if ($row->reviewed_by) {
+            $reviewer = User::whereKey($row->reviewed_by)->lockForUpdate()->first();
+            abort_unless($reviewer?->active && $reviewer->isSuperAdmin() && $reviewer->school_id === $row->school_id && $reviewer->campus === $row->campus, 409, 'Invitation authority has changed.');
+        }
     }
 
     public function scoped(User $actor, string $id)

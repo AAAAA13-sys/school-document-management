@@ -91,15 +91,8 @@ class AdminController extends Controller
             ]);
         }
 
-$invitations = null;
+        $invitations = null;
         $invitationUnavailableReason = null;
-        if ($section === 'accounts') {
-            $query = EmployeeInvitation::query();
-            Access::administrationScope($query->getQuery(), $user);
-            $invitations = $query->select(['id', 'email', 'role', 'source', 'school_id', 'campus', 'invited_by', 'created_at', 'expires_at', 'accepted_at', 'revoked_at', 'delivery_status', 'delivery_attempted_at', 'sent_at'])
-                ->with('inviter:id,name')->orderByDesc('created_at')->orderByDesc('id')->paginate(15, ['*'], 'invitations_page')->withQueryString();
-            $invitationUnavailableReason = app(InvitationDeliveryService::class)->unavailableReason();
-        }
 
         return view('admin', compact('workspaceCounts', 'source', 'section', 'stats', 'accounts', 'connectors', 'audits', 'documents', 'scans', 'invitations', 'invitationUnavailableReason'));
     }
@@ -124,23 +117,21 @@ $invitations = null;
         }
         $service = app(InvitationService::class);
         $id = $service->request($actor, $data);
-        $status = $actor->isSuperAdmin() ? 'delivered' : 'pending';
-        $message = $actor->isSuperAdmin() ? 'Invitation email sent.' : 'Staff invitation submitted for Super Admin approval.';
+        $status = 'delivered';
+        $message = 'Invitation email sent.';
 
-        if ($actor->isSuperAdmin()) {
-            try {
-                $service->deliver($actor, $id);
-            } catch (HttpExceptionInterface $e) {
-                if ($e->getStatusCode() === 503) {
-                    $status = 'approved';
-                    $message = 'Invitation created and approved. Outbound email is not configured or failed to deliver; invitation can be sent once mail transport is active.';
-                } else {
-                    throw $e;
-                }
-            } catch (\Throwable $e) {
+        try {
+            $service->deliver($actor, $id);
+        } catch (HttpExceptionInterface $e) {
+            if ($e->getStatusCode() === 503) {
                 $status = 'approved';
-                $message = 'Invitation created and approved. Outbound email is not configured or failed to deliver; invitation can be sent once mail transport is active.';
+                $message = 'Invitation created. Outbound email is not configured or failed to deliver; invitation can be sent once mail transport is active.';
+            } else {
+                throw $e;
             }
+        } catch (\Throwable $e) {
+            $status = 'approved';
+            $message = 'Invitation created. Outbound email is not configured or failed to deliver; invitation can be sent once mail transport is active.';
         }
 
         if ($request->expectsJson()) {

@@ -14,6 +14,6 @@ class AccountRequest extends FormRequest
 
     public function rules(): array
     {
-        return ['current_password' => 'required|current_password', 'password' => ['required', 'string', 'max:255', 'confirmed', 'different:current_password', Password::min(12)->mixedCase()->numbers()->symbols()]];
+        return ['current_password' => 'required|current_password', 'password' => ['required', 'string', 'max:255', 'confirmed', 'different:current_password', Password::min(8)]];
     }
 }

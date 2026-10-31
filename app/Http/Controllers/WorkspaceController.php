@@ -138,7 +138,9 @@ class WorkspaceController extends Controller
             ->filter(fn (string $level) => Gate::forUser($user)->allows('document.classify', [$doc, $level]))
             ->values();
         $recipients = $sharer
-            ? Access::scope(DB::table('users'), $user)->where('active', true)->where('id', '!=', $user->id)->orderBy('name')->get(['id', 'name', 'email'])
+            ? Access::scope(DB::table('users'), $user)->where('active', true)->where('id', '!=', $user->id)
+                ->when($doc->classification === 'Restricted', fn ($q) => $q->where('role', $user->role))
+                ->orderBy('name')->get(['id', 'name', 'email', 'role'])
             : collect();
         $folders = Access::scope(DB::table('folders'), $user)->where('source', $source)
             ->when($user->isStaff(), fn ($q) => $q->where('owner_id', $user->id))

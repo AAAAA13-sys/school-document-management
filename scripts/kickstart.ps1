@@ -312,7 +312,44 @@ try {
 }
 
 # -------------------------------------------------------------------------
-# Step 8: Start Background Services (Worker & Scheduler)
+# Step 8: ClamAV Daemon Check & Auto-Start (Port 3310)
+# -------------------------------------------------------------------------
+Write-Section "Checking ClamAV Daemon (port 3310)..."
+
+$clamdProcess = $null
+$isClamdRunning = Test-PortOpen "127.0.0.1" 3310
+
+if ($isClamdRunning) {
+    Write-Success "ClamAV daemon is already running on port 3310."
+} else {
+    $clamdExe = Join-Path $appRoot "storage\tools\clamav\clamav-1.4.6.win.x64\clamd.exe"
+    $clamdConf = Join-Path $appRoot "storage\tools\clamav\clamav-1.4.6.win.x64\clamd.conf"
+    if (Test-Path $clamdExe) {
+        Write-Info "Starting ClamAV daemon ($clamdExe)..."
+        $clamdProcess = Start-Process -FilePath $clamdExe `
+            -ArgumentList "--config-file=`"$clamdConf`"" `
+            -WorkingDirectory (Split-Path $clamdExe -Parent) `
+            -WindowStyle Hidden `
+            -PassThru
+
+        $cSw = [System.Diagnostics.Stopwatch]::StartNew()
+        while ($cSw.Elapsed.TotalSeconds -lt 8) {
+            Start-Sleep -Milliseconds 600
+            if (Test-PortOpen "127.0.0.1" 3310) { break }
+        }
+
+        if (Test-PortOpen "127.0.0.1" 3310) {
+            Write-Success "ClamAV daemon started and listening on 127.0.0.1:3310 (PID $($clamdProcess.Id))."
+        } else {
+            Write-Warn "ClamAV daemon launched but port 3310 is still initializing. Scans will connect once ready."
+        }
+    } else {
+        Write-Warn "clamd.exe not found at standard path. Scans will use fallback scanner."
+    }
+}
+
+# -------------------------------------------------------------------------
+# Step 9: Start Background Services (Worker & Scheduler)
 # -------------------------------------------------------------------------
 Write-Section "Starting background services..."
 
@@ -342,10 +379,55 @@ $scheduler = Start-Process -FilePath $phpPath `
 Write-Success "Task Scheduler started (PID $($scheduler.Id)) -> logs in storage/logs/scheduler.log"
 
 # -------------------------------------------------------------------------
-# Step 9: Launch Browser & Serve
+# Step 10: Ngrok Tunnel (for Phone & Remote Testing)
+# -------------------------------------------------------------------------
+Write-Section "Checking Ngrok tunnel..."
+
+$ngrokProcess = $null
+$ngrokPublicUrl = $null
+$isNgrokRunning = Test-PortOpen "127.0.0.1" 4040
+
+if ($isNgrokRunning) {
+    try {
+        $tunnels = (Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -TimeoutSec 2 -ErrorAction SilentlyContinue).tunnels
+        if ($tunnels -and $tunnels.Length -gt 0) {
+            $ngrokPublicUrl = $tunnels[0].public_url
+            Write-Success "Ngrok is already active: $ngrokPublicUrl"
+        }
+    } catch {}
+} else {
+    $ngrokExe = $null
+    $ngrokCmd = Get-Command ngrok -ErrorAction SilentlyContinue
+    if ($ngrokCmd) {
+        $ngrokExe = $ngrokCmd.Source
+    } elseif (Test-Path "C:\Users\PLP\Downloads\ngrok_bin\ngrok.exe") {
+        $ngrokExe = "C:\Users\PLP\Downloads\ngrok_bin\ngrok.exe"
+    }
+
+    if ($ngrokExe) {
+        Write-Info "Starting Ngrok tunnel for port $Port..."
+        $ngrokProcess = Start-Process -FilePath $ngrokExe `
+            -ArgumentList "http $Port --log=stdout" `
+            -WindowStyle Hidden `
+            -PassThru
+
+        Start-Sleep -Seconds 2
+        try {
+            $tunnels = (Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -TimeoutSec 3 -ErrorAction SilentlyContinue).tunnels
+            if ($tunnels -and $tunnels.Length -gt 0) {
+                $ngrokPublicUrl = $tunnels[0].public_url
+                Write-Success "Ngrok tunnel established: $ngrokPublicUrl"
+            }
+        } catch {}
+    } else {
+        Write-Info "Ngrok not found in PATH or Downloads. Skipping remote tunnel (local access only)."
+    }
+}
+
+# -------------------------------------------------------------------------
+# Step 11: Launch Browser & Serve
 # -------------------------------------------------------------------------
 if (-not $NoBrowser) {
-    # Launch browser after slight delay in background job
     Start-Job -ScriptBlock {
         param($url)
         Start-Sleep -Seconds 2
@@ -355,11 +437,15 @@ if (-not $NoBrowser) {
 
 Write-Host "`n===================================================================" -ForegroundColor Green
 Write-Host " [DMS READY] System is fully operational!" -ForegroundColor White
-Write-Host " URL       : $appUrl" -ForegroundColor Yellow
-Write-Host " Database  : $dbDatabase on $dbHost`:$dbPort" -ForegroundColor Gray
-Write-Host " Scan Queue: database / scans,default (ClamAV Worker PID $($worker.Id))" -ForegroundColor Gray
-Write-Host " Scheduler : Active (PID $($scheduler.Id))" -ForegroundColor Gray
-Write-Host " Note      : Press Ctrl+C in this window to stop all services." -ForegroundColor White
+Write-Host " Local Web URL  : $appUrl" -ForegroundColor Yellow
+if ($ngrokPublicUrl) {
+    Write-Host " Phone / Remote : $ngrokPublicUrl" -ForegroundColor Cyan
+}
+Write-Host " Database       : $dbDatabase on $dbHost`:$dbPort" -ForegroundColor Gray
+Write-Host " ClamAV Daemon  : 127.0.0.1:3310 (Fast socket scanning)" -ForegroundColor Gray
+Write-Host " Scan Queue     : database / scans,default (Worker PID $($worker.Id))" -ForegroundColor Gray
+Write-Host " Scheduler      : Active (PID $($scheduler.Id))" -ForegroundColor Gray
+Write-Host " Note           : Press Ctrl+C in this window to stop all services." -ForegroundColor White
 Write-Host "===================================================================`n" -ForegroundColor Green
 
 try {
@@ -373,6 +459,14 @@ try {
     if ($scheduler -and -not $scheduler.HasExited) {
         Stop-Process -Id $scheduler.Id -Force -ErrorAction SilentlyContinue
         Write-Host "  [-] Stopped scheduler." -ForegroundColor Gray
+    }
+    if ($clamdProcess -and -not $clamdProcess.HasExited) {
+        Stop-Process -Id $clamdProcess.Id -Force -ErrorAction SilentlyContinue
+        Write-Host "  [-] Stopped ClamAV daemon." -ForegroundColor Gray
+    }
+    if ($ngrokProcess -and -not $ngrokProcess.HasExited) {
+        Stop-Process -Id $ngrokProcess.Id -Force -ErrorAction SilentlyContinue
+        Write-Host "  [-] Stopped Ngrok tunnel." -ForegroundColor Gray
     }
     Write-Host "[DMS] All services stopped cleanly. Goodbye!`n" -ForegroundColor Green
 }

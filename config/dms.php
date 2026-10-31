@@ -14,6 +14,9 @@ return [
     // Folder grants are inherited down the tree; depth guard for corrupted parent chains.
     'folder_inheritance_max_depth' => env('DMS_FOLDER_INHERITANCE_MAX_DEPTH', 50),
     'clamav_binary' => env('CLAMAV_BINARY', 'clamscan'),
+    'clamav_host' => env('CLAMAV_HOST', '127.0.0.1'),
+    'clamav_port' => env('CLAMAV_PORT', 3310),
+    'clamav_fail_on_old_cvd' => env('CLAMAV_FAIL_ON_OLD_CVD', false),
     'scan_timeout' => 60,
     'clamav_database' => env('CLAMAV_DATABASE'),
     'freshclam_binary' => env('FRESHCLAM_BINARY', 'freshclam'),

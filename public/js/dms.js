@@ -8,11 +8,7 @@
         ? 'Choose a file no larger than 10 MB.'
         : '';
   const strongPassword = (value) =>
-    value.length >= 12 &&
-    /[a-z]/.test(value) &&
-    /[A-Z]/.test(value) &&
-    /[0-9]/.test(value) &&
-    /[^A-Za-z0-9]/.test(value);
+    value.length >= 8;
   // Exposed only as pure validators for the dependency-free frontend checks.
   window.DmsValidation = { fileError, strongPassword };
   window.DmsStatusBadge = {
@@ -493,36 +489,34 @@
       changeMonth: true,
       changeYear: true,
     });
-    const recipients = $('#share-recipient option')
-      .filter(function () {
-        return this.value !== '';
-      })
-      .map(function () {
-        return { label: $(this).text(), value: this.value };
-      })
-      .get();
-    $('#share-search')
-      .autocomplete({
-        source: recipients,
-        appendTo: '#share-modal .modal-body',
-        minLength: 0,
-        select: function (event, ui) {
-          event.preventDefault();
-          $(this).val(ui.item.label);
-          $('#share-recipient').val(ui.item.value);
-          $(this).trigger('change');
-        },
-      })
-      .on('focus', function () {
-        $(this).autocomplete('search', this.value);
-      })
-      .attr('aria-expanded', 'false')
-      .on('autocompleteopen', function () {
-        $(this).attr('aria-expanded', 'true');
-      })
-      .on('autocompleteclose', function () {
-        $(this).attr('aria-expanded', 'false');
+    // Copy shareable document link
+    $(document).on('click', '#copy-doc-link-btn, #copy-doc-link-btn-partial', async function () {
+      const btn = $(this);
+      const textSpan = btn.find('span');
+      const input = $('#shareable-doc-link, #shareable-doc-link-partial').first();
+      const url = input.val() || window.location.href;
+      try {
+        await navigator.clipboard.writeText(url);
+        textSpan.text('Copied!');
+        toast('Link copied to clipboard.');
+        setTimeout(() => textSpan.text('Copy link'), 2000);
+      } catch (err) {
+        input.select();
+        toast('Link selected. Press Ctrl+C to copy.');
+      }
+    });
+
+    // Sync datalist selection to hidden recipient_id
+    $('#share-recipient-input').on('input change', function () {
+      const val = $(this).val().trim();
+      let matchedId = '';
+      $('#share-staff-datalist option').each(function () {
+        if ($(this).val().toLowerCase() === val.toLowerCase() || $(this).text().toLowerCase().includes(val.toLowerCase())) {
+          matchedId = $(this).attr('data-id') || '';
+        }
       });
+      $('#share-recipient-id').val(matchedId);
+    });
     function permission() {
       const pinned = $('#share-version').val() !== '';
       const editor = $('#share-permission option[value="Editor"]');
@@ -531,6 +525,14 @@
     }
     $('#share-version').on('change', permission);
     permission();
+
+    $(document).on('click', '[data-toggle-workspaces]', function (e) {
+      e.preventDefault();
+      const group = $(this).closest('.nav-dropdown');
+      const menu = group.find('.nav-sub-menu');
+      group.toggleClass('is-open');
+      menu.slideToggle(180);
+    });
     $('[data-account-role]')
       .on('change', function () {
         const source = $(this).closest('form').find('[data-account-source]');
@@ -542,14 +544,106 @@
         source.prop('disabled', isSuperAdmin);
         if (isSuperAdmin) source.val('');
         else if (!allowed.includes(source.val())) source.val(allowed[0]);
+        $(this).closest('form').find('.super-admin-source-help').toggle(isSuperAdmin);
       })
       .trigger('change');
     $('[data-password-policy]').on('input', function () {
       this.setCustomValidity(
-        this.value && !strongPassword(this.value)
-          ? 'Use 12+ characters with upper- and lowercase letters, a number, and a symbol.'
+        this.value && this.value.length < 8
+          ? 'Must contain at least 8 characters.'
           : ''
       );
+    });
+
+    function validateField(input) {
+      const $input = $(input);
+      const val = input.value || '';
+      const isRequired = input.required || $input.prop('required');
+      const isNameField = input.name === 'name' || input.id === 'invite-name' || input.id === 'full-name' || (input.id && input.id.indexOf('name-') === 0);
+      const isEmailField = input.type === 'email' || input.name === 'email' || input.id === 'invite-email' || (input.id && input.id.indexOf('email-') === 0);
+      const pattern = input.getAttribute('pattern');
+      const title = input.getAttribute('title');
+
+      let error = '';
+
+      if (val.length === 0) {
+        if ($input.data('touched') && isRequired) {
+          error = isNameField ? 'Full name is required.' : (isEmailField ? 'Email address is required.' : 'This field is required.');
+        }
+      } else {
+        if (isNameField) {
+          if (!/^[A-Za-zÀ-ÖØ-öø-ÿ\s.\-']+$/.test(val)) {
+            error = title || 'Full name may only contain letters, spaces, hyphens, periods, and apostrophes.';
+          } else if (val.trim().length < 2) {
+            error = 'Full name must be at least 2 characters.';
+          }
+        } else if (isEmailField) {
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+            error = 'Please enter a valid email address (e.g. staff@plp.edu.ph).';
+          }
+        } else if (pattern) {
+          try {
+            const re = new RegExp(pattern);
+            if (!re.test(val)) {
+              error = title || input.validationMessage || 'Please match the requested format.';
+            }
+          } catch (e) {}
+        }
+      }
+
+      let $feedback = $input.siblings('.realtime-feedback');
+      if (!$feedback.length) {
+        $feedback = $('<div class="invalid-feedback realtime-feedback"></div>').insertAfter($input);
+      }
+
+      if (error) {
+        $input.addClass('is-invalid').removeClass('is-valid');
+        $feedback.text(error).show();
+        input.setCustomValidity(error);
+      } else {
+        $input.removeClass('is-invalid');
+        $feedback.text('').hide();
+        if (val.length > 0) {
+          $input.addClass('is-valid');
+        } else {
+          $input.removeClass('is-valid');
+        }
+        input.setCustomValidity('');
+      }
+
+      return !error;
+    }
+
+    const validateSelector = 'input[pattern], input[type="email"], input[name="name"], input#invite-name, input#full-name, input[id^="name-"], input[id^="email-"]';
+
+    $(document).on('input keyup paste', validateSelector, function () {
+      $(this).data('touched', true);
+      validateField(this);
+    });
+
+    $(document).on('blur', validateSelector, function () {
+      $(this).data('touched', true);
+      validateField(this);
+    });
+
+    $(document).on('invalid', validateSelector, function (e) {
+      e.preventDefault();
+      $(this).data('touched', true);
+      validateField(this);
+    });
+
+    $(document).on('submit', 'form', function (e) {
+      let firstInvalid = null;
+      $(this).find(validateSelector).each(function () {
+        $(this).data('touched', true);
+        if (!validateField(this) && !firstInvalid) {
+          firstInvalid = this;
+        }
+      });
+      if (firstInvalid) {
+        e.preventDefault();
+        firstInvalid.focus();
+      }
     });
     $('.password-toggle').on('click', function () {
       const input = $(this).siblings('input');
@@ -769,60 +863,215 @@
     const multiUpload = $('#upload-form').attr('data-multi-upload') === 'true';
     const uploads = [];
     let uploading = false;
+    let activeXhrs = [];
+    let sessionHasSaved = false;
+
     function renderUploads() {
       const list = $('#upload-file-list').empty();
       const labels = {
-        pending: 'Queued',
+        pending: 'Ready to upload',
         uploading: 'Uploading…',
         saved: 'Uploaded · scan queued',
         failed: 'Failed',
         invalid: 'Not uploaded',
       };
-      uploads.forEach((item) => {
+      uploads.forEach((item, index) => {
+        const isSaved = item.status === 'saved';
+        const isDuplicate = !isSaved && Boolean(item.duplicates?.length);
+        const isFailed = ['failed', 'invalid'].includes(item.status) && !isDuplicate;
+        const isUploading = item.status === 'uploading';
+        const isPending = item.status === 'pending';
+
         const row = $('<li>')
-          .append(
-            $('<span>').text(item.file.name),
-            $('<small>')
-              .text(item.error || labels[item.status])
-              .toggleClass('text-danger', ['failed', 'invalid'].includes(item.status))
-          )
+          .addClass('plain-upload-item')
+          .toggleClass('is-saved', isSaved)
+          .toggleClass('is-duplicate', isDuplicate)
+          .toggleClass('is-failed', isFailed)
           .appendTo(list);
-        if (!item.duplicates?.length || item.status === 'saved') return;
-        const existing = item.duplicates[0];
-        row.append(
-          $('<a class="ms-2">')
-            .attr('href', '/documents/' + encodeURIComponent(existing.document_id))
-            .attr('target', '_blank')
-            .attr('rel', 'noopener')
-            .text('Open existing')
-        );
-        $('<button type="button" class="btn btn-link btn-sm p-0 ms-2">Upload anyway</button>')
-          .on('click', () => {
-            item.confirm = true;
-            item.status = 'pending';
-            item.error = '';
-            renderUploads();
-            startUploads();
-          })
-          .appendTo(row);
+
+        const header = $('<div class="upload-item-header">').appendTo(row);
+        const displayName = item.display_title || item.file.name;
+        const fileSizeText = item.file?.size ? ' · ' + (item.file.size / 1024).toFixed(1) + ' KB' : '';
+        $('<span class="upload-item-name">')
+          .attr('title', displayName)
+          .text(displayName + fileSizeText)
+          .appendTo(header);
+
+        const statusContainer = $('<div class="d-flex align-items-center gap-2">').appendTo(header);
+
+        if (item.classification) {
+          $('<span class="badge bg-light text-secondary border">')
+            .text(item.classification)
+            .appendTo(statusContainer);
+        }
+
+        let statusText = labels[item.status] || 'Ready to upload';
+        let statusClass = 'text-muted';
+        if (isSaved) {
+          statusText = 'Uploaded · scan queued';
+          statusClass = 'text-success';
+        } else if (isUploading) {
+          statusText = 'Uploading…';
+          statusClass = 'text-primary';
+        } else if (isDuplicate) {
+          statusText = 'Duplicate detected';
+          statusClass = 'text-warning';
+        } else if (isFailed) {
+          statusText = 'Failed';
+          statusClass = 'text-danger';
+        }
+        $('<span class="upload-item-status">')
+          .addClass(statusClass)
+          .text(statusText)
+          .appendTo(statusContainer);
+
+        if ((isPending || isFailed) && !uploading) {
+          $('<button type="button" class="btn btn-sm btn-link text-muted p-0 text-decoration-none" title="Remove file" aria-label="Remove file">')
+            .html('&times;')
+            .css({ fontSize: '20px', lineHeight: '1', paddingLeft: '4px', cursor: 'pointer' })
+            .on('click', (e) => {
+              e.stopPropagation();
+              uploads.splice(index, 1);
+              renderUploads();
+            })
+            .appendTo(statusContainer);
+        }
+
+        if (isFailed && item.error) {
+          $('<div class="upload-item-error-note text-danger small mt-1">')
+            .text(item.error)
+            .appendTo(row);
+        }
+
+        if (isDuplicate) {
+          const existing = item.duplicates[0];
+          const existingDocId = existing?.document_id || '';
+          const existingTitle = existing?.title || '';
+
+          const dupBox = $('<div class="upload-item-duplicate-box">').appendTo(row);
+          const noteText = existingTitle
+            ? 'An identical file already exists in this workspace: ' + existingTitle
+            : 'An identical file already exists in this workspace.';
+          $('<div class="upload-item-duplicate-note">')
+            .text(noteText)
+            .appendTo(dupBox);
+
+          const actions = $('<div class="upload-item-actions">').appendTo(dupBox);
+          if (existingDocId) {
+            $('<a class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener">')
+              .attr('href', '/documents/' + encodeURIComponent(existingDocId))
+              .text('Open existing')
+              .appendTo(actions);
+
+            $('<button type="button" class="btn btn-primary btn-sm">')
+              .text('Upload as new version')
+              .on('click', () => {
+                item.force_new_version = true;
+                item.confirm = true;
+                item.duplicates = null;
+                item.status = 'pending';
+                item.error = '';
+                renderUploads();
+                startUploads();
+              })
+              .appendTo(actions);
+          }
+
+          $('<button type="button" class="btn btn-outline-dark btn-sm">')
+            .text('Upload as separate copy')
+            .on('click', () => {
+              item.force_new_version = false;
+              item.confirm = true;
+              item.duplicates = null;
+              item.status = 'pending';
+              item.error = '';
+              renderUploads();
+              startUploads();
+            })
+            .appendTo(actions);
+
+          $('<button type="button" class="btn btn-outline-secondary btn-sm">')
+            .text('Remove')
+            .on('click', () => {
+              const idx = uploads.indexOf(item);
+              if (idx !== -1) uploads.splice(idx, 1);
+              renderUploads();
+            })
+            .appendTo(actions);
+        }
       });
+
       const saved = uploads.filter((item) => item.status === 'saved').length;
-      const failed = uploads.filter((item) => ['failed', 'invalid'].includes(item.status)).length;
-      $('#upload-summary').text(
-        saved +
-          ' of ' +
-          uploads.length +
-          ' uploaded' +
-          (failed ? ' · ' + failed + ' failed' : '') +
-          (uploading ? ' · Keep this page open.' : '.')
+      const unresolvedDuplicates = uploads.filter(
+        (item) => item.status !== 'saved' && Boolean(item.duplicates?.length) && !item.confirm && !item.force_new_version
       );
+      const pending = uploads.filter(
+        (item) => item.status === 'pending' && !unresolvedDuplicates.includes(item)
+      ).length;
+      const failed = uploads.filter((item) => ['failed', 'invalid'].includes(item.status)).length;
+
+      if (!uploads.length) {
+        $('#upload-summary').text('Ready for files.');
+        $('#start-upload-btn').prop('disabled', true).text('Upload files').show();
+        $('#done-upload-btn').hide();
+        $('#cancel-upload-btn').text('Cancel').show();
+      } else if (uploading) {
+        $('#upload-summary').text(
+          'Uploading ' + (saved + 1) + ' of ' + uploads.length + '… Keep this page open.'
+        );
+        $('#start-upload-btn').prop('disabled', true).text('Uploading…').show();
+        $('#done-upload-btn').hide();
+        $('#cancel-upload-btn').text('Cancel').show();
+      } else if (saved === 0) {
+        if (unresolvedDuplicates.length > 0) {
+          $('#upload-summary').text(
+            unresolvedDuplicates.length + (unresolvedDuplicates.length === 1 ? ' duplicate file detected.' : ' duplicate files detected.') + ' Choose an action above or remove.'
+          );
+        } else {
+          $('#upload-summary').text(
+            pending + (pending === 1 ? ' file' : ' files') + ' selected. Click "Upload files" to begin.'
+          );
+        }
+        $('#start-upload-btn').prop('disabled', pending === 0).text('Upload files').show();
+        $('#done-upload-btn').hide();
+        $('#cancel-upload-btn').text('Cancel').show();
+      } else {
+        if (unresolvedDuplicates.length > 0) {
+          $('#upload-summary').text(
+            saved + ' of ' + uploads.length + ' uploaded · ' + unresolvedDuplicates.length + ' duplicate needs review.'
+          );
+        } else {
+          $('#upload-summary').text(
+            saved +
+              ' of ' +
+              uploads.length +
+              ' uploaded' +
+              (failed ? ' · ' + failed + ' failed' : '') +
+              '.'
+          );
+        }
+        if (pending === 0 && unresolvedDuplicates.length === 0) {
+          $('#start-upload-btn').hide();
+          $('#done-upload-btn').show();
+          $('#cancel-upload-btn').hide();
+        } else {
+          $('#start-upload-btn').prop('disabled', pending === 0).text('Upload remaining').show();
+          $('#done-upload-btn').hide();
+          $('#cancel-upload-btn').text('Cancel').show();
+        }
+      }
+
       $('#retry-uploads').prop(
         'hidden',
         uploading || !uploads.some((item) => item.status === 'failed' && !item.duplicates?.length)
       );
     }
+
     async function startUploads() {
       if (uploading) return;
+      const hasPending = uploads.some((item) => item.status === 'pending');
+      if (!hasPending) return;
+
       uploading = true;
       renderUploads();
       const form = $('#upload-form')[0];
@@ -834,43 +1083,57 @@
             data.set('file', item.file);
             data.set('title', item.file.name.slice(0, 200));
             data.set('submission_key', item.key);
-            data.set('classification', item.classification);
+            const currentClass = $('#upload-class').val() || item.classification || 'Internal';
+            item.classification = currentClass;
+            data.set('classification', currentClass);
             if (item.confirm) data.set('confirm_duplicate', '1');
             if (item.force_new_version) data.set('force_new_version', 'true');
+
+            const ajaxReq = $.ajax({
+              url: form.action,
+              method: 'POST',
+              data,
+              processData: false,
+              contentType: false,
+              headers: { Accept: 'application/json' },
+            });
+            activeXhrs.push(ajaxReq);
+
             try {
-              await $.ajax({
-                url: form.action,
-                method: 'POST',
-                data,
-                processData: false,
-                contentType: false,
-                headers: { Accept: 'application/json' },
-              });
+              const res = await ajaxReq;
+              sessionHasSaved = true;
+              if (res && res.document_id) {
+                item.document_id = res.document_id;
+                item.is_new_document = !item.force_new_version;
+              }
+              if (res && res.title) {
+                item.display_title = res.title;
+              } else if (res && res.filename) {
+                item.display_title = res.filename;
+              }
             } catch (xhr) {
+              if (xhr.statusText === 'abort' || xhr.readyState === 0) {
+                item.status = 'pending';
+                return;
+              }
               if (xhr.status === 409) {
                 if (xhr.responseJSON?.code === 'duplicate_file') {
                   item.duplicates = xhr.responseJSON.duplicates || [];
+                  if (!item.duplicates.length && xhr.responseJSON.document_id) {
+                    item.duplicates = [{
+                      document_id: xhr.responseJSON.document_id,
+                      title: xhr.responseJSON.existing_document?.title || ''
+                    }];
+                  }
                 }
-                const duplicateData = (xhr.responseJSON?.duplicates &&
-                  xhr.responseJSON.duplicates[0]) ||
-                  xhr.responseJSON?.existing_document || {
-                    title: 'Existing document',
-                    owner: 'Document owner',
-                  };
-                showDuplicateWarningModal(duplicateData, () => {
-                  item.force_new_version = true;
-                  item.confirm = true;
-                  item.status = 'pending';
-                  item.error = '';
-                  renderUploads();
-                  startUploads();
-                });
               }
               throw new Error(
                 xhr.responseJSON?.errors
                   ? Object.values(xhr.responseJSON.errors).flat().join(' ')
                   : xhr.responseJSON?.message || 'Upload failed. Retry this file.'
               );
+            } finally {
+              activeXhrs = activeXhrs.filter((x) => x !== ajaxReq);
             }
           },
           renderUploads
@@ -880,25 +1143,84 @@
         renderUploads();
       }
     }
+
+    async function calculateChecksum(file) {
+      try {
+        const buffer = await file.arrayBuffer();
+        const digest = await crypto.subtle.digest('SHA-256', buffer);
+        return Array.from(new Uint8Array(digest))
+          .map((b) => b.toString(16).padStart(2, '0'))
+          .join('');
+      } catch (_) {
+        return null;
+      }
+    }
+
     function addFiles(files) {
       if (!files.length) return;
       if (uploads.length + files.length > 50) {
         toast('Choose up to 50 files per upload session.');
         return;
       }
-      Array.from(files).forEach((file) => {
+      const form = $('#upload-form');
+      const source = form.find('input[name="source"]').val() || '';
+      const csrf = $('meta[name="csrf-token"]').attr('content') || form.find('input[name="_token"]').val();
+
+      Array.from(files).forEach(async (file) => {
         const error = fileError(file);
-        uploads.push({
+        const item = {
           file,
           key: crypto.randomUUID(),
           classification: $('#upload-class').val(),
           status: error ? 'invalid' : 'pending',
           error,
-        });
+          duplicates: null,
+          confirm: false,
+          force_new_version: false,
+        };
+        uploads.push(item);
+        renderUploads();
+
+        if (!error) {
+          // Immediately check for duplicate in background before user hits upload
+          const checksum = await calculateChecksum(file);
+          item.checksum = checksum;
+          if (checksum) {
+            $.ajax({
+              url: '/documents/check-duplicate',
+              method: 'POST',
+              data: {
+                _token: csrf,
+                checksum,
+                source,
+                title: file.name,
+              },
+              headers: { Accept: 'application/json' },
+            }).done((res) => {
+              if (res && res.is_duplicate && res.duplicates && res.duplicates.length) {
+                if (!item.confirm && !item.force_new_version) {
+                  item.duplicates = res.duplicates;
+                  renderUploads();
+                }
+              }
+            });
+          }
+        }
+      });
+    }
+
+    $('#upload-class').on('change', function () {
+      const selectedClass = $(this).val();
+      uploads.forEach((item) => {
+        item.classification = selectedClass;
       });
       renderUploads();
+    });
+
+    $('#start-upload-btn').on('click', () => {
       startUploads();
-    }
+    });
+
     $('#retry-uploads').on('click', () => {
       uploads
         .filter((item) => item.status === 'failed' && !item.duplicates?.length)
@@ -908,18 +1230,110 @@
         });
       startUploads();
     });
+
+    let uploadForceDismiss = false;
+
     $('#upload-modal')
-      .on('hide.bs.modal', (event) => {
-        if (multiUpload && uploading) {
-          event.preventDefault();
-          toast('Uploads are still running. Keep this page open.');
+      .on('show.bs.modal', () => {
+        if (!uploading) {
+          uploads.length = 0;
+          sessionHasSaved = false;
+          uploadForceDismiss = false;
+          $('#upload-confirm-cancel-box').hide();
+          const input = $('#upload-file')[0];
+          if (input) input.value = '';
+          renderUploads();
         }
       })
+      .on('hide.bs.modal', (event) => {
+        if (uploadForceDismiss || !multiUpload || uploads.length === 0) {
+          return;
+        }
+
+        const hasUnfinished = uploads.some((item) => ['pending', 'uploading'].includes(item.status));
+        if (!hasUnfinished) {
+          return;
+        }
+
+        event.preventDefault();
+        $('#upload-confirm-cancel-box').css('display', 'flex').hide().fadeIn(150);
+        return false;
+      })
       .on('hidden.bs.modal', () => {
-        if (multiUpload && uploads.some((item) => item.status === 'saved')) {
-          location.reload();
+        if (multiUpload) {
+          const shouldReload = sessionHasSaved || uploads.some((item) => item.status === 'saved');
+          uploads.length = 0;
+          sessionHasSaved = false;
+          uploadForceDismiss = false;
+          $('#upload-confirm-cancel-box').hide();
+          const input = $('#upload-file')[0];
+          if (input) input.value = '';
+          renderUploads();
+          if (shouldReload) {
+            location.reload();
+          }
         }
       });
+
+    $(document).on('click', '#done-upload-btn', function () {
+      uploadForceDismiss = true;
+    });
+
+    $(document).on('click', '#btn-cancel-keep', function (e) {
+      e.preventDefault();
+      $('#upload-confirm-cancel-box').fadeOut(150);
+    });
+
+    $(document).on('click', '#btn-cancel-confirm', async function (e) {
+      e.preventDefault();
+      $('#upload-confirm-cancel-box').hide();
+
+      // 1. Abort active in-flight uploads
+      activeXhrs.forEach((xhr) => {
+        try {
+          xhr.abort();
+        } catch (_) {}
+      });
+      activeXhrs = [];
+      uploading = false;
+
+      // 2. Roll back any newly saved documents created in this cancelled session
+      const savedNewDocs = uploads.filter((item) => item.status === 'saved' && item.document_id && item.is_new_document);
+      const csrf = $('meta[name="csrf-token"]').attr('content') || $('#upload-form').find('input[name="_token"]').val();
+
+      if (savedNewDocs.length > 0) {
+        toast('Discarding uploaded files…');
+        await Promise.all(
+          savedNewDocs.map((item) =>
+            $.post('/documents/' + encodeURIComponent(item.document_id) + '/permanent', { _token: csrf }).catch(() => {})
+          )
+        );
+      }
+
+      // 3. Reset queue
+      uploads.length = 0;
+      sessionHasSaved = false;
+      const input = $('#upload-file')[0];
+      if (input) input.value = '';
+      renderUploads();
+
+      // 4. Force dismiss modal
+      uploadForceDismiss = true;
+      const modalEl = $('#upload-modal')[0];
+      if (modalEl) {
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+        if (modalInstance) {
+          modalInstance.hide();
+        }
+      }
+      uploadForceDismiss = false;
+
+      toast('Upload cancelled. Transaction discarded.');
+
+      if (savedNewDocs.length > 0) {
+        location.reload();
+      }
+    });
     function selectedFile() {
       const input = $('#upload-file')[0];
       if (!input) return;
@@ -936,6 +1350,18 @@
     }
     $('#upload-file').on('change', selectedFile);
     $('#upload-zone')
+      .on('click', function (event) {
+        if ($(event.target).is('#upload-file') || $(event.target).closest('label[for="upload-file"]').length) {
+          return;
+        }
+        $('#upload-file').trigger('click');
+      })
+      .on('keydown', function (event) {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          $('#upload-file').trigger('click');
+        }
+      })
       .on('dragover', (event) => {
         event.preventDefault();
         $('#upload-zone').addClass('drag-over');
@@ -1204,6 +1630,11 @@
       if (this.id !== 'upload-form') return;
       event.preventDefault();
       const form = $(this);
+      const fileInput = $('#upload-file')[0];
+      if (!fileInput || !fileInput.files || !fileInput.files.length) {
+        toast('Please select a file to upload.');
+        return;
+      }
       const progress = form.find('.upload-progress');
       progress.prop('hidden', false);
       form.find('button[type="submit"]').prop('disabled', true);

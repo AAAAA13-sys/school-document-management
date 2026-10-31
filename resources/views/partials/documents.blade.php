@@ -122,6 +122,22 @@
                                     </button>
                                 </form>
                             </li>
+                            @if ($item->trashed_at)
+                                <li>
+                                    <form
+                                        method="post"
+                                        action="/documents/{{ $item->id }}/permanent"
+                                        data-document-id="{{ $item->id }}"
+                                        data-confirm="Permanently delete this document and all its versions? This cannot be undone.">
+                                        @csrf
+                                        <input type="hidden" name="revision" value="{{ $item->revision }}" /><button
+                                            type="submit"
+                                            class="dropdown-item text-danger">
+                                            <x-figma-icon name="trash" />Delete permanently
+                                        </button>
+                                    </form>
+                                </li>
+                            @endif
                         @endif
                     </ul>
                 </div>

@@ -118,6 +118,43 @@ class DocumentController extends Controller
         return redirect('/workspaces/'.strtolower($targetSource).'/documents');
     }
 
+    public function checkDuplicate(Request $request)
+    {
+        $user = $request->user();
+        $checksum = $request->input('checksum');
+        $source = $request->input('source');
+
+        if (! $checksum) {
+            return response()->json(['is_duplicate' => false]);
+        }
+
+        $matches = \App\Services\DuplicateDetection::matches($user, $checksum, null);
+
+        if (empty($matches) && $source) {
+            $existing = DB::table('document_versions as v')
+                ->join('documents as d', 'd.id', '=', 'v.document_id')
+                ->where('v.checksum', $checksum)
+                ->where('d.school_id', $user->school_id)
+                ->where('d.campus', $user->campus)
+                ->where('d.source', $source)
+                ->whereNull('d.trashed_at')
+                ->select('d.id as document_id', 'd.title')
+                ->first();
+
+            if ($existing) {
+                $matches = [[
+                    'document_id' => $existing->document_id,
+                    'title' => $existing->title,
+                ]];
+            }
+        }
+
+        return response()->json([
+            'is_duplicate' => ! empty($matches),
+            'duplicates' => array_values($matches),
+        ]);
+    }
+
     public function upload(UploadRequest $request, DocumentService $service, ?string $document = null)
     {
         [$result, $status] = $service->upload($request->user(), $request->safe()->except(['file', 'submission_key']), $request->file('file'), $document, $request->validated('submission_key'));
@@ -207,6 +244,44 @@ class DocumentController extends Controller
         $message = $result['status'] === 'pending' ? 'Request submitted. Live document unchanged until approval.' : ($restore ? 'Document restored.' : 'Document moved to trash. All versions preserved.');
 
         return $request->expectsJson() ? response()->json($result + ['message' => $message], $result['status'] === 'pending' ? 202 : 200) : back()->with('status', $message);
+    }
+
+    public function forceDelete(ActionRequest $request, string $document)
+    {
+        $user = $request->user();
+        $doc = Access::document($user, $document);
+        abort_unless($doc->trashed_at !== null, 409, 'Only trashed documents can be permanently deleted.');
+        Gate::forUser($user)->authorize('document.manage', $doc);
+
+        DB::transaction(function () use ($user, $doc) {
+            $versions = DB::table('document_versions')->where('document_id', $doc->id)->get();
+            foreach ($versions as $ver) {
+                if ($ver->storage_key) {
+                    \Illuminate\Support\Facades\Storage::disk('local')->delete($ver->storage_key);
+                }
+            }
+            DB::table('memo_publications')->where('document_id', $doc->id)->delete();
+            DB::table('sensitive_changes')->where('document_id', $doc->id)->delete();
+            DB::table('stars')->where('document_id', $doc->id)->delete();
+            DB::table('comments')->where('document_id', $doc->id)->delete();
+            DB::table('shares')->where('document_id', $doc->id)->delete();
+            DB::table('document_versions')->where('document_id', $doc->id)->delete();
+            DB::table('documents')->where('id', $doc->id)->delete();
+
+            Access::audit($user, 'document.permanently_deleted', null, [
+                'document_id' => $doc->id,
+                'title' => $doc->title,
+                'source' => $doc->source,
+            ]);
+        });
+
+        $message = 'Document permanently deleted.';
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $message, 'deleted' => true]);
+        }
+
+        $source = in_array($doc->source, $user->sources(), true) ? $doc->source : ($user->sources()[0] ?? $user->source ?? 'EMS');
+        return redirect('/workspaces/' . strtolower($source) . '/documents?view=trash')->with('status', $message);
     }
 
     public function star(ActionRequest $request, string $document)

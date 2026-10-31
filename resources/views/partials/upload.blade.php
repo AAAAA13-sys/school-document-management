@@ -1,7 +1,20 @@
 @if (!isset($doc))
     <div class="modal fade" id="upload-modal" tabindex="-1" aria-labelledby="upload-title" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered plain-upload-dialog">
-            <div class="modal-content">
+            <div class="modal-content" style="position: relative; overflow: hidden;">
+                <div id="upload-confirm-cancel-box" class="upload-confirm-overlay" style="display: none;">
+                    <div class="upload-confirm-dialog">
+                        <div class="upload-confirm-icon">
+                            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                        </div>
+                        <h3 class="upload-confirm-title">Cancel upload session?</h3>
+                        <p class="upload-confirm-desc">Are you sure you want to cancel? Any files selected or uploaded in this session will be discarded.</p>
+                        <div class="upload-confirm-actions">
+                            <button type="button" class="btn btn-outline-secondary" id="btn-cancel-keep">No, keep</button>
+                            <button type="button" class="btn btn-danger" id="btn-cancel-confirm">Yes, cancel</button>
+                        </div>
+                    </div>
+                </div>
                 <form method="post" action="/documents" enctype="multipart/form-data" id="upload-form" data-multi-upload="true">
                     @csrf
                     <input type="hidden" name="source" value="{{ $source }}" /><input type="hidden" name="folder_id" value="{{ $folder->id??'' }}" />
@@ -18,23 +31,28 @@
                                 <option>Restricted</option>
                             </select>
                         </div>
-                        <p id="upload-class-help" class="security-note mb-3">Applies to the files you drop or select next.</p>
-                        <div class="upload-zone plain-upload-zone" id="upload-zone">
-                            <x-figma-icon name="upload" :size="28" /><label for="upload-file" class="form-label">Drop your files here</label
-                            ><span>or choose files</span
-                            ><input id="upload-file" name="file" type="file" multiple class="form-control" aria-describedby="upload-file-help" /><small
-                                id="upload-file-help"
-                                >Any format · 10 MB per file · Up to 50 files</small
-                            >
+                        <p id="upload-class-help" class="security-note mb-3">Applies to files uploaded in this session.</p>
+                        <div class="upload-zone plain-upload-zone" id="upload-zone" role="button" tabindex="0" aria-label="Drop your files here or click to browse">
+                            <x-figma-icon name="upload" :size="32" />
+                            <div class="upload-zone-text">
+                                <label for="upload-file" class="upload-zone-title">Drop your files here</label>
+                                <span class="upload-zone-sub">or <button type="button" class="upload-browse-btn" tabindex="-1">Browse files</button></span>
+                            </div>
+                            <input id="upload-file" name="file" type="file" multiple class="upload-file-input" aria-describedby="upload-file-help" />
+                            <small id="upload-file-help">Any format · 10 MB per file · Up to 50 files</small>
                         </div>
-                        <p class="security-note mt-3">Uploads start automatically. Filenames become titles. Files use your selected classification and current folder.</p>
+                        <p class="security-note mt-3">Filenames become titles. Files use your selected classification and current folder.</p>
                         <p id="upload-summary" role="status" aria-live="polite" class="mt-3">Ready for files.</p>
                         <ul id="upload-file-list" class="plain-upload-list" aria-label="File upload results"></ul>
-                        <button type="button" class="btn btn-outline-secondary mt-3" id="retry-uploads" hidden>Retry failed uploads</button>
                         <p class="security-note mt-3 mb-0">Security scanning runs in the background after upload.</p>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Done</button>
+                    <div class="modal-footer d-flex justify-content-between align-items-center">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="cancel-upload-btn">Cancel</button>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-secondary" id="retry-uploads" hidden>Retry failed uploads</button>
+                            <button type="button" class="btn btn-primary" id="start-upload-btn" disabled>Upload files</button>
+                            <button type="button" class="btn btn-primary" id="done-upload-btn" data-bs-dismiss="modal" style="display: none;">Done</button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -97,12 +115,15 @@
                             @endif
                         </div>
                         <div class="upload-file-panel">
-                            <div class="upload-zone" id="upload-zone">
-                                <x-figma-icon name="upload" :size="28" /><label for="upload-file" class="form-label">Choose a file or drop it here</label
-                                ><input id="upload-file" name="file" type="file" class="form-control" required aria-describedby="upload-file-help" /><small
-                                    id="upload-file-help"
-                                    >Any file format · Up to 10 MB</small
-                                ><span class="selected-file" id="selected-file" aria-live="polite"></span>
+                            <div class="upload-zone" id="upload-zone" role="button" tabindex="0" aria-label="Choose a file or drop it here">
+                                <x-figma-icon name="upload" :size="32" />
+                                <div class="upload-zone-text">
+                                    <label for="upload-file" class="upload-zone-title">Choose a file or drop it here</label>
+                                    <span class="upload-zone-sub">or <button type="button" class="upload-browse-btn" tabindex="-1">Browse file</button></span>
+                                </div>
+                                <input id="upload-file" name="file" type="file" class="upload-file-input" aria-describedby="upload-file-help" />
+                                <small id="upload-file-help">Any file format · Up to 10 MB</small>
+                                <span class="selected-file" id="selected-file" aria-live="polite"></span>
                             </div>
                             <p class="security-note mt-3 mb-0">Scanning starts automatically in the background after upload. Your file stays private and downloads remain blocked until it is clean.</p>
                         </div>

@@ -67,32 +67,32 @@
                 </div>
                 <div class="mb-4">
                     <label for="password" class="form-label">Password</label>
-                    <div class="input-group">
+                    <div class="password-field">
                         <input
                             class="form-control"
                             id="password"
                             type="password"
                             name="password"
                             autocomplete="new-password"
-                            minlength="12"
+                            minlength="8"
                             data-password-policy
                             required />
-                        <button class="btn btn-outline-secondary password-toggle" type="button" aria-label="Show password">Show</button>
+                        <button class="password-toggle" type="button" aria-label="Show password">Show</button>
                     </div>
-                    <div class="form-text mt-2">Must contain at least 12 characters, including uppercase, lowercase, numbers, and symbols.</div>
+                    <div class="form-text mt-2">Must contain at least 8 characters.</div>
                 </div>
                 <div class="mb-4">
                     <label for="password_confirmation" class="form-label">Confirm password</label>
-                    <div class="input-group">
+                    <div class="password-field">
                         <input
                             class="form-control"
                             id="password_confirmation"
                             type="password"
                             name="password_confirmation"
                             autocomplete="new-password"
-                            minlength="12"
+                            minlength="8"
                             required />
-                        <button class="btn btn-outline-secondary password-toggle" type="button" aria-label="Show password">Show</button>
+                        <button class="password-toggle" type="button" aria-label="Show password">Show</button>
                     </div>
                 </div>
                 <button class="btn btn-primary w-100" type="submit">{{ $mode === 'invite' ? 'Activate account' : 'Save new password' }}</button>

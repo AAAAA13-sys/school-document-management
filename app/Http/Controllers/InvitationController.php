@@ -38,31 +38,29 @@ class InvitationController extends Controller
     public function store(Request $request, InvitationService $service)
     {
         $data = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => ['required', 'string', 'min:2', 'max:255', 'regex:/^[\pL\s\-\'.]+$/u'],
             'email' => 'required|email|max:255',
             'role' => 'required|in:staff,admin,super_admin',
             'source' => 'nullable|string|max:50',
+        ], [
+            'name.regex' => 'The full name may only contain letters, spaces, hyphens, periods, and apostrophes.',
         ]);
         $id = $service->request($request->user(), $data);
-        $status = 'pending';
-        $message = 'Staff invitation submitted for Super Admin approval.';
+        $status = 'delivered';
+        $message = 'Invitation email sent.';
 
-        if ($request->user()->isSuperAdmin()) {
-            $status = 'delivered';
-            $message = 'Invitation email sent.';
-            try {
-                $service->deliver($request->user(), $id);
-            } catch (HttpExceptionInterface $e) {
-                if ($e->getStatusCode() === 503) {
-                    $status = 'approved';
-                    $message = 'Invitation created and approved. Outbound email is not configured or failed to deliver; invitation can be sent once mail transport is active.';
-                } else {
-                    throw $e;
-                }
-            } catch (\Throwable $e) {
+        try {
+            $service->deliver($request->user(), $id);
+        } catch (HttpExceptionInterface $e) {
+            if ($e->getStatusCode() === 503) {
                 $status = 'approved';
-                $message = 'Invitation created and approved. Outbound email is not configured or failed to deliver; invitation can be sent once mail transport is active.';
+                $message = 'Invitation created. Outbound email is not configured or failed to deliver; invitation can be sent once mail transport is active.';
+            } else {
+                throw $e;
             }
+        } catch (\Throwable $e) {
+            $status = 'approved';
+            $message = 'Invitation created. Outbound email is not configured or failed to deliver; invitation can be sent once mail transport is active.';
         }
 
         if ($request->expectsJson()) {
@@ -157,7 +155,7 @@ class InvitationController extends Controller
 
     public function accept(Request $request, string $token, InvitationService $service)
     {
-        $data = $request->validate(['password' => ['required', 'confirmed', PasswordRule::min(12)->mixedCase()->numbers()->symbols()]]);
+        $data = $request->validate(['password' => ['required', 'confirmed', PasswordRule::min(8)]]);
         $user = $service->accept($token, $data['password']);
 
         if ($request->expectsJson()) {
@@ -188,7 +186,20 @@ class InvitationController extends Controller
             if (! $user->active) {
                 return;
             }
-            Mail::raw('Reset your DMS password: '.url('/reset-password/'.$token.'?email='.rawurlencode($user->email)), fn ($message) => $message->to($user->email)->subject('Reset your DMS password'));
+            $baseUrl = rtrim(config('app.url'), '/');
+            $resetUrl = $baseUrl . '/reset-password/' . $token . '?email=' . rawurlencode($user->email);
+            Mail::send(
+                ['emails.password-reset', 'emails.password-reset-text'],
+                [
+                    'user' => $user,
+                    'email' => $user->email,
+                    'resetUrl' => $resetUrl,
+                    'expiresIn' => config('auth.passwords.users.expire', 60),
+                ],
+                function ($message) use ($user) {
+                    $message->to($user->email)->subject('Reset your DMS password · PLP Documents');
+                }
+            );
             Access::audit($user, 'account.password_reset_requested');
         });
 
@@ -202,7 +213,7 @@ class InvitationController extends Controller
 
     public function reset(Request $request)
     {
-        $data = $request->validate(['token' => 'required|string', 'email' => 'required|email', 'password' => ['required', 'confirmed', PasswordRule::min(12)->mixedCase()->numbers()->symbols()]]);
+        $data = $request->validate(['token' => 'required|string', 'email' => 'required|email', 'password' => ['required', 'confirmed', PasswordRule::min(8)]]);
         $status = Password::reset($data, function (User $user, string $password) {
             abort_unless($user->active, 422, 'This password reset request is invalid.');
             DB::transaction(function () use ($user, $password) {
