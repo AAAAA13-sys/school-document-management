@@ -18,24 +18,7 @@ class SensitiveChangeService
             $doc = DB::table('documents')->where('id', $doc->id)->lockForUpdate()->first() ?? abort(404);
             $this->validate($actor, $doc, $action, $payload);
 
-            $requiresApproval = false;
             if ($actor->isSuperAdmin()) {
-                $requiresApproval = false;
-            } elseif ($action === 'share.grant') {
-                $recipient = isset($payload['recipient_id']) ? User::find($payload['recipient_id']) : null;
-                // Only cross-departmental shares require approval; intra-departmental shares apply immediately
-                if ($recipient && $recipient->source && $doc->source && $recipient->source !== $doc->source) {
-                    $requiresApproval = true;
-                } else {
-                    $requiresApproval = false;
-                }
-            } elseif ($action === 'share.revoke') {
-                $requiresApproval = false;
-            } else {
-                $requiresApproval = true;
-            }
-
-            if (! $requiresApproval) {
                 $this->apply($actor, $doc, $action, $payload);
 
                 return ['status' => 'applied', 'revision' => $doc->revision];

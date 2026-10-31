@@ -19,6 +19,7 @@
     <nav class="library-tabs" aria-label="People management">
         <a href="/admin/accounts">Staff directory</a>
         <a href="/admin/invitations" class="active" aria-current="page">Invitations</a>
+        <a href="/admin/account-requests">Account requests</a>
     </nav>
 
     <section class="panel">

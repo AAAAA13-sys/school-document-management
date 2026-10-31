@@ -33,7 +33,7 @@
                         </div>
                         <p id="upload-class-help" class="security-note mb-3">Applies to files uploaded in this session.</p>
                         <div class="upload-zone plain-upload-zone" id="upload-zone" role="button" tabindex="0" aria-label="Drop your files here or click to browse">
-                            <x-figma-icon name="upload" :size="32" />
+                            <x-figma-icon name="upload" :size="28" />
                             <div class="upload-zone-text">
                                 <label for="upload-file" class="upload-zone-title">Drop your files here</label>
                                 <span class="upload-zone-sub">or <button type="button" class="upload-browse-btn" tabindex="-1">Browse files</button></span>
@@ -116,7 +116,7 @@
                         </div>
                         <div class="upload-file-panel">
                             <div class="upload-zone" id="upload-zone" role="button" tabindex="0" aria-label="Choose a file or drop it here">
-                                <x-figma-icon name="upload" :size="32" />
+                                <x-figma-icon name="upload" :size="28" />
                                 <div class="upload-zone-text">
                                     <label for="upload-file" class="upload-zone-title">Choose a file or drop it here</label>
                                     <span class="upload-zone-sub">or <button type="button" class="upload-browse-btn" tabindex="-1">Browse file</button></span>

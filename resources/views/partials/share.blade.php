@@ -38,7 +38,7 @@
                             <div class="d-flex align-items-center justify-content-between mb-2">
                                 <label for="shareable-doc-link-partial" class="form-label fw-bold mb-0">Shareable link</label>
                                 <button type="button" class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1" id="copy-doc-link-btn-partial">
-                                    <x-figma-icon name="link" :size="16" />
+                                    <x-figma-icon name="link" />
                                     <span>Copy link</span>
                                 </button>
                             </div>
@@ -54,7 +54,7 @@
                         id="share-recipient-input"
                         name="recipient_email"
                         type="text"
-                        class="form-control mb-2"
+                        class="form-control share-search mb-2"
                         placeholder="Enter staff email (e.g. staff@plp.edu.ph) or choose from list…"
                         list="share-staff-datalist"
                         required

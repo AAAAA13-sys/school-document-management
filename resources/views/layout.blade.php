@@ -141,7 +141,7 @@
                 @endphp
                 @if ($isAdmin && $viewer->isSuperAdmin() && $key === 'workspaces')
                     @php
-                        $allWorkspaces = App\Services\WorkspaceRegistry::labels($viewer);
+                        $allWorkspaces = $workspaceLabels ?? App\Services\WorkspaceRegistry::labels($viewer);
                         $isAnyWsActive = $active || request()->is('workspaces*');
                     @endphp
                     <div class="nav-dropdown {{ $isAnyWsActive ? 'is-open' : '' }}" id="nav-workspaces-group">
@@ -248,14 +248,14 @@
         </nav>
         <div class="sidebar-bottom">
             @if (($viewer->isSuperAdmin() || $viewer->isAdmin()) && !$isAdmin)
-                <a class="sidebar-action-link" href="/admin" data-bs-toggle="tooltip" data-bs-placement="right" title="Administration">
+                <a class="sidebar-action-link return-admin" href="/admin" data-bs-toggle="tooltip" data-bs-placement="right" title="Administration">
                     <x-figma-icon name="arrow-left" :size="16" />
-                    <span class="action-text">Administration</span>
+                    <span class="action-text return-text">← Administration</span>
                 </a>
             @endif
 
             <a href="/account" class="sidebar-action-link {{ request()->is('account') ? 'active' : '' }}" data-bs-toggle="tooltip" data-bs-placement="right" title="My account">
-                <x-figma-icon name="users" :size="16" />
+                <x-figma-icon name="users" />
                 <span class="action-text">My account</span>
             </a>
             <div

@@ -46,22 +46,25 @@ class InvitationController extends Controller
         ], [
             'name.regex' => 'The full name may only contain letters, spaces, hyphens, periods, and apostrophes.',
         ]);
-        $id = $service->request($request->user(), $data);
-        $status = 'delivered';
-        $message = 'Invitation email sent.';
+        $actor = $request->user();
+        $id = $service->request($actor, $data);
+        $status = $actor->isSuperAdmin() ? 'delivered' : 'pending';
+        $message = $actor->isSuperAdmin() ? 'Invitation email sent.' : 'Staff invitation submitted for Super Admin approval.';
 
-        try {
-            $service->deliver($request->user(), $id);
-        } catch (HttpExceptionInterface $e) {
-            if ($e->getStatusCode() === 503) {
+        if ($actor->isSuperAdmin()) {
+            try {
+                $service->deliver($actor, $id);
+            } catch (HttpExceptionInterface $e) {
+                if ($e->getStatusCode() === 503) {
+                    $status = 'approved';
+                    $message = 'Invitation created. Outbound email is not configured or failed to deliver; invitation can be sent once mail transport is active.';
+                } else {
+                    throw $e;
+                }
+            } catch (\Throwable $e) {
                 $status = 'approved';
                 $message = 'Invitation created. Outbound email is not configured or failed to deliver; invitation can be sent once mail transport is active.';
-            } else {
-                throw $e;
             }
-        } catch (\Throwable $e) {
-            $status = 'approved';
-            $message = 'Invitation created. Outbound email is not configured or failed to deliver; invitation can be sent once mail transport is active.';
         }
 
         if ($request->expectsJson()) {

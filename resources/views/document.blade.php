@@ -52,7 +52,7 @@
                     </div>
                     <div>
                         <dt>Source</dt>
-                        <dd>{{ $sourceName }}</dd>
+                        <dd>{{ $sourceName }}<span class="metadata-secondary">Category: {{ $doc->category ?? 'Not provided' }}</span></dd>
                     </div>
                     <div>
                         <dt>Classification</dt>
@@ -372,7 +372,7 @@
                                 <div class="d-flex align-items-center justify-content-between mb-2">
                                     <label for="shareable-doc-link" class="form-label fw-bold mb-0">Shareable link</label>
                                     <button type="button" class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1" id="copy-doc-link-btn">
-                                        <x-figma-icon name="link" :size="16" />
+                                        <x-figma-icon name="link" />
                                         <span id="copy-btn-text">Copy link</span>
                                     </button>
                                 </div>
@@ -385,7 +385,7 @@
                                 id="share-recipient-input"
                                 name="recipient_email"
                                 type="text"
-                                class="form-control mb-2"
+                                class="form-control share-search mb-2"
                                 placeholder="Enter staff email (e.g. staff@plp.edu.ph) or choose from list…"
                                 list="share-staff-datalist"
                                 required

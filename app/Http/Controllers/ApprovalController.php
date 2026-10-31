@@ -13,7 +13,9 @@ class ApprovalController extends Controller
     public function index(Request $request, SensitiveChangeService $service)
     {
         $user = $request->user();
-        abort_unless($user->isSuperAdmin() || $user->isAdmin(), 403);
+        if ($request->is('admin/*')) {
+            abort_unless($user->isSuperAdmin() || $user->isAdmin(), 403);
+        }
         $changes = DB::table('sensitive_changes')->orderByDesc('created_at')->get()->filter(function ($change) use ($user, $service) {
             if ((int) $change->requester_id === $user->id) {
                 return true;

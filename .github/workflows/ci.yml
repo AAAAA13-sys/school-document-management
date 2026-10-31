@@ -140,6 +140,14 @@ jobs:
 
       - name: Run MySQL test suite
         run: php artisan test -c phpunit.mysql.xml --compact
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: dms_test
+          DB_USERNAME: root
+          DB_PASSWORD: root
+          DMS_INVITATION_DISPATCH_ENABLED: false
 
   frontend:
     name: Frontend tests and assets

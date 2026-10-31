@@ -43,7 +43,7 @@
                 <div class="activity-list">
                     @forelse ($audits->take(4) as $event)
                         <article class="activity-item">
-                            <span class="activity-marker"><x-figma-icon name="check" :size="16" /></span>
+                            <span class="activity-marker"><x-figma-icon name="check-green" :size="16" /></span>
                             <div>
                                 <strong>{{ ucfirst(str_replace(['.','_'],' ',$event->action)) }}</strong
                                 ><small
@@ -133,6 +133,16 @@
                 </table>
             </div>
         </section>
+        <div class="info-strip mt-4">
+            <x-figma-icon name="link-notice" :size="24" />
+            <div>
+                <strong>Accounts are provisioned via expiring invitations</strong>
+                <p>Recipients choose their own password. Scoped Admin proposals require Super Admin approval before dispatch.</p>
+            </div>
+        </div>
+        @if (isset($invitations))
+            @include ('partials.invitations')
+        @endif
     @elseif ($section==='connectors')
         @if (session('connector_token'))
             <div class="alert alert-warning" role="status">
