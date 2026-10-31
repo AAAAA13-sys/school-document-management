@@ -145,7 +145,7 @@ jobs:
           mysql -h 127.0.0.1 -P 3306 -uroot -proot -e "CREATE DATABASE IF NOT EXISTS dms_test; CREATE DATABASE IF NOT EXISTS dms;"
 
       - name: Run MySQL test suite
-        run: php artisan test -c phpunit.mysql.xml --without-tty
+        run: php vendor/bin/phpunit -c phpunit.mysql.xml --do-not-cache-result
         env:
           DB_CONNECTION: mysql
           DB_HOST: 127.0.0.1

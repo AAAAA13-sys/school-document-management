@@ -256,7 +256,7 @@ return new class extends Migration
             $table->boolean('deleted')->default(false);
             $table->json('payload')->nullable();
             $table->timestamps();
-            $table->index(['source', 'school_id', 'campus', 'record_type', 'record_id']);
+            $table->index(['source', 'school_id', 'campus', 'record_type', 'record_id'], 'source_snapshots_lookup_idx');
         });
 
         Schema::create('history_receipts', function (Blueprint $table) {
