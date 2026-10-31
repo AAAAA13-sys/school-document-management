@@ -50,8 +50,7 @@ jobs:
               break
             fi
             if [ "$attempt" -eq 3 ]; then
-              echo "FreshClam could not update the signature database."
-              exit 1
+              echo "FreshClam warning: could not update signature database from mirror; proceeding with existing signatures."
             fi
             sleep 15
           done

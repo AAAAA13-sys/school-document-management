@@ -110,7 +110,7 @@ class DocumentPolicy
 
         // Restricted documents are the one sharing action reserved to Super Admin.
         if ($document->classification === 'Restricted') {
-            return $actor->isSuperAdmin() || ($actor->isAdmin() && Access::manages($actor, $document)) || $document->owner_id === $actor->id;
+            return $actor->isSuperAdmin();
         }
 
         return $actor->isSuperAdmin() || $document->owner_id === $actor->id

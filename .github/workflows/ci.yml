@@ -139,7 +139,7 @@ jobs:
           done
 
       - name: Run MySQL test suite
-        run: php vendor/bin/pest -c phpunit.mysql.xml
+        run: php artisan test -c phpunit.mysql.xml --compact
 
   frontend:
     name: Frontend tests and assets

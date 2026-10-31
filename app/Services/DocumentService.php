@@ -132,7 +132,7 @@ class DocumentService
                 $status = 'Pending';
                 $number = (int) DB::table('document_versions')->where('document_id', $id)->max('number') + 1;
                 $originalFilename = basename(str_replace('\\', '/', $file->getClientOriginalName()));
-                $filename = (isset($title) && str_contains($title, '.')) ? $title : $originalFilename;
+                $filename = $originalFilename;
                 DB::table('document_versions')->insert(['id' => $version, 'document_id' => $id, 'number' => $number,
                     'filename' => $filename, 'mime' => $file->getMimeType(),
                     'size' => $file->getSize(), 'checksum' => $checksum, 'storage_key' => $stored, 'scan_status' => $status, 'created_at' => now()]);

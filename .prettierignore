@@ -10,3 +10,6 @@ package-lock.json
 composer.lock
 .env
 .env.*
+
+*.blade.php
+resources/views

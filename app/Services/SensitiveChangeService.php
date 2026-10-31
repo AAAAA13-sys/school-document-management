@@ -32,7 +32,7 @@ class SensitiveChangeService
             } elseif ($action === 'share.revoke') {
                 $requiresApproval = false;
             } else {
-                $requiresApproval = ! $actor->isAdmin();
+                $requiresApproval = true;
             }
 
             if (! $requiresApproval) {
