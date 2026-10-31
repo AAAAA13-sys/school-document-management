@@ -25,11 +25,11 @@ abstract class TestCase extends BaseTestCase
             // connection before a caller changed its configured database name.
             try {
                 $selected = $app['db']->connection()->selectOne('SELECT DATABASE() AS selected_schema');
-            } catch (\Throwable) {
-                throw new \RuntimeException('Refusing database tests: the isolated MySQL connection could not be verified.');
+            } catch (\Throwable $e) {
+                throw new \RuntimeException('Refusing database tests: the isolated MySQL connection could not be verified: '.$e->getMessage(), 0, $e);
             }
             if (($selected->selected_schema ?? null) !== 'dms_test') {
-                throw new \RuntimeException('Refusing database tests: the active connection is not dms_test.');
+                throw new \RuntimeException('Refusing database tests: the active connection is not dms_test (active is: '.($selected->selected_schema ?? 'null').').');
             }
         }
 

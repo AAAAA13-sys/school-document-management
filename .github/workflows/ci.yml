@@ -125,6 +125,10 @@ jobs:
         run: |
           cp .env.example .env
           php artisan key:generate
+          sed -i 's/^APP_ENV=.*/APP_ENV=testing/' .env
+          sed -i 's/^DB_CONNECTION=.*/DB_CONNECTION=mysql/' .env
+          sed -i 's/^DB_HOST=.*/DB_HOST=127.0.0.1/' .env
+          sed -i 's/^DB_PORT=.*/DB_PORT=3306/' .env
           sed -i 's/^DB_DATABASE=.*/DB_DATABASE=dms_test/' .env
           sed -i 's/^DB_USERNAME=.*/DB_USERNAME=root/' .env
           sed -i 's/^DB_PASSWORD=.*/DB_PASSWORD=root/' .env
@@ -141,7 +145,7 @@ jobs:
           mysql -h 127.0.0.1 -P 3306 -uroot -proot -e "CREATE DATABASE IF NOT EXISTS dms_test; CREATE DATABASE IF NOT EXISTS dms;"
 
       - name: Run MySQL test suite
-        run: php artisan test -c phpunit.mysql.xml --compact
+        run: php artisan test -c phpunit.mysql.xml --without-tty
         env:
           DB_CONNECTION: mysql
           DB_HOST: 127.0.0.1

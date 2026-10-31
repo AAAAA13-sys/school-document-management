@@ -486,6 +486,8 @@ return new class extends Migration
 
     public function down(): void
     {
+        Schema::disableForeignKeyConstraints();
+
         foreach ([
             'requests',
             'document_types',
@@ -523,5 +525,7 @@ return new class extends Migration
         ] as $table) {
             Schema::dropIfExists($table);
         }
+
+        Schema::enableForeignKeyConstraints();
     }
 };
