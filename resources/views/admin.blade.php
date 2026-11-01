@@ -172,7 +172,7 @@
                             <th>Source</th>
                             <th>Status</th>
                             <th>Last request</th>
-                            <th style="min-width: 280px;">Action</th>
+                            <th class="text-end" style="min-width: 280px;">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -189,8 +189,8 @@
                                 <td>
                                     {{ $connector->last_seen_at?Illuminate\Support\Carbon::parse($connector->last_seen_at)->format('M d, H:i'):'Not connected yet' }}
                                 </td>
-                                <td>
-                                    <div class="d-flex gap-2 align-items-center flex-wrap">
+                                <td class="text-end">
+                                    <div class="d-flex gap-2 align-items-center justify-content-end flex-wrap">
                                         <button
                                             type="button"
                                             class="btn btn-sm btn-outline-secondary"
@@ -212,6 +212,7 @@
                                         <form
                                             method="post"
                                             action="/admin/connectors/{{ $connector->id }}"
+                                            class="d-inline m-0 p-0"
                                             data-confirm="Permanently delete '{{ $connector->name }}'? Its connected ERP will no longer be able to authenticate.">
                                             @csrf
                                             @method ('DELETE')
