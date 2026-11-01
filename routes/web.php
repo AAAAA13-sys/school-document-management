@@ -142,4 +142,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::delete('/admin/connectors/{connector}', [AdminController::class, 'revoke'])
         ->name('connectors.revoke')
         ->middleware('can:connectors.manage');
+    Route::patch('/admin/connectors/{connector}', [AdminController::class, 'activate'])
+        ->name('connectors.activate')
+        ->middleware('can:connectors.manage');
 });

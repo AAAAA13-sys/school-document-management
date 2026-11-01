@@ -199,6 +199,15 @@
                                             @method ('DELETE')
                                             <button type="submit" class="text-button">Revoke token →</button>
                                         </form>
+                                    @else
+                                        <form
+                                            method="post"
+                                            action="/admin/connectors/{{ $connector->id }}"
+                                            data-confirm="Reactivate this connector? Its ERP will be able to authenticate again.">
+                                            @csrf
+                                            @method ('PATCH')
+                                            <button type="submit" class="text-button">Reactivate →</button>
+                                        </form>
                                     @endif
                                 </td>
                             </tr>

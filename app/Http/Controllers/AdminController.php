@@ -197,6 +197,26 @@ class AdminController extends Controller
         return back()->with('status', 'Connector revoked.');
     }
 
+    public function activate(ActionRequest $request, string $connector)
+    {
+        $user = $request->user();
+        Gate::forUser($user)->authorize('connectors.manage');
+        DB::transaction(function () use ($user, $connector) {
+            $row = Access::administrationScope(DB::table('connectors'), $user)->where('id', $connector)->lockForUpdate()->first() ?? abort(404);
+            DB::table('connectors')->where('id', $row->id)->update(['active' => true, 'updated_at' => now()]);
+            Access::audit($user, 'connector.activated', details: ['connector_id' => $row->id]);
+        });
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Connector reactivated.',
+                'status' => 'active',
+            ]);
+        }
+
+        return back()->with('status', 'Connector reactivated.');
+    }
+
     public function legalHolds(Request $request)
     {
         $actor = $request->user();
