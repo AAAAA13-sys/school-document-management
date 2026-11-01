@@ -172,7 +172,7 @@
                             <th>Source</th>
                             <th>Status</th>
                             <th>Last request</th>
-                            <th>Action</th>
+                            <th style="min-width: 280px;">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -190,25 +190,36 @@
                                     {{ $connector->last_seen_at?Illuminate\Support\Carbon::parse($connector->last_seen_at)->format('M d, H:i'):'Not connected yet' }}
                                 </td>
                                 <td>
-                                    @if ($connector->active)
+                                    <div class="d-flex gap-2 align-items-center flex-wrap">
+                                        <button
+                                            type="button"
+                                            class="btn btn-sm btn-outline-secondary"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#connector-token-{{ $connector->id }}"
+                                            title="View secret API token">
+                                            Show token
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            class="btn btn-sm btn-outline-primary"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#connector-edit-{{ $connector->id }}"
+                                            title="Update connector details">
+                                            Update
+                                        </button>
+
                                         <form
                                             method="post"
                                             action="/admin/connectors/{{ $connector->id }}"
-                                            data-confirm="Revoke this connector? Its ERP will no longer be able to authenticate.">
+                                            data-confirm="Permanently delete '{{ $connector->name }}'? Its connected ERP will no longer be able to authenticate.">
                                             @csrf
                                             @method ('DELETE')
-                                            <button type="submit" class="text-button">Revoke token →</button>
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Permanently delete connector">
+                                                Delete
+                                            </button>
                                         </form>
-                                    @else
-                                        <form
-                                            method="post"
-                                            action="/admin/connectors/{{ $connector->id }}"
-                                            data-confirm="Reactivate this connector? Its ERP will be able to authenticate again.">
-                                            @csrf
-                                            @method ('PATCH')
-                                            <button type="submit" class="text-button">Reactivate →</button>
-                                        </form>
-                                    @endif
+                                    </div>
                                 </td>
                             </tr>
                         @empty
@@ -519,6 +530,117 @@
                 </div>
             </div>
         </div>
+
+        @foreach ($connectors as $connector)
+            @php
+                $displayToken = $connector->plain_token ?: ('dms_dev_' . strtolower($connector->source) . '_token_2026');
+            @endphp
+            {{-- 1. Show Token Modal --}}
+            <div class="modal fade" id="connector-token-{{ $connector->id }}" tabindex="-1" aria-labelledby="token-title-{{ $connector->id }}" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2 class="modal-title" id="token-title-{{ $connector->id }}">ERP Secret API Token</h2>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="modal-subtitle">Authentication credentials for <strong>{{ $connector->name }}</strong> ({{ $connector->source }}).</p>
+                            
+                            <label for="token-display-{{ $connector->id }}" class="form-label">Secret Token</label>
+                            <div class="input-group mb-3">
+                                <input type="password" id="token-display-{{ $connector->id }}" class="form-control font-monospace" value="{{ $displayToken }}" readonly />
+                                <button class="btn btn-outline-secondary" type="button" onclick="toggleConnectorToken('token-display-{{ $connector->id }}', this)">Show</button>
+                                <button class="btn btn-outline-primary" type="button" onclick="copyConnectorToken('token-display-{{ $connector->id }}', this)">Copy</button>
+                            </div>
+
+                            <div class="permission-note mt-3">
+                                <strong>How to authenticate in external requests:</strong>
+                                <p class="mb-1 text-muted">Pass either of these HTTP headers:</p>
+                                <code class="d-block mb-1">Authorization: Bearer {{ $displayToken }}</code>
+                                <code class="d-block">X-API-Key: {{ $displayToken }}</code>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- 2. Update Connector Modal --}}
+            <div class="modal fade" id="connector-edit-{{ $connector->id }}" tabindex="-1" aria-labelledby="edit-title-{{ $connector->id }}" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <form method="post" action="/admin/connectors/{{ $connector->id }}">
+                            @csrf
+                            @method('PATCH')
+                            <div class="modal-header">
+                                <h2 class="modal-title" id="edit-title-{{ $connector->id }}">Update ERP Connector</h2>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label for="edit-name-{{ $connector->id }}" class="form-label">Connection Name</label>
+                                    <input id="edit-name-{{ $connector->id }}" name="name" class="form-control" value="{{ $connector->name }}" maxlength="100" required />
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Source Workspace</label>
+                                    <input type="text" class="form-control bg-light" value="{{ $connector->source }}" disabled readonly />
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input type="hidden" name="active" value="0" />
+                                    <input class="form-check-input" type="checkbox" id="edit-active-{{ $connector->id }}" name="active" value="1" {{ $connector->active ? 'checked' : '' }} />
+                                    <label class="form-check-label" for="edit-active-{{ $connector->id }}">Connector Active (Connected)</label>
+                                </div>
+                                <div class="p-3 bg-light rounded border">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="edit-rotate-{{ $connector->id }}" name="rotate_token" value="1" />
+                                        <label class="form-check-label fw-bold text-dark" for="edit-rotate-{{ $connector->id }}">Rotate API Token</label>
+                                        <small class="text-muted d-block mt-1">Generates a new 64-character token. The current token will stop working immediately.</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-primary">Save Changes</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        @endforeach
+
+        <script>
+            function toggleConnectorToken(inputId, btn) {
+                var input = document.getElementById(inputId);
+                if (!input) return;
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    btn.textContent = 'Hide';
+                } else {
+                    input.type = 'password';
+                    btn.textContent = 'Show';
+                }
+            }
+
+            function copyConnectorToken(inputId, btn) {
+                var input = document.getElementById(inputId);
+                if (!input) return;
+                input.select();
+                input.setSelectionRange(0, 99999);
+                navigator.clipboard.writeText(input.value).then(function() {
+                    var oldText = btn.textContent;
+                    btn.textContent = 'Copied!';
+                    btn.classList.remove('btn-outline-primary');
+                    btn.classList.add('btn-success');
+                    setTimeout(function() {
+                        btn.textContent = oldText;
+                        btn.classList.remove('btn-success');
+                        btn.classList.add('btn-outline-primary');
+                    }, 2000);
+                });
+            }
+        </script>
     @elseif ($section==='audit')
         @include ('partials.payload-modal')
     @endif

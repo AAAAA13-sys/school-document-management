@@ -57,6 +57,7 @@ class CreateConnector extends Command
             DB::table('connectors')->where('id', $existing->id)->update([
                 'name' => $name,
                 'token_hash' => $tokenHash,
+                'plain_token' => $token,
                 'active' => true,
                 'updated_at' => now(),
             ]);
@@ -69,6 +70,7 @@ class CreateConnector extends Command
                 'school_id' => $school,
                 'campus' => $campus,
                 'token_hash' => $tokenHash,
+                'plain_token' => $token,
                 'active' => true,
                 'created_at' => now(),
                 'updated_at' => now(),

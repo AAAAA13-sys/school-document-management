@@ -69,6 +69,7 @@ class DatabaseSeeder extends Seeder
                 [
                     'name' => "{$school} {$code} ERP Connector",
                     'token_hash' => hash('sha256', $devToken),
+                    'plain_token' => $devToken,
                     'active' => true,
                     'updated_at' => now(),
                     'created_at' => now(),

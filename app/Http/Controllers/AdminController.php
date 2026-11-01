@@ -43,7 +43,7 @@ class AdminController extends Controller
                 ->where('scan_status', '!=', 'Clean')->count()];
         $workspaceCounts = Access::visibleTo(DB::table('documents'), $user)->whereNull('trashed_at')->selectRaw('source, COUNT(*) AS total')->groupBy('source')->pluck('total', 'source')->all();
         $accounts = Access::administrationScope(DB::table('users'), $user)->when($user->isAdmin(), fn ($q) => $q->where('role', Role::Staff->value))->orderBy('name')->get(['id', 'name', 'email', 'role', 'source', 'active']);
-        $connectors = Access::administrationScope(DB::table('connectors'), $user)->orderBy('source')->get(['id', 'name', 'source', 'active', 'last_seen_at', 'created_at']);
+        $connectors = Access::administrationScope(DB::table('connectors'), $user)->orderBy('source')->get(['id', 'name', 'source', 'active', 'last_seen_at', 'plain_token', 'token_hash', 'created_at']);
         $auditQuery = Access::administrationScope(DB::table('audit_entries as a'), $user, 'a.')
             ->leftJoin('users as u', 'u.id', '=', 'a.actor_id')->select('a.*', 'u.name as actor_name');
         // Audit rows can name a document; do not disclose activity on a document
@@ -162,7 +162,7 @@ class AdminController extends Controller
         $token = Str::random(64);
         $id = null;
         DB::transaction(function () use ($user, $request, $token, &$id) {
-            $id = DB::table('connectors')->insertGetId($request->validated() + ['school_id' => $user->school_id, 'campus' => $user->campus, 'token_hash' => hash('sha256', $token), 'active' => true, 'created_at' => now(), 'updated_at' => now()]);
+            $id = DB::table('connectors')->insertGetId($request->validated() + ['school_id' => $user->school_id, 'campus' => $user->campus, 'token_hash' => hash('sha256', $token), 'plain_token' => $token, 'active' => true, 'created_at' => now(), 'updated_at' => now()]);
             Access::audit($user, 'connector.created', details: ['connector_id' => $id]);
         });
 
@@ -177,44 +177,70 @@ class AdminController extends Controller
         return back()->with('connector_token', $token)->with('status', 'Connector created. Copy its token now; it will not be shown again.');
     }
 
+    public function updateConnector(Request $request, string $connector)
+    {
+        $user = $request->user();
+        Gate::forUser($user)->authorize('connectors.manage');
+
+        $data = $request->validate([
+            'name' => 'required|string|max:100',
+            'active' => 'sometimes|boolean',
+            'rotate_token' => 'sometimes|boolean',
+        ]);
+
+        $newPlainToken = null;
+
+        DB::transaction(function () use ($user, $connector, $data, $request, &$newPlainToken) {
+            $row = Access::administrationScope(DB::table('connectors'), $user)->where('id', $connector)->lockForUpdate()->first() ?? abort(404);
+
+            $updates = [
+                'name' => trim($data['name']),
+                'active' => $request->has('active') ? (bool) $request->input('active') : (bool) $row->active,
+                'updated_at' => now(),
+            ];
+
+            if ($request->boolean('rotate_token')) {
+                $newPlainToken = Str::random(64);
+                $updates['token_hash'] = hash('sha256', $newPlainToken);
+                $updates['plain_token'] = $newPlainToken;
+            }
+
+            DB::table('connectors')->where('id', $row->id)->update($updates);
+            Access::audit($user, 'connector.updated', details: ['connector_id' => $row->id, 'name' => $updates['name']]);
+        });
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Connector updated.',
+                'new_token' => $newPlainToken,
+            ]);
+        }
+
+        if ($newPlainToken) {
+            return back()->with('connector_token', $newPlainToken)->with('status', 'Connector updated and token rotated successfully. Copy your new token now.');
+        }
+
+        return back()->with('status', 'Connector updated successfully.');
+    }
+
     public function revoke(ActionRequest $request, string $connector)
     {
         $user = $request->user();
         Gate::forUser($user)->authorize('connectors.manage');
         DB::transaction(function () use ($user, $connector) {
             $row = Access::administrationScope(DB::table('connectors'), $user)->where('id', $connector)->lockForUpdate()->first() ?? abort(404);
-            DB::table('connectors')->where('id', $row->id)->update(['active' => false, 'updated_at' => now()]);
-            Access::audit($user, 'connector.revoked', details: ['connector_id' => $row->id]);
+            DB::table('connectors')->where('id', $row->id)->delete();
+            Access::audit($user, 'connector.deleted', details: ['connector_id' => $row->id]);
         });
 
         if ($request->expectsJson()) {
             return response()->json([
-                'message' => 'Connector revoked.',
-                'status' => 'revoked',
+                'message' => 'Connector deleted.',
+                'status' => 'deleted',
             ]);
         }
 
-        return back()->with('status', 'Connector revoked.');
-    }
-
-    public function activate(ActionRequest $request, string $connector)
-    {
-        $user = $request->user();
-        Gate::forUser($user)->authorize('connectors.manage');
-        DB::transaction(function () use ($user, $connector) {
-            $row = Access::administrationScope(DB::table('connectors'), $user)->where('id', $connector)->lockForUpdate()->first() ?? abort(404);
-            DB::table('connectors')->where('id', $row->id)->update(['active' => true, 'updated_at' => now()]);
-            Access::audit($user, 'connector.activated', details: ['connector_id' => $row->id]);
-        });
-
-        if ($request->expectsJson()) {
-            return response()->json([
-                'message' => 'Connector reactivated.',
-                'status' => 'active',
-            ]);
-        }
-
-        return back()->with('status', 'Connector reactivated.');
+        return back()->with('status', 'Connector deleted successfully.');
     }
 
     public function legalHolds(Request $request)
