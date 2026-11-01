@@ -172,7 +172,15 @@
                             <th>Source</th>
                             <th>Status</th>
                             <th>Last request</th>
-                            <th class="text-end" style="min-width: 280px;">Action</th>
+                            <th style="min-width: 280px;">
+                                <div class="d-flex gap-2 align-items-center justify-content-end">
+                                    <div class="position-relative d-inline-flex align-items-center justify-content-center">
+                                        <span class="btn btn-sm invisible py-0" style="visibility: hidden;" aria-hidden="true">Update</span>
+                                        <span class="position-absolute top-0 bottom-0 start-0 end-0 d-inline-flex align-items-center justify-content-center" style="transform: translateX(9px);">Action</span>
+                                    </div>
+                                    <span class="btn btn-sm invisible py-0" style="visibility: hidden;" aria-hidden="true">Delete</span>
+                                </div>
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
