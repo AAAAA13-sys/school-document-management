@@ -172,22 +172,25 @@
                             <th>Source</th>
                             <th>Status</th>
                             <th>Last request</th>
-                            <th class="text-end" style="min-width: 280px; padding-right: 72px;">Action</th>
+                            <th class="text-end" style="min-width: 280px; padding-right: 120px;">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse ($connectors as $connector)
+                            @php
+                                $isConnected = (bool) ($connector->active && $connector->last_seen_at);
+                            @endphp
                             <tr>
                                 <td><strong>{{ $connector->name }}</strong></td>
                                 <td>{{ $connector->source }}</td>
                                 <td>
                                     <span
-                                        class="status-badge {{ $connector->active?'clean':'neutral' }}"
-                                        >{{ $connector->active?'Connected':'Not connected' }}</span
+                                        class="status-badge {{ $isConnected ? 'clean' : 'neutral' }}"
+                                        >{{ $isConnected ? 'Connected' : 'Not connected' }}</span
                                     >
                                 </td>
                                 <td>
-                                    {{ $connector->last_seen_at?Illuminate\Support\Carbon::parse($connector->last_seen_at)->format('M d, H:i'):'Not connected yet' }}
+                                    {{ $connector->last_seen_at ? Illuminate\Support\Carbon::parse($connector->last_seen_at)->format('M d, H:i') : 'Not connected yet' }}
                                 </td>
                                 <td class="text-end">
                                     <div class="d-flex gap-2 align-items-center justify-content-end flex-wrap">
@@ -591,7 +594,7 @@
                                 <div class="form-check form-switch mb-3">
                                     <input type="hidden" name="active" value="0" />
                                     <input class="form-check-input" type="checkbox" id="edit-active-{{ $connector->id }}" name="active" value="1" {{ $connector->active ? 'checked' : '' }} />
-                                    <label class="form-check-label" for="edit-active-{{ $connector->id }}">Connector Active (Connected)</label>
+                                    <label class="form-check-label" for="edit-active-{{ $connector->id }}">Connector Active (Enabled)</label>
                                 </div>
                                 <div class="p-3 bg-light rounded border">
                                     <div class="form-check">
