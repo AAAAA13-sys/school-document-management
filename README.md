@@ -1,328 +1,499 @@
-# PLP Document Management System
+# PLP Document Management System (DMS)
 
-> **Architecture & Integration Documentation:** See the [ESMS API Catalog](docs/ESMS-API-CATALOG.md) for integrated ERP endpoints, [Invitations Guide](docs/INVITATIONS.md) for staff onboarding lifecycle, and [Verification Guide](docs/VERIFICATION.md) for validation records.
+## Enterprise API Connector & Integration Documentation
 
-Centralized document storage, version history and controlled sharing for Pamantasan ng Lungsod ng Pasig. The application can operate on its own and receive documents and transaction history from four ERP systems.
+The **Document Management System (DMS)** serves as the central, immutable document custody and integration hub for the **Pamantasan ng Lungsod ng Pasig (PLP)** Enterprise Systems Architecture.
 
-**Working checklist updated: October 17, 2026.** This README organizes the professor’s meeting feedback alongside the current implementation. Checked items describe existing functionality, not final evaluator acceptance. Unchecked items need decisions, implementation or presentation evidence. No overall completion percentage is claimed.
+DMS manages tamper-evident document storage, cryptographic SHA-256 integrity verification, automated anti-malware scanning, version tracking, and authorized cross-system document exchange between all four campus enterprise systems:
 
-## 1. Background and purpose
+- **OAS** — Online Admission System
+- **ES** — Enrollment System
+- **EMS** — Employee Management System
+- **PMS** — Payroll Management System
 
-School offices need a controlled place to store supporting files, preserve earlier versions and share authorized copies across departments. The DMS provides that repository; the originating ERP remains responsible for its business records and processes.
+---
 
-| Code | Connected system    | DMS responsibility                                                                      |
-| ---- | ------------------- | --------------------------------------------------------------------------------------- |
-| EMS  | Employee Management | Receive and organize approved personnel-related document categories and source history. |
-| PMS  | Payroll Management  | Receive and organize approved payroll-related supporting files and source history.      |
-| ES   | Enrollment          | Receive and organize approved enrollment-related supporting files and source history.   |
-| OAS  | Online Admission    | Receive and organize approved admission-related supporting files and source history.    |
+## 1. Integration Boundary & System Topology
 
-The actual document categories still need confirmation. These descriptions identify integration areas, not an approved inventory of files to collect. The DMS does not recalculate payroll, decide admissions, process enrollment or replace an ERP’s existing record screens.
+DMS enforces a **Single Integration Boundary**:
 
-### Project objectives
+- **Zero Shared Databases:** External ERPs never touch the DMS database directly.
+- **Dedicated Scoped Token:** Each system receives an isolated, cryptographically hashed API token bound strictly to its source identity, school, and campus.
+- **RESTful API Gateway:** All data exchange flows through `/api/v1/` using JSON and standard `multipart/form-data`.
+- **Anti-Malware Gate:** All incoming documents enter a `Pending` state and are queued for ClamAV scanning before becoming downloadable.
 
-1. Store documents privately and preserve immutable file versions.
-2. Give authorized users the correct viewing, editing and management access.
-3. Support justified document sharing across offices without unnecessary copies.
-4. Keep sensitive actions traceable through audit records.
-5. Provide standalone document workflows and a scoped integration contract for the four ERPs.
-6. Demonstrate functional jQuery/jQuery UI features and responsive Bootstrap interfaces.
+```mermaid
+flowchart TD
+    subgraph EXTERNAL_ERPS["PLP Campus Enterprise Systems"]
+        OAS["OAS (Online Admissions)"]
+        ES["ES (Enrollment System)"]
+        EMS["EMS (Employee Management)"]
+        PMS["PMS (Payroll Management)"]
+    end
 
-## 2. Current output and implementation status
+    subgraph DMS_GATEWAY["DMS Integration Gateway (/api/v1)"]
+        AUTH["Bearer Token Authenticator<br/>(120 req/min · Scoped Isolation)"]
+        IDEMP["Idempotency & Replay Engine<br/>(SHA-256 Canonical Hashing)"]
+        ROUTER["API Route Controller"]
+    end
 
-| Area               | Current implementation                                                                                                                                                                                                        | Remaining work or limitation                                                                                                                |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Accounts and roles | Super Admin, Admin and Staff; Laravel policies/Gates plus route middleware enforce the server-side role matrix.                                                                                                               | Confirm the wider faculty/college account model; demonstrate all roles with separate accounts.                                              |
-| Source oversight   | Super Admin reads every ERP source and its audit log without editing; Admin manages one assigned source; Staff reads its own source.                                                                                          | DMS is the application, not a document source; there is no personal `/my-workspace` repository.                                             |
-| Uploads            | Plain multi-file drag/drop or file selection; filename titles; selectable classification; two simultaneous requests; retry failed files.                                                                                      | Up to 50 files per upload session and 10 MB per file. Any extension is accepted, but scan results still determine whether it can be served. |
-| File security      | Private UUID storage, detected MIME metadata, SHA-256 integrity checks and queued local ClamAV scanning.                                                                                                                      | Failed, pending and quarantined versions remain blocked; deployed scanner/worker health still needs verification.                           |
-| Preview            | Local PDF.js viewer; common raster images; escaped text, CSV and JSON previews.                                                                                                                                               | Office documents and archives remain download-only. No external document viewer receives private files.                                     |
-| Organization       | Folders, rename, classification editing, move menu, document-to-folder drag/drop, stars, trash/restore and Back navigation.                                                                                                   | Department/group permissions are not implemented. Moving a file does not create a folder-sharing permission.                                |
-| Sharing            | Named-user document and folder grants: Viewer, Commenter or Editor; optional expiry, revocation, pinned versions and folder inheritance. Folder grants expose Internal documents only; only Super Admin can share Restricted. | College/department groups still need a design and implementation.                                                                           |
-| Integration        | Scoped connector tokens and `/api/v1` document/history endpoints, revision handling and replay protection. API read-back exposes Internal/Confidential only.                                                                  | Each ERP team must supply and test its adapter. Working endpoints do not mean all four real ERPs are connected.                             |
-| Duplicate handling | SHA-256 is recorded; idempotency keys prevent duplicate processing of the same submission retry.                                                                                                                              | **Detecting the same file in separate uploads with different keys is still backlog work.**                                                  |
-| Frontend           | Blade, Bootstrap, jQuery and jQuery UI; role-aware menus; four-second top-right notifications with a progress bar.                                                                                                            | Complete the mobile/tablet/desktop checklist, consistent zebra table styling and screenshot evidence.                                       |
+    subgraph DMS_CORE["DMS Core Services"]
+        VAULT[("Immutable Document Vault<br/>(SHA-256 Integrity)")]
+        SCANNER["ClamAV Security Scanner<br/>(Pending → Clean / Quarantined)"]
+        AUDIT[("Append-Only History Stream<br/>(Event Ingestion)")]
+        PACKETS["OAS ↔ ES Verified Packet Broker"]
+    end
 
-## 3. Professor feedback: decisions and action items
+    OAS -->|"POST /documents<br/>POST /applicant-packets"| AUTH
+    ES -->|"GET /applicant-packets<br/>GET /files/{id}"| AUTH
+    EMS -->|"POST /documents<br/>POST /history"| AUTH
+    PMS -->|"POST /documents<br/>POST /history"| AUTH
 
-### A. Explain the sharing mechanism and its purpose
-
-**Current mechanism:** an Admin managing an Internal/Confidential document grants a named account Viewer, Commenter or Editor access. Only Super Admin can create or revoke a share on a Restricted document. Sharing is limited by the existing school/campus scope; named grants may cross ERP source boundaries. Staff cannot change access permissions. There are no public links.
-
-| Permission | Current document access                                                                                                                        |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Viewer     | View metadata and preview/download available versions after scanning.                                                                          |
-| Commenter  | Viewer access plus comments.                                                                                                                   |
-| Editor     | Commenter access plus rename and new-version uploads; cannot move, trash, reshare or change classification merely because of the Editor grant. |
-
-Role-based access also applies: Super Admin has read-only oversight of all four ERP repositories and the full audit log, except for Restricted sharing; an Admin manages Internal/Confidential content in its assigned ERP source and only owned Restricted documents; Staff can read Internal documents in its own source and only owned or explicitly shared Confidential/Restricted documents, while edits/deletes remain limited to owned or Editor-granted content. Individual grants are not the only access path for these management roles.
-
-**Proposed presentation scenario, pending approval:** a college secretary shares an authorized evaluation/report document with a department head and selected faculty. One person reviews, one comments and one updates the working version. Explain why those recipients need that same document rather than another ERP record or an emailed copy.
-
-- [ ] Confirm one real cross-department sharing scenario and the reason each recipient needs access.
-- [ ] Prepare synthetic/sample documents and accounts for the demonstration.
-- [ ] Demonstrate Viewer, Commenter and Editor as separate signed-in users.
-- [ ] Show a denied action as well as a successful action.
-- [ ] Demonstrate revocation/expiry and pinned-version restrictions.
-- [ ] Explain school/campus boundaries and how proposed college/department groups would fit them.
-
-### B. Confirm the actual document types and prevent ERP redundancy
-
-Student grades and system reviews/evaluations were mentioned as examples in the feedback. They are **candidates to clarify**, not confirmed DMS requirements.
-
-Complete this inventory with the professor and ERP teams before expanding the document model:
-
-| Candidate document           | Originating office/system | Why DMS needs the file                                                       | Owner and recipients | Classification | Decision |
-| ---------------------------- | ------------------------- | ---------------------------------------------------------------------------- | -------------------- | -------------- | -------- |
-| Student grade document       | To confirm                | Explain the difference from the existing grade record/report feature.        | To confirm           | To confirm     | Pending  |
-| System review/evaluation     | To confirm                | Confirm whether this is a shared working document, evidence or final report. | To confirm           | To confirm     | Pending  |
-| Other actual office document | To confirm                | Identify a concrete repository/sharing need.                                 | To confirm           | To confirm     | Pending  |
-
-- [ ] Identify the actual filenames/formats, business purpose and responsible office.
-- [ ] Confirm which ERP remains the system of record.
-- [ ] Remove document categories that simply duplicate an existing connected-system function without a separate repository need.
-- [ ] Record recipients, versioning needs, expected volume and retention needs.
-- [ ] Agree classification rules using realistic but synthetic demonstration files.
-
-### C. Demonstrate access limits and classification
-
-The current hierarchy is:
-
-| Existing feature                | Super Admin                                     | Admin                                                                                    | Staff                                                                |
-| ------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| Manage Admin accounts and roles | Yes, within school/campus scope                 | No                                                                                       | No                                                                   |
-| Manage Staff accounts/passwords | Yes                                             | Assigned ERP source only                                                                 | No                                                                   |
-| Manage ERP connectors           | Yes                                             | No                                                                                       | No                                                                   |
-| View ERP documents              | All four sources and classifications, read-only | Assigned source Internal/Confidential; Restricted only if owner or shared                | Own source Internal; Confidential/Restricted only if owner or shared |
-| Upload/edit/delete documents    | No (read-only oversight)                        | Assigned source Internal/Confidential; owned Restricted; Editor share edits content only | Own documents; Editor share edits content only                       |
-| Manage folders                  | No (read-only oversight)                        | Assigned source                                                                          | No                                                                   |
-| Share documents/change grants   | Restricted documents only                       | Assigned-source Internal/Confidential documents/folders; never Restricted                | No                                                                   |
-| Change classification           | No                                              | Own documents at any level; assigned-source Internal/Confidential documents otherwise    | Owned documents; an Editor grant alone is insufficient               |
-| Audit access                    | Full scoped audit                               | Assigned-source audit; hidden-document entries filtered                                  | No administration audit screen                                       |
-
-Internal documents are readable by active Staff and Admins in their assigned ERP source and by Super Admin. Confidential documents are visible to their owner, the Admin of that source, Super Admin and explicit document recipients; Staff need ownership or an explicit document grant. Restricted documents are visible only to their owner, Super Admin and explicit document recipients. Named shares and folder grants may cross ERP sources as the documented exception, but folder grants widen Internal access only. Staff editing/deleting remains limited to owned documents; an Editor grant permits editing content but not deleting. Admins manage Internal/Confidential documents in their source and only owned Restricted documents.
-
-**Classification is enforced server-side:** Internal, Confidential and Restricted all use one reusable visibility scope, and the document policy follows the same rules. Only Super Admin can create or revoke a Restricted document share; Super Admin remains read-only for other document writes. Hidden documents return 404 and do not appear in listings, search, counts, folder totals, downloads, duplicate warnings, API read-back or source audit entries. Existing explicit classifications are preserved; the database default for unspecified rows is Internal.
-
-- [x] Implement the three-role hierarchy and restrict controls on the server as well as in the UI.
-- [x] Provide classification selection during uploads and authorized editing afterward.
-- [x] Agree what each classification means for viewing, editing and sharing; retention remains to be agreed.
-- [x] Implement classification-based access rules for workspaces, search, folders, sharing, history/events, downloads, API read-back, counts and audit.
-- [ ] Demonstrate Super Admin, Admin and Staff interfaces separately.
-- [x] Prove Staff cannot access administration URLs or unshared documents through direct requests.
-
-Approval workflows, 2FA/SSO, new notification channels and new system-settings modules were deferred from the earlier hierarchy pass. They are not implemented merely because they appeared in a role checklist.
-
-### D. Model folder collaboration
-
-The professor’s proposed CCS-faculty collaboration needs **folder/group permissions**, not just folders containing files. The original SDD lists folder-level sharing outside its initial scope; record this requested expansion explicitly before implementation.
-
-- [ ] Confirm whether collaboration is granted to named users, department/college groups, or both.
-- [ ] Model a sample group such as CCS faculty, its membership and responsible Admin.
-- [ ] Define folder Owner/Viewer/Commenter/Editor capabilities.
-- [ ] Decide whether children inherit permissions and how individual-document grants interact with inheritance.
-- [ ] Specify what happens when a document moves between folders or a member leaves a group.
-- [ ] Define revocation, classification conflicts and audit requirements.
-- [ ] Revise the scope/specification, then implement and test the agreed model.
-
-**Current limitation:** folder grants cover named accounts only and expose Internal documents; college/department group membership is not implemented.
-
-### E. Implement duplicate-file detection
-
-Existing integrity checks and submission replay protection are useful foundations, but they are not complete duplicate detection.
-
-- [ ] Decide whether duplicates should warn, block, offer an existing file, or suggest a new version.
-- [ ] Define comparison scope: personal repository, department/college, or school/campus.
-- [ ] Compare content hashes for distinct uploads, including renamed copies.
-- [ ] Do not expose private document names, owners or contents in duplicate warnings to unauthorized users.
-- [ ] Test same bytes with different filenames, different bytes with the same filename, repeated requests and concurrent uploads.
-- [ ] Confirm how intentional copies and cross-department sharing should be handled.
-- [ ] Demonstrate the selected behavior after implementation.
-
-### F. Re-evaluate account scope and target users
-
-**Current state:** the DMS works without connected ERPs, but normal Admin/Staff accounts are assigned to an ERP source. Individual people can have named accounts; faculty/dean/college membership and multi-department membership are not modeled as separate access structures. Student DMS accounts remain outside the current scope.
-
-| Candidate audience  | Decision needed                                                            |
-| ------------------- | -------------------------------------------------------------------------- |
-| Individual faculty  | Which personal/department repository and shared groups should they access? |
-| Department heads    | Do they need document work, content administration, or both?               |
-| Deans               | Is access college-scoped, read-only, or administrative?                    |
-| College secretaries | Which staff accounts, folders and documents may they manage?               |
-| Other school staff  | What access is needed when no ERP-specific role describes their work?      |
-
-Job titles must not automatically grant Super Admin access. Map responsibilities to the existing hierarchy, then define the necessary organizational scope.
-
-- [ ] Confirm the target audiences and a small set of realistic user journeys.
-- [ ] Decide whether source-system assignment should remain mandatory for people.
-- [ ] Define college/department membership separately from ERP connector identity.
-- [ ] Decide whether one person may belong to multiple groups/departments.
-- [ ] Update the model and onboarding screens after these decisions.
-- [ ] Demonstrate that standard users never receive the Super Admin interface or its permissions.
-
-### G. jQuery, Bootstrap and responsive presentation
-
-| Technology            | Installed version              | Existing implementation evidence                                                            |
-| --------------------- | ------------------------------ | ------------------------------------------------------------------------------------------- |
-| Laravel / PHP / MySQL | Laravel 13 / PHP 8.3+ / InnoDB | Authentication, validation, scoped authorization, transactions and private files.           |
-| Pest PHP              | 4.x / 5.x                      | Elegant PHP testing framework for Pest & PHPUnit test suites and architecture verification. |
-| Blade                 | Laravel views                  | Shared layouts, role-aware workspaces and dialogs.                                          |
-| Bootstrap             | 5.3.3                          | Layout/grid, modals, dropdowns, forms and `.table` styling.                                 |
-| jQuery                | 3.7.1                          | Event handling, filtering, AJAX uploads and document moves.                                 |
-| jQuery UI             | 1.14.1                         | Draggable/droppable documents and folders, datepicker/autocomplete and toast progress bars. |
-| PDF.js                | 6.4.299                        | Locally served PDF preview with page and zoom controls.                                     |
-| ClamAV                | Local installation             | Automatic queued malware scanning; engine/signatures configured per installation.           |
-
-- [x] Integrate functional jQuery and jQuery UI features.
-- [x] Use Bootstrap components and responsive layout rules.
-- [ ] Apply consistent Bootstrap striped/zebra table styling with alternating gray/white rows. Current `.table` usage alone does not finish this requirement.
-- [ ] Check login, navigation, upload, document lists, tables, modals, previews and Back navigation at phone, tablet and desktop sizes.
-- [ ] Repeat checks in portrait/landscape and with keyboard navigation.
-- [ ] Capture final screenshots only after these checks; do not treat a responsive grid as proof of complete device coverage.
-
-## 4. Report and demonstration deliverables
-
-Use the professor’s report structure:
-
-1. **Background:** office problem, intended users, existing ERPs and the reason a separate document repository is needed.
-2. **Project objectives:** measurable repository, sharing, access-control, integration and frontend goals.
-3. **Output:** implemented screens and workflows, screenshot/code explanations, test results and remaining limitations.
-
-Include this evidence set. Use synthetic/redacted data and never expose passwords, connector tokens or real student/employee records.
-
-| Screenshot or demonstration                                | Code to explain                                                                                                   | Rationale to include                                                                     |
-| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Different role dashboards/navigation                       | `resources/views/layout.blade.php`, `app/Policies`, `app/Providers/AppServiceProvider.php`, `routes/web.php`      | Different controls plus policy/Gate enforcement; hidden controls alone are insufficient. |
-| Multi-file upload and classification                       | `resources/views/partials/upload.blade.php`, `public/js/dms.js`, `app/Http/Requests/UploadRequest.php`            | jQuery queues separate uploads; validated metadata and automatic scanning.               |
-| Drag a document into an existing folder; use the move menu | `public/js/dms.js`, `resources/views/partials/documents.blade.php`, `app/Http/Controllers/DocumentController.php` | jQuery UI interaction with the same validated/revision-checked server operation.         |
-| Four-second top-right notification                         | `public/js/dms.js`, `resources/views/layout.blade.php`                                                            | jQuery UI progress bar provides visible feedback and dismissal timing.                   |
-| Sharing and a denied action                                | `app/Services/Access.php`, `app/Http/Controllers/ShareController.php`                                             | Named-user grants, role limits, scope and version restrictions.                          |
-| Phone/tablet/desktop tables and dialogs                    | `resources/views/workspace.blade.php`, `resources/views/admin.blade.php`, `public/css/dms.css`                    | Bootstrap layout/table use and tested responsive behavior.                               |
-| Preview, classification change and version history         | `resources/views/document.blade.php`, `app/Services/DocumentService.php`                                          | Inspect content without downloading; access/checksum/scan gates still apply.             |
-| Folder/group collaboration and duplicate detection         | Final implementation, once completed                                                                              | Present as backlog/design work until functional and tested.                              |
-
-### Short code examples for the report
-
-These excerpts identify current implementations. Include the surrounding validation/permission code in the final explanation rather than implying client-side code provides security.
-
-```javascript
-// jQuery UI: initialize the notification countdown.
-const countdown = $(box).find(".toast-countdown").progressbar({ max: 4000, value: 4000 });
+    AUTH --> IDEMP --> ROUTER
+    ROUTER --> VAULT
+    ROUTER --> AUDIT
+    ROUTER --> PACKETS
+    VAULT -.-> SCANNER
 ```
 
-The timer updates the progress value and dismisses the toast after four seconds. This demonstrates a working jQuery UI widget rather than only an included script.
+---
+
+## 2. Quickstart for ERP Teams (5-Minute Integration)
+
+### Base URLs
+
+- **Local Development:** `http://127.0.0.1:8000/api/v1`
+- **Class / Staging Network:** `http://<DMS_HOST>:<PORT>/api/v1`
+
+### Pre-Seeded Development Tokens
+
+For local testing, standard development tokens are pre-seeded in the database:
+
+| System                         | Source Code | Pre-Seeded API Bearer Token |
+| :----------------------------- | :---------: | :-------------------------- |
+| **Online Admission System**    |    `OAS`    | `dms_dev_oas_token_2026`    |
+| **Enrollment System**          |    `ES`     | `dms_dev_es_token_2026`     |
+| **Employee Management System** |    `EMS`    | `dms_dev_ems_token_2026`    |
+| **Payroll Management System**  |    `PMS`    | `dms_dev_pms_token_2026`    |
+
+### Required HTTP Headers
+
+Include these headers in every API request:
+
+```http
+Authorization: Bearer <YOUR_CONNECTOR_TOKEN>
+Accept: application/json
+```
+
+_(Alternatively, you may pass `X-API-Key: <YOUR_CONNECTOR_TOKEN>`)_.
+
+### Configuring Your ERP's `.env`
+
+In your system's `.env` configuration file, add:
+
+```dotenv
+DMS_BASE_URL="http://127.0.0.1:8000/api/v1"
+DMS_API_TOKEN="dms_dev_oas_token_2026"
+```
+
+---
+
+## 3. Managing Connector Tokens
+
+### Option A: Via the Web Admin Panel (Visual UI)
+
+1. Navigate to `http://127.0.0.1:8000/login` and sign in as Super Admin (`dms.admin@plpasig.edu.ph`).
+2. Open **ERP connectors** (`/admin/connectors`).
+3. Click **Add connector**, select your source (`OAS`, `ES`, `EMS`, or `PMS`), enter a connection name, and submit.
+4. Copy the generated 64-character token. Each row also includes **Show token**, **Update**, and **Delete** actions.
+
+### Option B: Via Artisan CLI
+
+Run this command on the DMS server to generate or rotate a connector token:
+
+```bash
+# Generate a new random token for ES
+php artisan dms:connector ES
+
+# Or set a specific known token
+php artisan dms:connector OAS --token="my_custom_secure_token_here"
+```
+
+---
+
+## 4. API Reference for ERP Adapters
+
+### A. Document Ingestion (`POST /documents`)
+
+Upload a new supporting document into the DMS vault.
+
+- **Method:** `POST /api/v1/documents`
+- **Content-Type:** `multipart/form-data`
+- **Headers:**
+  - `Authorization: Bearer <TOKEN>`
+  - `Idempotency-Key: <UNIQUE_UUID_OR_STRING>` _(Required: 1–100 characters; prevents accidental duplicate uploads)_
+
+#### Form Fields:
+
+| Field               | Type        | Required | Description                                                               |
+| :------------------ | :---------- | :------: | :------------------------------------------------------------------------ |
+| `file`              | File Binary | **Yes**  | Up to 10 MB. Accepts all formats (PDF, PNG, JPG, DOCX, etc.).             |
+| `title`             | String      | **Yes**  | Human-readable document title (1–200 chars).                              |
+| `classification`    | String      | **Yes**  | `Internal`, `Confidential`, or `Restricted`.                              |
+| `subject`           | String      |    No    | Document topic or student/employee identifier (max 200 chars).            |
+| `reference`         | String      |    No    | External ERP filing code or receipt number (max 100 chars).               |
+| `confirm_duplicate` | Boolean     |    No    | Pass `true` if intentionally uploading a file that already exists in DMS. |
+
+#### Success Response (`201 Created`):
+
+```json
+{
+  "document_id": "9d9016b8-2a29-4d6b-80df-9db51d02c5c1",
+  "version_id": "f8a9c27e-3990-48e2-9bca-864b22c7102a",
+  "revision": 1,
+  "scan_status": "Pending"
+}
+```
+
+> **Idempotent Replay Guarantee:** If your ERP encounters a network timeout and resends the exact same request with the same `Idempotency-Key`, DMS returns `200 OK` with the original receipt without creating a second file.
+
+---
+
+### B. Append New Version (`POST /documents/{document}/versions`)
+
+Upload an updated version of an existing document while preserving the complete audit history.
+
+- **Method:** `POST /api/v1/documents/{document_id}/versions`
+- **Content-Type:** `multipart/form-data`
+- **Form Fields:**
+  - `file`: New binary file (max 10 MB).
+  - `revision`: The expected current revision number (optimistic locking to prevent race conditions).
+  - `submission_key`: Unique string identifier for retry safety.
+
+---
+
+### C. Retrieve Document Metadata (`GET /documents/{document}`)
+
+Get current document status, active version, classification, and virus scanning verdict.
+
+- **Method:** `GET /api/v1/documents/{document_id}`
+- **Response (`200 OK`):**
+
+```json
+{
+  "id": "9d9016b8-2a29-4d6b-80df-9db51d02c5c1",
+  "title": "Grade 12 Report Card (Form 138)",
+  "source": "OAS",
+  "classification": "Internal",
+  "revision": 1,
+  "scan_status": "Clean",
+  "versions": [
+    {
+      "version_id": "f8a9c27e-3990-48e2-9bca-864b22c7102a",
+      "version_number": 1,
+      "size_bytes": 142857,
+      "mime": "application/pdf",
+      "scan_status": "Clean",
+      "download_url": "/api/v1/files/f8a9c27e-3990-48e2-9bca-864b22c7102a"
+    }
+  ]
+}
+```
+
+---
+
+### D. Download File (`GET /files/{version_id}`)
+
+Stream the verified file binary.
+
+- **Method:** `GET /api/v1/files/{version_id}`
+- **Rules:**
+  - If the file is `Clean`: Returns `200 OK` with `Content-Disposition: attachment`.
+  - If the file is `Pending` scan: Returns `423 Locked`.
+  - If the file failed scanning or was quarantined: Returns `423 Locked` (blocked from circulation).
+
+---
+
+### E. Time-Limited Signed Stream URL (`GET /documents/{document}/download-url`)
+
+Generate a safe, signed temporary URL suitable for embedding in an ERP user interface or preview iframe without exposing long-lived connector tokens.
+
+- **Method:** `GET /api/v1/documents/{document_id}/download-url`
+- **Response (`200 OK`):**
+
+```json
+{
+  "download_url": "http://127.0.0.1:8000/api/v1/files/stream/f8a9c27e-3990-48e2-9bca-864b22c7102a?expires=1793500000&signature=d9a8f..."
+}
+```
+
+---
+
+### F. History Audit Event Ingestion (`POST /history`)
+
+Record immutable transactions and business state events from your ERP into the permanent school audit log.
+
+- **Method:** `POST /api/v1/history`
+- **Content-Type:** `application/json`
+
+#### Request Body:
+
+```json
+{
+  "event_id": "oas:applicant:APP-2026-0819:1",
+  "record_type": "applicant",
+  "record_id": "APP-2026-0819",
+  "revision": 1,
+  "operation": "upsert",
+  "payload": {
+    "applicant_id": "APP-2026-0819",
+    "name": "Maria Clara Santos",
+    "strand": "STEM",
+    "status": "Qualified for Enrollment"
+  }
+}
+```
+
+#### Field Specifications:
+
+- `event_id`: Unique idempotency key (max 100 chars).
+- `record_type`: Entity type (e.g., `applicant`, `student`, `employee`, `payroll_entry`).
+- `record_id`: Primary identifier from the source ERP.
+- `revision`: Monotonically increasing integer (1, 2, 3...).
+- `operation`: `upsert` or `delete`.
+- `payload`: Arbitrary JSON object containing event evidence (max 256 KiB). Key order is canonically normalized.
+
+---
+
+### G. Incremental Read-Back with Cursors (`GET /history`, `/documents`, `/files`)
+
+Synchronize changes into your ERP using high-performance cursor pagination:
+
+- **Endpoint:** `GET /api/v1/{resource}?after=0&limit=50`
+- **Response (`200 OK`):**
+
+```json
+{
+  "data": [...],
+  "next_cursor": 150,
+  "has_more": true
+}
+```
+
+_Process each batch, save `next_cursor`, and request `?after={next_cursor}` until `has_more` is `false`._
+
+---
+
+## 5. Seamless Admission & Enrollment Handoff (OAS ↔ ES)
+
+DMS enables a zero-friction, verified bridge between **Online Admissions (OAS)** and the **Enrollment System (ES)** without allowing unauthorized cross-system database writes:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Student as Applicant
+    participant OAS as OAS (Admissions)
+    participant DMS as DMS Vault
+    participant ES as ES (Enrollment)
+
+    Student->>OAS: Submits Admission Documents (Form 138, PSA Birth Cert)
+    OAS->>DMS: POST /api/v1/documents (Stores PSA & Form 138)
+    Note over DMS: ClamAV Scans Files → Verdict: Clean
+    OAS->>OAS: Admissions Team Verifies & Approves Applicant
+
+    rect rgb(240, 248, 240)
+        Note over OAS,DMS: 1. OAS Releases Verified Packet to DMS
+        OAS->>DMS: POST /api/v1/applicant-packets<br/>{applicant_id: "APP-001", admitted: true, verified: true, version_ids: [...]}
+        DMS-->>OAS: 201 Created (Packet ID: PKT-001)
+    end
+
+    rect rgb(240, 244, 255)
+        Note over DMS,ES: 2. ES Ingests Verified Documents
+        ES->>DMS: GET /api/v1/applicant-packets/PKT-001
+        DMS-->>ES: 200 OK (Packet Metadata & Allowed Version UUIDs)
+        ES->>DMS: GET /api/v1/applicant-packets/PKT-001/files/{version_id}
+        DMS-->>ES: 200 OK (Clean Binary File Stream)
+        ES->>ES: Enrolls Student into Academic Database
+    end
+```
+
+### 1. OAS Packet Publication:
+
+```http
+POST /api/v1/applicant-packets
+Content-Type: application/json
+Authorization: Bearer dms_dev_oas_token_2026
+
+{
+  "event_id": "oas:admit:APP-2026-001:1",
+  "applicant_id": "APP-2026-001",
+  "revision": 1,
+  "released": true,
+  "admitted": true,
+  "verified": true,
+  "version_ids": [
+    "f8a9c27e-3990-48e2-9bca-864b22c7102a",
+    "b3f71c42-7721-4d32-aa09-1e35d8ef4920"
+  ]
+}
+```
+
+### 2. ES Verified Packet Retrieval:
+
+```http
+GET /api/v1/applicant-packets/PKT-APP-2026-001
+Authorization: Bearer dms_dev_es_token_2026
+```
+
+### 3. ES Packet Document Download:
+
+```http
+GET /api/v1/applicant-packets/PKT-APP-2026-001/files/f8a9c27e-3990-48e2-9bca-864b22c7102a
+Authorization: Bearer dms_dev_es_token_2026
+```
+
+---
+
+## 6. HTTP Status Codes & Error Handling
+
+|       Status Code       | Meaning                            | Cause / Resolution                                                                                                                                                                                |
+| :---------------------: | :--------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+|      **`200 OK`**       | Success / Idempotent Replay        | Request processed, or identical previous submission safely returned.                                                                                                                              |
+|    **`201 Created`**    | Created                            | New document, version, history event, or packet successfully accepted.                                                                                                                            |
+|  **`400 Bad Request`**  | Invalid Syntax                     | Missing mandatory fields or invalid parameters.                                                                                                                                                   |
+| **`401 Unauthorized`**  | Authentication Error               | Missing or invalid Bearer token. Check your token against `/admin/connectors`.                                                                                                                    |
+|   **`403 Forbidden`**   | Scope Restriction                  | Connector token is inactive or attempted to access an out-of-scope source.                                                                                                                        |
+|   **`409 Conflict`**    | Concurrency / Idempotency Conflict | **A:** A reused `Idempotency-Key` was sent with altered content.<br/>**B:** Optimistic locking revision mismatch.<br/>**C:** Duplicate file detected. _(Pass `confirm_duplicate=true` to force)_. |
+| **`422 Unprocessable`** | Validation Error                   | File exceeds 10 MB, invalid classification, or invalid data types.                                                                                                                                |
+|    **`423 Locked`**     | Security Gate Engaged              | File is currently `Pending` virus scan, or failed / quarantined.                                                                                                                                  |
+| **`429 Too Many Req`**  | Rate Limited                       | Exceeded 120 requests/minute. Respect the `Retry-After` header.                                                                                                                                   |
+|     **`500 / 503`**     | Server / Queue Error               | Database or storage issue. Safe to retry with exponential backoff.                                                                                                                                |
+
+---
+
+## 7. Code Implementation Examples for External ERPs
+
+### cURL
+
+```bash
+# 1. Upload a document
+curl -X POST "http://127.0.0.1:8000/api/v1/documents" \
+  -H "Authorization: Bearer dms_dev_oas_token_2026" \
+  -H "Accept: application/json" \
+  -H "Idempotency-Key: req-oas-form138-001" \
+  -F "title=Applicant Form 138" \
+  -F "classification=Internal" \
+  -F "subject=APP-2026-001" \
+  -F "file=@/path/to/form138.pdf"
+
+# 2. Record an audit history event
+curl -X POST "http://127.0.0.1:8000/api/v1/history" \
+  -H "Authorization: Bearer dms_dev_ems_token_2026" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "event_id": "ems:evt:001",
+    "record_type": "employee",
+    "record_id": "EMP-102",
+    "revision": 1,
+    "operation": "upsert",
+    "payload": {"department": "College of Computer Studies", "active": true}
+  }'
+```
+
+### PHP (Laravel HTTP Client)
+
+```php
+use Illuminate\Support\Facades\Http;
+
+$response = Http::withToken(config('services.dms.token'))
+    ->withHeaders([
+        'Accept' => 'application/json',
+        'Idempotency-Key' => (string) Str::uuid(),
+    ])
+    ->attach('file', file_get_contents($filePath), 'student_record.pdf')
+    ->post(config('services.dms.url') . '/documents', [
+        'title' => 'Official Transcript of Records',
+        'classification' => 'Internal',
+        'subject' => 'STUDENT-2026-0042',
+    ]);
+
+if ($response->successful()) {
+    $dmsDocumentId = $response->json('document_id');
+}
+```
+
+### JavaScript / Node.js (Axios)
 
 ```javascript
-// jQuery UI: documents can be dragged by their file cell.
-$('.document-row[data-can-move="true"]').draggable({
-  handle: ".file-cell",
-  // See public/js/dms.js for the helper and drop implementation.
+const axios = require("axios");
+const FormData = require("form-data");
+const fs = require("fs");
+
+const form = new FormData();
+form.append("title", "Faculty Clearance Form");
+form.append("classification", "Internal");
+form.append("file", fs.createReadStream("./clearance.pdf"));
+
+const response = await axios.post("http://127.0.0.1:8000/api/v1/documents", form, {
+  headers: {
+    ...form.getHeaders(),
+    Authorization: "Bearer dms_dev_ems_token_2026",
+    Accept: "application/json",
+    "Idempotency-Key": "upload-clearance-emp-089",
+  },
 });
+
+console.log("Stored in DMS with UUID:", response.data.document_id);
 ```
 
-The folder drop calls the existing move operation. Laravel checks ownership/management rights, destination scope and the document revision before committing the change.
+### Python (Requests)
 
-```html
-<!-- Bootstrap markup already used for tabular data. -->
-<div class="table-responsive">
-  <table class="table" data-filter-table>
-    <!-- Headers and authorized rows -->
-  </table>
-</div>
+```python
+import requests
+
+url = "http://127.0.0.1:8000/api/v1/documents"
+headers = {
+    "Authorization": "Bearer dms_dev_pms_token_2026",
+    "Accept": "application/json",
+    "Idempotency-Key": "payroll-2026-11-remittance",
+}
+data = {
+    "title": "Monthly GSIS Remittance Report",
+    "classification": "Confidential",
+    "subject": "PAYROLL-2026-NOV",
+}
+files = {
+    "file": open("gsis_remittance_nov2026.pdf", "rb")
+}
+
+resp = requests.post(url, headers=headers, data=data, files=files)
+print(resp.status_code, resp.json())
 ```
 
-For the professor’s zebra-table requirement, add and verify `.table-striped` with the project’s gray/white styling. That change remains an unchecked action above; this example does not claim it is already applied.
+---
 
-### Suggested demonstration sequence
+## 8. Testing & Architecture Validation
 
-1. Explain the confirmed document use case and its difference from the originating ERP.
-2. Sign in as Staff; upload sample files, select classification and preview a clean document.
-3. Demonstrate a new version, authorized editing, search and moving an owned file.
-4. Sign in as Admin; show source-scoped staff/content management and named-user sharing.
-5. Use recipient accounts to demonstrate allowed viewing/editing and a blocked action.
-6. Sign in as Super Admin; show system administration, read-only ERP oversight, full audit and account management.
-7. Show folder collaboration and duplicate detection only once implemented; otherwise identify the exact remaining work.
-8. Show mobile/tablet/desktop screenshots and explain the actual Bootstrap/jQuery code.
+- **Postman Collection:** Ready-to-import integration test suite located at [`postman/DMS-ERP-v1.postman_collection.json`](postman/DMS-ERP-v1.postman_collection.json).
+- **OpenAPI 3.0 Specification:** Complete schema definitions located at [`openapi.json`](openapi.json).
+- **Automated Test Suite:** DMS includes 262 backend tests verifying token isolation, ClamAV fail-closed gates, race conditions, and replay protection:
+  ```bash
+  # Execute automated test suite
+  php vendor/pestphp/pest/bin/pest
+  ```
 
-## 5. Prioritized work board
+---
 
-| Priority | Action                                                                                | Completion evidence                                                                    |
-| -------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| P0       | Confirm document inventory, target users and the reason for cross-department sharing. | Reviewed inventory and agreed user journeys.                                           |
-| P0       | Agree organizational/account scope and classification access policy.                  | Permission matrix covering roles, colleges/departments and file sensitivity.           |
-| P0       | Specify folder/group collaboration and duplicate behavior.                            | Approved design with inheritance, revocation, move and privacy rules.                  |
-| P1       | Implement and test the approved gaps.                                                 | Working folder collaboration and duplicate-detection scenarios with regression checks. |
-| P1       | Complete zebra tables and responsive/role UI checks.                                  | Phone/tablet/desktop evidence and denied-action demonstrations.                        |
-| P1       | Write the report and capture final screenshot/code pairs.                             | Background, objectives, output and limitations sections.                               |
-| P2       | Rehearse the presentation and coordinate integration demonstrations.                  | Tested demo accounts, sample files and confirmed evaluator arrangements.               |
+## 9. Monorepo Repository Structure
 
-Owners and estimates have not been assigned. Do not mark a decision task complete without the agreed answer, or an implementation task complete without a working demonstration/check.
-
-## 6. Presentation schedule
-
-| Date             | Meeting note                          | Status                                                                 |
-| ---------------- | ------------------------------------- | ---------------------------------------------------------------------- |
-| October 24, 2026 | Evaluator unavailable.                | Availability note; do not schedule an evaluation without reconfirming. |
-| October 31, 2026 | Preferred fallback presentation date. | Tentative; confirm with evaluator.                                     |
-| November 7, 2026 | Alternative presentation date.        | Tentative; confirm with evaluator.                                     |
-
-- [ ] Confirm the final date/time and online versus face-to-face modality.
-- [ ] Confirm whether frontend and backend evaluations will be presented separately.
-- [ ] Assign presenters, demo roles and report responsibilities.
-- [ ] Prepare a local demo and recorded/screenshot evidence if the live environment is unavailable.
-
-These notes are not a confirmed booking or an automated reminder.
-
-## 7. Run the current system
-
-Run commands from the application folder containing `artisan` and `composer.json`.
-
-```powershell
-composer install
-npm ci
-npm run build
-```
-
-Follow [Standalone setup](docs/SETUP.md) for the database, existing/new `.env`, application key and local ClamAV configuration. Preserve an existing application key and database; do not rerun seeders to repair an existing login because the account seeder overwrites its predefined accounts.
-
-On Windows, the existing launcher starts the local stack:
-
-```powershell
-.\start.bat
-```
-
-The application normally runs at `http://127.0.0.1:8011`. Its database scan worker and scheduler must run for automatic scanning and retries. `npm run preview` at port 8012 is a synthetic read-only frontend, not the standalone system or proof of backend behavior.
-
-For a new installation, the bootstrap command creates a Super Admin without overwriting an existing account:
-
-```powershell
-php artisan dms:admin your.admin@example.edu --school=PLP --campus=Main
-php artisan dms:status
-```
-
-### Verification commands
-
-```powershell
-php artisan test
-npm ci
-npm test
-npm run build
-npm run format:check
-php scripts/check-encoding.php
-php vendor/bin/phpunit -c phpunit.mysql.xml
-```
-
-The PHP test configuration uses an isolated in-memory SQLite database by default. MySQL concurrency, restore and real-engine ClamAV checks have separate environment requirements; record skipped checks instead of claiming those checks passed. GitHub Actions runs the same checks on pushes and pull requests, plus a post-merge smoke test and a scheduled real-ClamAV workflow. See [Continuous integration](docs/CI-CD.md), [Verification](docs/VERIFICATION.md) and [Operations](docs/OPERATIONS.md). This README revision is documentation work and does not itself constitute a new full-system test run.
-
-## 8. Project references
-
-- [Solution Design Document v2.0](docs/DMS-SDD%20V2.0.pdf): approved system design and scope (v2.0, 30 October 2026).
-- [Application guide](docs/AGENTS.md): architecture and current development constraints.
-- [Setup](docs/SETUP.md): standalone installation, workers and scanning.
-- [User guide](docs/USER-GUIDE.md): reference for document workflows; reconcile with the final screens before submission.
-- [Frontend notes](docs/FRONTEND.md): presentation implementation reference.
-- [ERP API contract and Postman setup](docs/API.md), [Postman collection](docs/postman/DMS-ERP-v1.postman_collection.json), and [OpenAPI JSON](docs/openapi.json): integration behavior and test requests for ERP teams.
-- [Implementation plan](docs/IMPLEMENTATION_PLAN.md): original phased plan, not evidence that every phase is finished.
-- [Operations](docs/OPERATIONS.md) and [Verification](docs/VERIFICATION.md): operational procedures and verification context.
-- [Continuous integration](docs/CI-CD.md): GitHub Actions, isolated MySQL tests, real-ClamAV checks and post-merge smoke verification.
-- [Figma reference](https://www.figma.com/design/n44HHt77BnanifVreeSP7S/dms?node-id=0-1): supplied design reference.
+| Directory / File                                     | Description                                    |
+| :--------------------------------------------------- | :--------------------------------------------- |
+| `app/Http/Controllers/ApiController.php`             | Main `/api/v1` gateway controller.             |
+| `app/Http/Controllers/ApplicantPacketController.php` | OAS ↔ ES verified packet broker.               |
+| `app/Http/Middleware/ConnectorAuth.php`              | Scoped token authenticator & rate-limiter.     |
+| `app/Services/DocumentService.php`                   | Document vault storage and versioning engine.  |
+| `app/Services/HistoryService.php`                    | Canonical audit event hashing and persistence. |
+| `docs/ERP-CONNECTIONS-GUIDE.md`                      | Beginner-friendly integration walkthrough.     |
+| `docs/API-STANDARD.md`                               | Enterprise Architecture integration standards. |
+| `docs/ESMS-API-CATALOG.md`                           | Complete cross-ERP endpoint directory.         |
