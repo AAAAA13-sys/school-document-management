@@ -537,7 +537,7 @@
 
         @foreach ($connectors as $connector)
             @php
-                $displayToken = $connector->plain_token ?: ('dms_dev_' . strtolower($connector->source) . '_token_2026');
+                $displayToken = $connector->plain_token ?? ('dms_dev_' . strtolower($connector->source) . '_token_2026');
             @endphp
             {{-- 1. Show Token Modal --}}
             <div class="modal fade" id="connector-token-{{ $connector->id }}" tabindex="-1" aria-labelledby="token-title-{{ $connector->id }}" aria-hidden="true">

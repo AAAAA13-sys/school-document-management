@@ -27,6 +27,7 @@ Route::prefix('v1')->middleware(['connector', 'throttle:connector'])->group(func
 
 // Root API connector routes (seamless compatibility with direct clients like Admission & ES)
 Route::middleware(['connector', 'throttle:connector'])->group(function () {
+    Route::post('/applicant-packets', [ApplicantPacketController::class, 'receive']);
     Route::get('/applicant-packets/{packet}', [ApplicantPacketController::class, 'show']);
     Route::get('/applicant-packets/{packet}/files/{version}', [ApplicantPacketController::class, 'download']);
     Route::post('/documents', [ApiController::class, 'upload']);
